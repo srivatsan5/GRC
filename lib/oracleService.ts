@@ -144,17 +144,21 @@ const handleApiError = (error: any, endpoint: string) => {
   }
 
   const isDeleteOrUpdate = endpoint.includes('DELETE') || endpoint.includes('PUT')
-  const isNetworkError = error.code === 'ERR_NETWORK' || (error.response && error.response.status === 0)
+  const isNetworkError = error.code === 'ERR_NETWORK' || error.code?.includes('ERR_') || (error.response?.status === 0)
   const is404 = error.response?.status === 404
+
+  // For DELETE/PUT operations, suppress all network-related errors silently
+  if (isDeleteOrUpdate && isNetworkError) {
+    return errorData
+  }
 
   if (error.response) {
     errorData.status = error.response.status
     errorData.statusText = error.response.statusText
     errorData.data = error.response.data
     
-    // Suppress 404s and network errors for DELETE/PUT (these are expected)
-    if (is404 || (isNetworkError && isDeleteOrUpdate)) {
-      // Silently suppress these expected errors
+    // Suppress 404s (expected for non-existent records)
+    if (is404) {
       return errorData
     }
     
@@ -164,12 +168,11 @@ const handleApiError = (error: any, endpoint: string) => {
     errorData.message = 'No response from server'
     errorData.code = error.code
     
-    // Suppress network errors for DELETE/PUT operations
-    if (isNetworkError && isDeleteOrUpdate) {
-      return errorData
+    // Network errors on DELETE/PUT are already suppressed above
+    // Only warn about unexpected request errors
+    if (!isDeleteOrUpdate) {
+      console.warn(`[OracleService Warning] ${endpoint}: No response from server`)
     }
-    
-    console.warn(`[OracleService Warning] ${endpoint}: No response from server`)
   } else {
     errorData.message = error.message
     

@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/'
 
@@ -7,7 +7,113 @@ export const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000, // 30 second timeout
 })
+
+/**
+ * Cache management for GET requests
+ */
+class RequestCache {
+  private cache = new Map<string, { data: any; timestamp: number }>()
+  private cacheTTL = 5 * 60 * 1000 // 5 minutes default
+
+  set(key: string, data: any, ttl?: number) {
+    this.cache.set(key, { data, timestamp: Date.now() })
+    if (ttl) {
+      setTimeout(() => this.cache.delete(key), ttl)
+    }
+  }
+
+  get(key: string): any | null {
+    const entry = this.cache.get(key)
+    if (!entry) return null
+    
+    const age = Date.now() - entry.timestamp
+    if (age > this.cacheTTL) {
+      this.cache.delete(key)
+      return null
+    }
+    
+    return entry.data
+  }
+
+  clear() {
+    this.cache.clear()
+  }
+
+  has(key: string): boolean {
+    return this.cache.has(key)
+  }
+}
+
+/**
+ * Request queue for managing concurrent requests
+ */
+class RequestQueue {
+  private queue: Array<() => Promise<any>> = []
+  private activeRequests = 0
+  private maxConcurrent = 10
+
+  async enqueue(request: () => Promise<any>): Promise<any> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await request()
+          resolve(result)
+        } catch (error) {
+          reject(error)
+        }
+      })
+      this.process()
+    })
+  }
+
+  private async process() {
+    if (this.activeRequests >= this.maxConcurrent || this.queue.length === 0) return
+
+    this.activeRequests++
+    const request = this.queue.shift()
+
+    try {
+      await request?.()
+    } finally {
+      this.activeRequests--
+      this.process()
+    }
+  }
+}
+
+/**
+ * Retry logic with exponential backoff
+ */
+const retryWithBackoff = async (
+  fn: () => Promise<any>,
+  maxAttempts = 3,
+  initialDelayMs = 500,
+  backoffFactor = 2
+): Promise<any> => {
+  let lastError: any
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn()
+    } catch (error: any) {
+      lastError = error
+      
+      // Don't retry on 4xx errors (client errors)
+      if (error.response?.status && error.response.status >= 400 && error.response.status < 500) {
+        throw error
+      }
+      
+      if (attempt < maxAttempts) {
+        const delay = initialDelayMs * Math.pow(backoffFactor, attempt - 1)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+  }
+  
+  throw lastError
+}
 
 /**
  * Normalizes ORDS response items.
@@ -26,72 +132,324 @@ const normalizeItems = (data: any) => {
   })
 }
 
+/**
+ * Error handler for API errors
+ */
+const handleApiError = (error: any, endpoint: string) => {
+  const errorData: any = {
+    endpoint,
+    timestamp: new Date().toISOString(),
+    message: 'API request failed',
+  }
+
+  if (error.response) {
+    errorData.status = error.response.status
+    errorData.statusText = error.response.statusText
+    errorData.data = error.response.data
+  } else if (error.request) {
+    errorData.message = 'No response from server'
+  } else {
+    errorData.message = error.message
+  }
+
+  console.error(`[OracleService Error] ${endpoint}:`, errorData)
+  return errorData
+}
+
+const requestCache = new RequestCache()
+const requestQueue = new RequestQueue()
+
 export const oracleService = {
-  // Generic Fetcher for React Query
-  fetch: async (resource: string, params = {}) => {
+  // Generic Fetcher for React Query with retry and caching
+  fetch: async (resource: string, params = {}, options: any = {}) => {
+    const cacheKey = `${resource}?${JSON.stringify(params)}`
+    
+    // Check cache first for GET requests
+    if (!options.skipCache) {
+      const cached = requestCache.get(cacheKey)
+      if (cached !== null) {
+        return cached
+      }
+    }
+
     try {
-      const res = await api.get(resource, { params })
-      return normalizeItems(res.data)
+      const result = await retryWithBackoff(async () => {
+        const res = await api.get(resource, { params })
+        return res.data
+      }, options.maxRetries || 3)
+
+      const normalized = normalizeItems(result)
+      
+      // Cache successful GET responses
+      if (!options.skipCache) {
+        requestCache.set(cacheKey, normalized, options.cacheTTL)
+      }
+
+      return normalized
     } catch (error: any) {
-      // Silently return empty array instead of throwing - prevents console errors
+      handleApiError(error, resource)
+      // Return empty array to prevent UI errors
       return []
     }
   },
 
   // Dashboard APIs
-  getDashboardSummary: () => oracleService.fetch('dashboard/summary'),
-  getRiskTrend: () => oracleService.fetch('dashboard/risk-trend'),
-  getRiskDistribution: () => oracleService.fetch('dashboard/risk-distribution'),
-  getRiskByCategory: () => oracleService.fetch('dashboard/risk-by-category'),
-  getRiskByProcess: () => oracleService.fetch('dashboard/risk-by-process'),
-  getControlEffectiveness: () => oracleService.fetch('dashboard/control-effectiveness'),
-  getMonitoringStatus: () => oracleService.fetch('dashboard/monitoring-status'),
+  getDashboardSummary: () => oracleService.fetch('dashboard/summary', {}, { cacheTTL: 2 * 60 * 1000 }), // 2 min cache
+  getRiskTrend: () => oracleService.fetch('dashboard/risk-trend', {}, { cacheTTL: 2 * 60 * 1000 }),
+  getRiskDistribution: () => oracleService.fetch('dashboard/risk-distribution', {}, { cacheTTL: 2 * 60 * 1000 }),
+  getRiskByCategory: () => oracleService.fetch('dashboard/risk-by-category', {}, { cacheTTL: 2 * 60 * 1000 }),
+  getRiskByProcess: () => oracleService.fetch('dashboard/risk-by-process', {}, { cacheTTL: 2 * 60 * 1000 }),
+  getControlEffectiveness: () => oracleService.fetch('dashboard/control-effectiveness', {}, { cacheTTL: 2 * 60 * 1000 }),
+  getMonitoringStatus: () => oracleService.fetch('dashboard/monitoring-status', {}, { cacheTTL: 2 * 60 * 1000 }),
 
   // Transactional APIs (CRUD)
   // Identify Risk
   getIdentifyRisks: (params = {}) => {
     return oracleService.fetch('per_trn_identify_risk', params)
   },
-  createIdentifyRisk: (data: any) => api.post('per_trn_identify_risk', data).then(r => r.data),
-  updateIdentifyRisk: (id: string | number, data: any) => api.put(`per_trn_identify_risk/${id}`, data).then(r => r.data),
-  deleteIdentifyRisk: (id: string | number) => api.delete(`per_trn_identify_risk/${id}`).then(r => r.data),
+  createIdentifyRisk: async (data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.post('per_trn_identify_risk', data)
+        // Invalidate cache after mutation
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, 'POST per_trn_identify_risk')
+      throw error
+    }
+  },
+  updateIdentifyRisk: async (id: string | number, data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.put(`per_trn_identify_risk/${id}`, data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `PUT per_trn_identify_risk/${id}`)
+      throw error
+    }
+  },
+  deleteIdentifyRisk: async (id: string | number) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.delete(`per_trn_identify_risk/${id}`)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `DELETE per_trn_identify_risk/${id}`)
+      throw error
+    }
+  },
 
   // Control Implementation
   getControlImplementations: () => oracleService.fetch('per_trn_control_implementation'),
-  createControlImplementation: (data: any) => api.post('per_trn_control_implementation', data).then(r => r.data),
-  updateControlImplementation: (id: string | number, data: any) => api.put(`per_trn_control_implementation/${id}`, data).then(r => r.data),
-  deleteControlImplementation: (id: string | number) => api.delete(`per_trn_control_implementation/${id}`).then(r => r.data),
+  createControlImplementation: async (data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.post('per_trn_control_implementation', data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, 'POST per_trn_control_implementation')
+      throw error
+    }
+  },
+  updateControlImplementation: async (id: string | number, data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.put(`per_trn_control_implementation/${id}`, data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `PUT per_trn_control_implementation/${id}`)
+      throw error
+    }
+  },
+  deleteControlImplementation: async (id: string | number) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.delete(`per_trn_control_implementation/${id}`)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `DELETE per_trn_control_implementation/${id}`)
+      throw error
+    }
+  },
 
   // Inherent/Residual Assessments
   getRiskAssessments: () => oracleService.fetch('risk-assessments'),
-  createRiskAssessment: (data: any) => api.post('risk-assessments', data).then(r => r.data),
-  updateRiskAssessment: (id: string | number, data: any) => api.put(`risk-assessments/${id}`, data).then(r => r.data),
-  deleteRiskAssessment: (id: string | number) => api.delete(`risk-assessments/${id}`).then(r => r.data),
+  createRiskAssessment: async (data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.post('risk-assessments', data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, 'POST risk-assessments')
+      throw error
+    }
+  },
+  updateRiskAssessment: async (id: string | number, data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.put(`risk-assessments/${id}`, data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `PUT risk-assessments/${id}`)
+      throw error
+    }
+  },
+  deleteRiskAssessment: async (id: string | number) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.delete(`risk-assessments/${id}`)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `DELETE risk-assessments/${id}`)
+      throw error
+    }
+  },
 
   // Mitigation Plans
   getMitigationPlans: () => oracleService.fetch('mitigation-plans'),
-  createMitigationPlan: (data: any) => api.post('mitigation-plans', data).then(r => r.data),
-  updateMitigationPlan: (id: string | number, data: any) => api.put(`mitigation-plans/${id}`, data).then(r => r.data),
-  deleteMitigationPlan: (id: string | number) => api.delete(`mitigation-plans/${id}`).then(r => r.data),
+  createMitigationPlan: async (data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.post('mitigation-plans', data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, 'POST mitigation-plans')
+      throw error
+    }
+  },
+  updateMitigationPlan: async (id: string | number, data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.put(`mitigation-plans/${id}`, data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `PUT mitigation-plans/${id}`)
+      throw error
+    }
+  },
+  deleteMitigationPlan: async (id: string | number) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.delete(`mitigation-plans/${id}`)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `DELETE mitigation-plans/${id}`)
+      throw error
+    }
+  },
 
   // Risk Monitoring
   getRiskMonitoring: () => oracleService.fetch('per_trn_risk_monitoring'),
-  createRiskMonitoring: (data: any) => api.post('per_trn_risk_monitoring', data).then(r => r.data),
-  updateRiskMonitoring: (id: string | number, data: any) => api.put(`per_trn_risk_monitoring/${id}`, data).then(r => r.data),
-  deleteRiskMonitoring: (id: string | number) => api.delete(`per_trn_risk_monitoring/${id}`).then(r => r.data),
+  createRiskMonitoring: async (data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.post('per_trn_risk_monitoring', data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, 'POST per_trn_risk_monitoring')
+      throw error
+    }
+  },
+  updateRiskMonitoring: async (id: string | number, data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.put(`per_trn_risk_monitoring/${id}`, data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `PUT per_trn_risk_monitoring/${id}`)
+      throw error
+    }
+  },
+  deleteRiskMonitoring: async (id: string | number) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.delete(`per_trn_risk_monitoring/${id}`)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `DELETE per_trn_risk_monitoring/${id}`)
+      throw error
+    }
+  },
 
-  // Master Table APIs
-  getBusinessProcesses: () => oracleService.fetch('per_mst_business_process'),
-  getControlFrequencies: () => oracleService.fetch('control-frequency'),
-  getControlTypes: () => oracleService.fetch('per_mst_control_type'),
-  getImpactLevels: () => oracleService.fetch('impact'),
-  getLikelihoodLevels: () => oracleService.fetch('likelihood'),
-  getRiskCategories: () => oracleService.fetch('per_mst_risk_category'),
-  getRiskSubcategories: () => oracleService.fetch('risk-subcategories'),
+  // Master Table APIs (with longer cache since they change infrequently)
+  getBusinessProcesses: () => oracleService.fetch('per_mst_business_process', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getControlFrequencies: () => oracleService.fetch('control-frequency', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getControlTypes: () => oracleService.fetch('per_mst_control_type', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getImpactLevels: () => oracleService.fetch('impact', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getLikelihoodLevels: () => oracleService.fetch('likelihood', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getRiskCategories: () => oracleService.fetch('per_mst_risk_category', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getRiskSubcategories: () => oracleService.fetch('risk-subcategories', {}, { cacheTTL: 10 * 60 * 1000 }),
 
-  // KRI (Key Risk Indicator) APIs
-  getKriMatrix: () => oracleService.fetch('kri-matrix'),
-  getKriConfiguration: () => oracleService.fetch('kri-configuration'),
+  // KRI (Key Risk Indicator) APIs (with moderate cache)
+  getKriMatrix: () => oracleService.fetch('kri-matrix', {}, { cacheTTL: 5 * 60 * 1000 }),
+  getKriConfiguration: () => oracleService.fetch('kri-configuration', {}, { cacheTTL: 5 * 60 * 1000 }),
+
+  // Assessment APIs (Appetite, Access, Controls, Residual)
+  getAppetiteFramework: () => oracleService.fetch('appetite/framework', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getAppetiteRiskAppetite: () => oracleService.fetch('appetite/risk-appetite', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getAssessmentsAccess: () => oracleService.fetch('assessments/access', {}, { cacheTTL: 5 * 60 * 1000 }),
+  getAssessmentsControls: () => oracleService.fetch('assessments/controls', {}, { cacheTTL: 5 * 60 * 1000 }),
+  updateControlAssessment: async (id: string | number, data: any) => {
+    try {
+      return await retryWithBackoff(async () => {
+        const res = await api.put(`assessments/controls/${id}`, data)
+        requestCache.clear()
+        return res.data
+      }, 3)
+    } catch (error: any) {
+      handleApiError(error, `PUT assessments/controls/${id}`)
+      throw error
+    }
+  },
+  getAssessmentsResidual: () => oracleService.fetch('assessments/residual', {}, { cacheTTL: 5 * 60 * 1000 }),
+
+  // Asset Management and Audit APIs
+  getAssets: () => oracleService.fetch('assets', {}, { cacheTTL: 10 * 60 * 1000 }),
+  getAuditTrail: (params = {}) => oracleService.fetch('audit-trail', params),
+
+  // Monitoring Action Plans
+  getMonitoringActionPlan: () => oracleService.fetch('monitoring/action-plan', {}, { cacheTTL: 5 * 60 * 1000 }),
+  getMonitoringActionsHierarchy: () => oracleService.fetch('monitoring/actions-hierarchy', {}, { cacheTTL: 5 * 60 * 1000 }),
+
+  // Reports API
+  getReports: (params = {}) => oracleService.fetch('reports', params),
+
+  // Utility functions
+  clearCache: () => requestCache.clear(),
+  getCacheStats: () => ({
+    timestamp: new Date().toISOString(),
+    message: 'Cache cleared. Next requests will be fresh from server.',
+  }),
 
   // Compatibility Helpers
   getRiskAssessmentsList: () => oracleService.getIdentifyRisks(),

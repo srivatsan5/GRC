@@ -41,13 +41,13 @@ const assessmentSchema = z.object({
 
 type AssessmentFormValues = z.infer<typeof assessmentSchema>
 
-import { useSearchParams } from 'next/navigation'
+// Avoid using useSearchParams inside Suspense-prone boundaries.
+// We'll read the query param directly from the window location on the client.
 
 export function AssessmentsinherentPage() {
   const { toast } = useToast()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const riskId = searchParams.get('riskId')
+  const riskId: string | null = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('riskId') : null
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [initialLoading, setInitialLoading] = useState(!!riskId)

@@ -134,6 +134,7 @@ const normalizeItems = (data: any) => {
 
 /**
  * Error handler for API errors
+ * Suppresses 404 errors (common for delete/update operations on non-existent records)
  */
 const handleApiError = (error: any, endpoint: string) => {
   const errorData: any = {
@@ -146,13 +147,19 @@ const handleApiError = (error: any, endpoint: string) => {
     errorData.status = error.response.status
     errorData.statusText = error.response.statusText
     errorData.data = error.response.data
+    
+    // Only log errors that aren't 404 (404s are expected for delete/update operations)
+    if (error.response.status !== 404) {
+      console.error(`[OracleService Error] ${endpoint}:`, errorData)
+    }
   } else if (error.request) {
     errorData.message = 'No response from server'
+    console.warn(`[OracleService Warning] ${endpoint}: No response from server`)
   } else {
     errorData.message = error.message
+    console.warn(`[OracleService Warning] ${endpoint}:`, errorData)
   }
 
-  console.error(`[OracleService Error] ${endpoint}:`, errorData)
   return errorData
 }
 

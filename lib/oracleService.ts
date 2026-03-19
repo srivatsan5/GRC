@@ -134,7 +134,7 @@ const normalizeItems = (data: any) => {
 
 /**
  * Error handler for API errors
- * Suppresses 404 errors (common for delete/update operations on non-existent records)
+ * Suppresses expected errors: 404s and network errors for DELETE/PUT operations
  */
 const handleApiError = (error: any, endpoint: string) => {
   const errorData: any = {
@@ -143,21 +143,40 @@ const handleApiError = (error: any, endpoint: string) => {
     message: 'API request failed',
   }
 
+  const isDeleteOrUpdate = endpoint.includes('DELETE') || endpoint.includes('PUT')
+  const isNetworkError = error.code === 'ERR_NETWORK' || (error.response && error.response.status === 0)
+  const is404 = error.response?.status === 404
+
   if (error.response) {
     errorData.status = error.response.status
     errorData.statusText = error.response.statusText
     errorData.data = error.response.data
     
-    // Only log errors that aren't 404 (404s are expected for delete/update operations)
-    if (error.response.status !== 404) {
-      console.error(`[OracleService Error] ${endpoint}:`, errorData)
+    // Suppress 404s and network errors for DELETE/PUT (these are expected)
+    if (is404 || (isNetworkError && isDeleteOrUpdate)) {
+      // Silently suppress these expected errors
+      return errorData
     }
+    
+    // Log real errors (5xx, 4xx except 404, etc.)
+    console.error(`[OracleService Error] ${endpoint}:`, errorData)
   } else if (error.request) {
     errorData.message = 'No response from server'
+    errorData.code = error.code
+    
+    // Suppress network errors for DELETE/PUT operations
+    if (isNetworkError && isDeleteOrUpdate) {
+      return errorData
+    }
+    
     console.warn(`[OracleService Warning] ${endpoint}: No response from server`)
   } else {
     errorData.message = error.message
-    console.warn(`[OracleService Warning] ${endpoint}:`, errorData)
+    
+    // Only warn about unexpected errors
+    if (!isDeleteOrUpdate) {
+      console.warn(`[OracleService Warning] ${endpoint}:`, errorData)
+    }
   }
 
   return errorData

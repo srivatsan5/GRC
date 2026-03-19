@@ -194,13 +194,56 @@ export const oracleService = {
   },
 
   // Dashboard APIs
-  getDashboardSummary: () => oracleService.fetch('dashboard/summary', {}, { cacheTTL: 2 * 60 * 1000 }), // 2 min cache
-  getRiskTrend: () => oracleService.fetch('dashboard/risk-trend', {}, { cacheTTL: 2 * 60 * 1000 }),
-  getRiskDistribution: () => oracleService.fetch('dashboard/risk-distribution', {}, { cacheTTL: 2 * 60 * 1000 }),
-  getRiskByCategory: () => oracleService.fetch('dashboard/risk-by-category', {}, { cacheTTL: 2 * 60 * 1000 }),
-  getRiskByProcess: () => oracleService.fetch('dashboard/risk-by-process', {}, { cacheTTL: 2 * 60 * 1000 }),
-  getControlEffectiveness: () => oracleService.fetch('dashboard/control-effectiveness', {}, { cacheTTL: 2 * 60 * 1000 }),
-  getMonitoringStatus: () => oracleService.fetch('dashboard/monitoring-status', {}, { cacheTTL: 2 * 60 * 1000 }),
+  // Note: These endpoints return cached empty arrays if the database views don't exist
+  getDashboardSummary: async () => {
+    try {
+      return await oracleService.fetch('dashboard/summary', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return { summary: 'Not available', data: [] }
+    }
+  },
+  getRiskTrend: async () => {
+    try {
+      return await oracleService.fetch('dashboard/risk-trend', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return []
+    }
+  },
+  getRiskDistribution: async () => {
+    try {
+      return await oracleService.fetch('dashboard/risk-distribution', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return []
+    }
+  },
+  getRiskByCategory: async () => {
+    try {
+      return await oracleService.fetch('dashboard/risk-by-category', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return []
+    }
+  },
+  getRiskByProcess: async () => {
+    try {
+      return await oracleService.fetch('dashboard/risk-by-process', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return []
+    }
+  },
+  getControlEffectiveness: async () => {
+    try {
+      return await oracleService.fetch('dashboard/control-effectiveness', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return []
+    }
+  },
+  getMonitoringStatus: async () => {
+    try {
+      return await oracleService.fetch('dashboard/monitoring-status', {}, { cacheTTL: 2 * 60 * 1000 })
+    } catch {
+      return []
+    }
+  },
 
   // Transactional APIs (CRUD)
   // Identify Risk

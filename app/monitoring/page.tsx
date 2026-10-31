@@ -1,12 +1,12 @@
 'use client'
 
-import { AppLayout } from '@/components/app-layout'
-import { MonitoringPage } from '@/components/pages/monitoring'
+import { PericopeLayout } from '@/components/pericope-layout'
+import { RiskMonitoringPage } from '@/components/pages/risk-monitoring'
 
 export default function MonitoringRoute() {
   return (
-    <AppLayout>
-      <MonitoringPage />
-    </AppLayout>
+    <PericopeLayout>
+      <RiskMonitoringPage />
+    </PericopeLayout>
   )
 }

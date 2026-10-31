@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "surface-container": "#eaedff",
+                "primary-container": "#4f46e5",
+                "secondary-container": "#b6b4ff",
+                "on-background": "#131b2e",
+                "tertiary": "#7e3000",
+                "on-primary-container": "#dad7ff",
+                "on-secondary-container": "#454386",
+                "on-error": "#ffffff",
+                "primary-fixed": "#e2dfff",
+                "primary": "#3525cd",
+                "error": "#ba1a1a",
+                "inverse-primary": "#c3c0ff",
+                "surface-bright": "#faf8ff",
+                "surface-container-high": "#e2e7ff",
+                "on-surface-variant": "#464555",
+                "on-secondary": "#ffffff",
+                "on-primary-fixed-variant": "#3323cc",
+                "on-primary": "#ffffff",
+                "on-tertiary-fixed": "#351000",
+                "secondary-fixed": "#e2dfff",
+                "surface-tint": "#4d44e3",
+                "surface-dim": "#d2d9f4",
+                "outline": "#777587",
+                "on-tertiary": "#ffffff",
+                "on-error-container": "#93000a",
+                "primary-fixed-dim": "#c3c0ff",
+                "secondary-fixed-dim": "#c3c0ff",
+                "background": "#faf8ff",
+                "surface-variant": "#dae2fd",
+                "tertiary-container": "#a44100",
+                "tertiary-fixed": "#ffdbcc",
+                "on-secondary-fixed": "#140f54",
+                "on-secondary-fixed-variant": "#413f82",
+                "on-tertiary-fixed-variant": "#7b2f00",
+                "surface": "#faf8ff",
+                "inverse-on-surface": "#eef0ff",
+                "tertiary-fixed-dim": "#ffb695",
+                "surface-container-highest": "#dae2fd",
+                "on-tertiary-container": "#ffd2be",
+                "error-container": "#ffdad6",
+                "inverse-surface": "#283044",
+                "on-primary-fixed": "#0f0069",
+                "on-surface": "#131b2e",
+                "outline-variant": "#c7c4d8",
+                "surface-container-lowest": "#ffffff",
+                "surface-container-low": "#f2f3ff",
+                "secondary": "#58579b"
+              },
+              fontFamily: {
+                "headline": ["Manrope"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+              },
+              borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background selection:bg-primary-container selection:text-on-primary-container">
+<!-- Navigation Drawer -->
+<aside class="h-screen w-72 fixed left-0 top-0 z-50 bg-slate-50 dark:bg-slate-900 flex flex-col p-4 gap-2 transition-all ease-in-out hidden md:flex">
+<div class="mb-8 px-4 py-2">
+<h1 class="font-manrope font-black text-indigo-800 dark:text-indigo-300 text-2xl tracking-tight">ERM Cloud</h1>
+</div>
+<div class="flex items-center gap-3 px-4 py-6 mb-4">
+<img alt="Manager Avatar" class="w-10 h-10 rounded-full object-cover" data-alt="Professional portrait of a male risk manager in a blue suit with soft office lighting background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxGi4cmzQQcb_4EDNzEkIF_1q5-CWg5qOpRyjhTUVYhACuvk5cajbucRJumUHi1j4Aag3dmHjxCvj5HsF5yyPxLtEk0SArebyfZKpgZCfQ2gP_fWtPvsgLHFRAaezD4fyTTA1vEv1A_SAh_wnfYzRVm4EFHOm7yMid0eHUcKcBqP36z-mWm2DCrl7cl-BmU70RTebzi8o0pfbH9pW5ipck9j89CQkILHC-2ITBhgPOuPlklKlyEPVCJ1jXnC8ljlGdW5pMEhBZwPwF"/>
+<div>
+<p class="font-inter text-sm font-bold text-on-background">Alex Rivera</p>
+<p class="text-xs text-on-surface-variant">Enterprise Risk Manager</p>
+</div>
+</div>
+<nav class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-medium text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+<span class="font-medium text-sm">Risk Identification</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+<span class="font-medium text-sm">Risk Mitigation</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-300 font-bold shadow-sm rounded-lg transition-all duration-200 hover:translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-medium text-sm">Risk Monitoring</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Area -->
+<main class="md:ml-72 min-h-screen">
+<!-- Top App Bar -->
+<header class="fixed top-0 right-0 left-0 md:left-72 z-40 h-16 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md flex items-center justify-between px-8 shadow-sm dark:shadow-none">
+<div class="flex items-center gap-4">
+<button class="md:hidden text-indigo-700">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h2 class="font-manrope font-bold text-on-background text-lg">Risk Monitoring - Action Plans</h2>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-indigo-50 transition-colors">
+<span class="material-symbols-outlined text-indigo-700" data-icon="notifications">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-xs">
+                    AR
+                </div>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="pt-24 pb-12 px-8 max-w-7xl mx-auto space-y-8">
+<!-- Filter & Utility Area -->
+<section class="bg-surface-container-lowest rounded-full p-2 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4 border border-outline-variant/20">
+<div class="flex flex-wrap items-center gap-2 p-1">
+<!-- Toggle Group: Department -->
+<div class="flex bg-surface-container-low p-1 rounded-xl">
+<button class="px-4 py-2 rounded-lg bg-white shadow-sm text-sm font-semibold text-primary">All Departments</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">IT &amp; Security</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">Finance</button>
+</div>
+<!-- Divider -->
+<div class="w-px h-8 bg-outline-variant/30 mx-2"></div>
+<!-- Toggle Group: Status -->
+<div class="flex bg-surface-container-low p-1 rounded-xl">
+<button class="px-4 py-2 rounded-lg bg-white shadow-sm text-sm font-semibold text-primary">All Status</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">On Track</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">Delayed</button>
+</div>
+</div>
+<div class="flex items-center gap-3 px-4">
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-lg" data-icon="calendar_today">calendar_today</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-xl text-sm font-medium text-on-surface focus:ring-2 focus:ring-primary transition-all w-48" type="text" value="Oct 01 - Dec 31, 2023"/>
+</div>
+<button class="flex items-center gap-2 px-6 py-2.5 bg-surface-container-high text-primary rounded-xl font-bold text-sm hover:bg-secondary-container/30 transition-all active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="download">download</span>
+                        Export Report
+                    </button>
+</div>
+</section>
+<!-- Data Table Section -->
+<section class="bg-surface-container-lowest rounded-full overflow-hidden border border-outline-variant/10 shadow-sm">
+<div class="overflow-x-auto">
+<table class="w-full border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50">
+<th class="text-left px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Action Title</th>
+<th class="text-left px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Associated Risk</th>
+<th class="text-left px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Owner</th>
+<th class="text-left px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Due Date</th>
+<th class="text-left px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Status</th>
+<th class="text-left px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Priority</th>
+<th class="text-center px-6 py-5 font-label text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Row 1 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<p class="text-sm font-semibold text-on-background">Cloud Infrastructure Audit</p>
+<p class="text-[11px] text-on-surface-variant mt-0.5">Q4 Compliance Cycle</p>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                                        Data Breach
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">SM</div>
+<span class="text-sm text-on-surface">Sarah Miller</span>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-on-surface">Nov 15, 2023</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600 mr-2"></span>
+                                        On Track
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs font-bold text-tertiary">HIGH</span>
+</td>
+<td class="px-6 py-5 text-center">
+<button class="p-1.5 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<p class="text-sm font-semibold text-on-background">DLP Policy Update</p>
+<p class="text-[11px] text-on-surface-variant mt-0.5">Policy Refresh</p>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                                        Intellectual Property Loss
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">DW</div>
+<span class="text-sm text-on-surface">David Wong</span>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-on-surface">Oct 28, 2023</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
+<span class="w-1.5 h-1.5 rounded-full bg-red-600 mr-2"></span>
+                                        Delayed
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs font-bold text-on-surface-variant">MEDIUM</span>
+</td>
+<td class="px-6 py-5 text-center">
+<button class="p-1.5 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<p class="text-sm font-semibold text-on-background">Third Party Risk Review</p>
+<p class="text-[11px] text-on-surface-variant mt-0.5">Vendor Management</p>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                                        Supply Chain Disruption
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">EK</div>
+<span class="text-sm text-on-surface">Elena Kovic</span>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-on-surface">Dec 05, 2023</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-600 mr-2"></span>
+                                        At Risk
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs font-bold text-tertiary">HIGH</span>
+</td>
+<td class="px-6 py-5 text-center">
+<button class="p-1.5 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<p class="text-sm font-semibold text-on-background">DR Testing - Singapore Hub</p>
+<p class="text-[11px] text-on-surface-variant mt-0.5">Resilience Testing</p>
+</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                                        Operational Failure
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[10px] font-bold">JC</div>
+<span class="text-sm text-on-surface">James Chen</span>
+</div>
+</td>
+<td class="px-6 py-5 text-sm text-on-surface">Nov 22, 2023</td>
+<td class="px-6 py-5">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+<span class="w-1.5 h-1.5 rounded-full bg-green-600 mr-2"></span>
+                                        On Track
+                                    </span>
+</td>
+<td class="px-6 py-5">
+<span class="text-xs font-bold text-on-surface-variant">LOW</span>
+</td>
+<td class="px-6 py-5 text-center">
+<button class="p-1.5 rounded-lg hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined text-lg" data-icon="more_vert">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="px-6 py-4 bg-surface-container-low/50 flex items-center justify-between border-t border-outline-variant/10">
+<p class="text-xs font-medium text-on-surface-variant">Showing 4 of 28 action plans</p>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded hover:bg-white text-on-surface-variant disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded bg-primary text-white text-xs font-bold">1</button>
+<button class="w-8 h-8 rounded hover:bg-white text-on-surface text-xs font-medium transition-colors">2</button>
+<button class="w-8 h-8 rounded hover:bg-white text-on-surface text-xs font-medium transition-colors">3</button>
+<button class="p-1 rounded hover:bg-white text-on-surface-variant">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Bottom Insight Grid -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-surface-container-low p-6 rounded-full border border-outline-variant/5">
+<h3 class="font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Mitigation Efficiency</h3>
+<div class="flex items-end gap-2">
+<span class="text-3xl font-bold text-primary font-headline">84%</span>
+<span class="text-green-600 text-xs font-bold mb-1 flex items-center">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_upward">arrow_upward</span> 12%
+                        </span>
+</div>
+<p class="text-xs text-on-surface-variant mt-2 italic">Based on q3 resolution speed vs q4</p>
+</div>
+<div class="bg-surface-container-low p-6 rounded-full border border-outline-variant/5">
+<h3 class="font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">At Risk Items</h3>
+<div class="flex items-end gap-2">
+<span class="text-3xl font-bold text-tertiary font-headline">03</span>
+<span class="text-on-surface-variant text-xs font-medium mb-1">Items pending</span>
+</div>
+<p class="text-xs text-on-surface-variant mt-2 italic">Priority focus required for IP Loss risks</p>
+</div>
+<div class="bg-surface-container-low p-6 rounded-full border border-outline-variant/5 relative overflow-hidden">
+<div class="relative z-10">
+<h3 class="font-label text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">Action Summary</h3>
+<div class="flex items-center gap-4">
+<div class="flex-1 h-2 bg-white rounded-full overflow-hidden flex">
+<div class="w-[60%] bg-green-500"></div>
+<div class="w-[25%] bg-amber-500"></div>
+<div class="w-[15%] bg-red-500"></div>
+</div>
+</div>
+<div class="flex justify-between mt-2 text-[10px] font-bold text-on-surface-variant uppercase">
+<span>Track</span>
+<span>Risk</span>
+<span>Delay</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Contextual FAB (Only for main tracking dashboard) -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-150 z-50">
+<span class="material-symbols-outlined text-2xl" data-icon="add" data-weight="fill" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+</body></html>

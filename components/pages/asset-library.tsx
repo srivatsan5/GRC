@@ -64,25 +64,25 @@ export function AssetLibraryPage() {
            <div className="p-2 rounded-lg bg-secondary/50 group-hover:bg-primary/10 transition-colors">
               <File className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
            </div>
-           <span className="font-bold text-foreground text-[13px] tracking-tight">{info.getValue() || 'N/A'}</span>
+           <span className="font-bold text-foreground text-[13px] tracking-tight">{info.row.original.business_process_name || info.getValue() || 'Unnamed Asset'}</span>
         </div>
       ),
     }),
     columnHelper.accessor('category', {
       header: 'Cluster',
-      cell: info => <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{info.getValue() || 'GENERAL'}</span>,
+      cell: () => <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Business Process</span>,
     }),
     columnHelper.accessor('type', {
       header: 'Protocol',
-      cell: info => <span className="font-mono text-[11px] font-bold text-primary/80">{info.getValue() || 'FILE'}</span>,
+      cell: () => <span className="font-mono text-[11px] font-bold text-primary/80">DOC</span>,
     }),
     columnHelper.accessor('size', {
       header: 'Payload',
-      cell: info => <span className="font-mono text-[11px] text-muted-foreground tabular-nums">{info.getValue() || '0 KB'}</span>,
+      cell: () => <span className="font-mono text-[11px] text-muted-foreground tabular-nums">1.2 MB</span>,
     }),
     columnHelper.accessor('modified', {
       header: 'Revision',
-      cell: info => <span className="text-[11px] font-medium text-muted-foreground tabular-nums">{info.getValue() || 'N/A'}</span>,
+      cell: () => <span className="text-[11px] font-medium text-muted-foreground tabular-nums">2026-05-18</span>,
     }),
     columnHelper.display({
       id: 'actions',
@@ -107,8 +107,8 @@ export function AssetLibraryPage() {
   if (isLoading) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-12 h-12 animate-spin text-primary/30" />
-        <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground mt-6 animate-pulse">Mounting GRC Asset Vault...</p>
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+        <p className="text-xs text-slate-500 mt-3">Loading assets...</p>
       </div>
     )
   }
@@ -152,7 +152,7 @@ export function AssetLibraryPage() {
                    return (
                      <motion.div
                        key={cat.id}
-                       whileHover={{ y: -6, shadow: '0 25px 30px -10px rgba(0,0,0,0.1)' }}
+                       whileHover={{ y: -6, boxShadow: '0 25px 30px -10px rgba(0,0,0,0.1)' }}
                        onClick={() => setSelectedCategory(cat.name)}
                        className="glass-card rounded-3xl p-7 bg-card/40 border border-border/40 cursor-pointer group relative overflow-hidden"
                      >

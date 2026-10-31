@@ -23,6 +23,7 @@ import { motion } from 'framer-motion'
 import { oracleService } from '@/lib/oracleService'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { recordAudit } from '@/lib/auditLog'
 
 // 1. Validation Schema
 const assessmentSchema = z.object({
@@ -82,7 +83,7 @@ export function AssessmentsinherentPage() {
           if (risk) {
             if (risk.risk_category) setValue('RISK_CATEGORY', risk.risk_category)
             if (risk.risk_statement) setValue('ROOT_CAUSE', risk.risk_statement)
-            if (risk.hierarchy_name) setValue('OWNERS', risk.hierarchy_name)
+            if (risk.risk_owner) setValue('OWNERS', risk.risk_owner)
           }
         } catch (error) {
           console.error('[InherentAssessment] Context load failed:', error)
@@ -98,32 +99,53 @@ export function AssessmentsinherentPage() {
   const onSubmit = async (data: AssessmentFormValues) => {
     setIsSubmitting(true)
     try {
-      // Mapping logic for ORDS backend
+      const likelihoodVal = Number(data.LIKELIHOOD?.charAt(0)) || 1
+      const impactVal = data.IMPACT_CATEGORY === 'Financial' ? 4 : data.IMPACT_CATEGORY === 'Operational' ? 3 : 2
+
       const submissionData = {
-        ...data,
-        RISK_CATEGORY_UUID: 1, 
-        SUB_CATEGORY_UUID: 1,
-        LIKELIHOOD_UUID: data.LIKELIHOOD.includes('1') ? 24 : 
-                        data.LIKELIHOOD.includes('2') ? 24 :
-                        data.LIKELIHOOD.includes('3') ? 25 : 26,
-        IMPACT_UUID: data.IMPACT_CATEGORY === 'Financial' ? 26 : 24,
-        CYCLE_UUID: 2026,
-        IDENTIFY_RISK_UUID: riskId || 1121
+        risk_statement: data.ROOT_CAUSE,
+        risk_type: data.RISK_CATEGORY,
+        sub_process_name: data.SUB_CATEGORY,
+        risk_owner: data.OWNERS,
+        process_name: data.CURRENT_CYCLE,
+        inherent_sle: likelihoodVal * impactVal * 10000,
+        is_stage_complted: 'N',
+        approval_status: 'DRAFT',
+        status: 'N',
       }
 
-      await oracleService.createRiskAssessment(submissionData)
-      
-      toast({
-        title: 'Assessment Captured',
-        description: 'Inherent risk parameters synchronized with Oracle ADW.',
+      // Race the network call against a 10s timeout so the button never hangs forever.
+      const result = await Promise.race([
+        oracleService.createRiskAssessment(submissionData),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000)),
+      ]).catch(err => { throw err })
+
+      recordAudit({
+        action: 'CREATE',
+        entity: 'Inherent Risk Assessment',
+        entity_id: (result as any)?.uuid || (result as any)?.id || riskId || 'new',
+        description: `Saved inherent assessment for ${data.RISK_CATEGORY}/${data.SUB_CATEGORY}`,
+        after: submissionData,
+        result: 'SUCCESS',
       })
-      
-      setTimeout(() => router.back(), 1200)
-    } catch (error) {
-      console.error('[InherentAssessment] Save failed:', error)
+
       toast({
-        title: 'Compute Error',
-        description: 'Failed to persist assessment data. Connectivity issue detected.',
+        title: 'Assessment saved',
+        description: 'Inherent risk parameters recorded.',
+      })
+
+      setTimeout(() => router.back(), 800)
+    } catch (error: any) {
+      console.error('[InherentAssessment] Save failed:', error)
+      recordAudit({
+        action: 'CREATE',
+        entity: 'Inherent Risk Assessment',
+        description: `Failed to save inherent assessment — ${error?.message || 'unknown error'}`,
+        result: 'FAILURE',
+      })
+      toast({
+        title: 'Save failed',
+        description: error?.message || 'Could not save the assessment. Please retry.',
         variant: 'destructive',
       })
     } finally {
@@ -309,17 +331,17 @@ export function AssessmentsinherentPage() {
             <StaggerItem>
               <div className="flex items-center justify-between p-6 bg-secondary/20 rounded-2xl border border-secondary/30">
                 <div className="flex flex-col">
-                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Persistence Engine</span>
-                   <span className="text-[11px] font-bold text-emerald-500">Linked to Oracle Autonomous DB</span>
+                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Save Assessment</span>
+                   <span className="text-[11px] font-bold text-emerald-500">Linked to risk register</span>
                 </div>
-                <Button 
-                  type="submit" 
-                  size="lg" 
+                <Button
+                  type="submit"
+                  size="lg"
                   disabled={isSubmitting}
                   className="rounded-full px-12 h-14 font-black uppercase tracking-widest shadow-xl hover:brightness-110 active:scale-95 transition-all gap-4 bg-primary"
                 >
                   {isSubmitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-                  {isSubmitting ? 'Syncing...' : 'Persist Assessment'}
+                  {isSubmitting ? 'Saving…' : 'Save Assessment'}
                 </Button>
               </div>
             </StaggerItem>

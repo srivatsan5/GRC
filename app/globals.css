@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -33,97 +32,64 @@
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 2px);
   
-  --font-sans: 'Geist', 'Geist Fallback', -apple-system, system-ui, sans-serif;
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback', ui-monospace, monospace;
+  --font-sans: var(--font-inter), 'Inter', sans-serif;
+  --font-mono: ui-monospace, monospace;
 }
 
+/* Azure Pericope: High-Fidelity White & Blue Tint Design System */
 :root {
-  /* LIGHT MODE - Ultra clean white/zinc aesthetic */
   --background: #ffffff;
-  --foreground: #09090b;       /* Zinc 950 */
-  
-  --card: #ffffff;
-  --card-foreground: #09090b;
-  
-  --popover: #ffffff;
-  --popover-foreground: #09090b;
-  
-  --primary: #18181b;          /* Zinc 900 */
-  --primary-foreground: #fafafa;
-  
-  --secondary: #f4f4f5;        /* Zinc 100 */
-  --secondary-foreground: #18181b;
-  
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;  /* Zinc 500 */
-  
-  --accent: #f4f4f5;
-  --accent-foreground: #18181b;
-  
-  --destructive: #ef4444;      /* Red 500 */
-  --destructive-foreground: #fafafa;
-  
-  --border: #e4e4e7;           /* Zinc 200 */
-  --input: #e4e4e7;
-  --ring: #18181b;             /* Zinc 900 */
-  
-  --sidebar: #fafafa;          /* Zinc 50 */
-  --sidebar-foreground: #09090b;
-  --sidebar-border: #e4e4e7;
-  --sidebar-accent: #f4f4f5;
-  
-  --radius: 0.5rem;            /* 8px for slightly softer but still engineered look */
-  
-  /* Status Colors */
-  --success: #10b981;
-  --warning: #f59e0b;
-  --info: #3b82f6;
-  
-  /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
-  --shadow-md: 0 4px 12px -2px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.05);
-  --shadow-lg: 0 12px 32px -4px rgba(0,0,0,0.08), 0 4px 12px -4px rgba(0,0,0,0.04);
+  --foreground: #1e40af;
+
+  --card: rgba(255, 255, 255, 0.7);
+  --card-foreground: #1e40af;
+
+  --popover: rgba(255, 255, 255, 0.9);
+  --popover-foreground: #1e40af;
+
+  --primary: #2563eb; /* Royal Blue 600 */
+  --primary-foreground: #ffffff;
+
+  --secondary: #eff6ff;
+  --secondary-foreground: #1e40af;
+
+  --muted: #f8fafc;
+  --muted-foreground: #6b8db5;
+
+  --accent: #f1f5f9;
+  --accent-foreground: #1e40af;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --border: rgba(226, 232, 240, 0.6);
+  --input: rgba(241, 245, 249, 0.5);
+  --ring: rgba(37, 99, 235, 0.2);
+
+  --radius: 1.25rem;
 }
 
+/* Dark mode forced to light */
 .dark {
-  /* DARK MODE - Deep, rich, ring-shaded aesthetic */
-  --background: #09090b;       /* Zinc 950 */
-  --foreground: #fafafa;       /* Zinc 50 */
-  
-  --card: #09090b;             /* Same as bg to rely on exact subtle borders */
-  --card-foreground: #fafafa;
-  
-  --popover: #09090b;
-  --popover-foreground: #fafafa;
-  
-  --primary: #fafafa;          /* Zinc 50 */
-  --primary-foreground: #18181b;
-  
-  --secondary: #27272a;        /* Zinc 800 */
-  --secondary-foreground: #fafafa;
-  
-  --muted: #18181b;            /* Zinc 900 */
-  --muted-foreground: #a1a1aa; /* Zinc 400 */
-  
-  --accent: #27272a;           /* Zinc 800 */
-  --accent-foreground: #fafafa;
-  
+  --background: #ffffff;
+  --foreground: #1e40af;
+  --card: rgba(255, 255, 255, 0.7);
+  --card-foreground: #1e40af;
+  --popover: rgba(255, 255, 255, 0.9);
+  --popover-foreground: #1e40af;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #eff6ff;
+  --secondary-foreground: #1e40af;
+  --muted: #f8fafc;
+  --muted-foreground: #6b8db5;
+  --accent: #f1f5f9;
+  --accent-foreground: #1e40af;
   --destructive: #ef4444;
-  --destructive-foreground: #fafafa;
-  
-  --border: #27272a;           /* Zinc 800 */
-  --input: #27272a;
-  --ring: #d4d4d8;             /* Zinc 300 */
-  
-  --sidebar: #09090b;
-  --sidebar-foreground: #fafafa;
-  --sidebar-border: #27272a;
-  --sidebar-accent: #27272a;
-  
-  /* Shadows - Dark mode relies heavily on inset borders rather than drop shadows */
-  --shadow-sm: 0 0 0 1px rgba(255,255,255,0.08); /* Inner ring */
-  --shadow-md: 0 0 0 1px rgba(255,255,255,0.08), 0 8px 16px -4px rgba(0,0,0,0.5);
-  --shadow-lg: 0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px -12px rgba(0,0,0,0.6);
+  --destructive-foreground: #ffffff;
+  --border: rgba(226, 232, 240, 0.6);
+  --input: rgba(241, 245, 249, 0.5);
+  --ring: rgba(37, 99, 235, 0.2);
 }
 
 @layer base {
@@ -131,49 +97,62 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground transition-colors duration-300;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-background text-foreground transition-colors duration-500 relative overflow-x-hidden;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.03) 0px, transparent 50%);
   }
   
+  .dark body {
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.03) 0px, transparent 50%);
+  }
+
+
   /* Premium Glass effects */
   .glass {
-    @apply bg-background/70 backdrop-blur-xl border border-border/50;
-    @apply dark:bg-background/50 dark:border-white/10;
+    @apply bg-background/60 backdrop-blur-2xl border border-border/50 shadow-sm;
   }
   
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-border/50 shadow-[var(--shadow-sm)];
-    @apply dark:bg-card/40 dark:shadow-[var(--shadow-sm)];
+    @apply bg-card/80 backdrop-blur-xl border border-border/60 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 rounded-xl overflow-hidden shadow-sm;
   }
 
-  /* Custom Scrollbar for ultra-premium feel */
+  /* Dynamic Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full transition-colors;
+    @apply bg-border/50 rounded-full transition-colors border-2 border-transparent bg-clip-padding;
   }
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/50;
   }
 
+  /* Enterprise Table styles */
   table {
-    @apply w-full;
+    @apply w-full text-[13px];
+  }
+  thead {
+    @apply bg-secondary/80 backdrop-blur-md;
   }
   thead tr {
-    @apply border-b border-border;
+    @apply border-b border-border/80;
   }
   tbody tr {
-    @apply border-b border-border last:border-0;
+    @apply border-b border-border/40 last:border-0 hover:bg-muted/50 transition-colors duration-200;
   }
   td, th {
-    @apply px-4 py-3;
+    @apply px-4 py-3 align-middle;
+  }
+  th {
+    @apply font-bold text-muted-foreground uppercase tracking-wider text-[11px];
   }
 
   .recharts-surface {

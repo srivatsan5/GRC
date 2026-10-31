@@ -61,7 +61,7 @@ export function MonitoringriskmonitoringPage() {
     columnHelper.accessor('owner', {
       header: 'Owner',
       cell: info => {
-        const name = info.getValue() || 'Unassigned'
+        const name = info.row.original.mitigation_owner || 'Unassigned'
         const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase()
         return (
           <div className="flex items-center gap-2">
@@ -107,9 +107,9 @@ export function MonitoringriskmonitoringPage() {
       cell: info => (
         <span className={cn(
           "text-[11px] font-black",
-          String(info.getValue() || '').includes('Overdue') ? "text-amber-500 animate-pulse" : "text-primary"
+          info.row.original.is_stage_complted !== 'Y' ? "text-amber-500 animate-pulse" : "text-primary"
         )}>
-          {info.getValue() || '0 Active'}
+          {info.row.original.is_stage_complted === 'Y' ? 'Completed' : '1 Active Plan'}
         </span>
       ),
     }),

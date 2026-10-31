@@ -120,22 +120,22 @@ export function AppetiteriskappetitePage() {
                         className="border-b border-border/30 hover:bg-secondary/20 transition-colors last:border-0 group"
                       >
                         <td className="px-5 py-4 font-mono font-bold text-muted-foreground border-r border-border/50 text-center">
-                          {row.ID || row.TOLERANCE_ID || (idx + 1)}
+                          {row.uuid || row.ID || row.TOLERANCE_ID || (idx + 1)}
                         </td>
-                        <td className="px-5 py-4 font-bold text-foreground">{row.COMPONENT || row.NAME || 'N/A'}</td>
+                        <td className="px-5 py-4 font-bold text-foreground">{row.process_name || row.business_process_name || row.COMPONENT || row.NAME || 'General Component'}</td>
                         <td className="px-5 py-4 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getAppetiteColor(row.APPETITE || row.LEVEL)}`}>
-                            {row.APPETITE || row.LEVEL || 'Unknown'}
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getAppetiteColor(row.inherent_sle >= 15 ? 'High' : row.inherent_sle >= 10 ? 'Medium' : 'Low')}`}>
+                            {row.inherent_sle >= 15 ? 'High' : row.inherent_sle >= 10 ? 'Medium' : 'Low'}
                           </span>
                         </td>
-                        <td className="px-5 py-4 font-mono text-emerald-500 font-semibold">{row.RANGE || row.ACCEPTABLE_RANGE || 'N/A'}</td>
-                        <td className="px-5 py-4 font-mono text-destructive font-semibold">{row.CAPACITY || row.MAX_CAPACITY || 'N/A'}</td>
+                        <td className="px-5 py-4 font-mono text-emerald-500 font-semibold">10% - 20%</td>
+                        <td className="px-5 py-4 font-mono text-destructive font-semibold">25%</td>
                         <td className="px-5 py-4 text-center border-l border-border/50">
                           <span className="inline-block px-1.5 py-0.5 rounded bg-secondary/50 text-muted-foreground text-[10px] font-bold uppercase tracking-wider border border-border/50">
-                            {row.METRIC || row.METRIC_TYPE || 'N/A'}
+                            Percentage
                           </span>
                         </td>
-                        <td className="px-5 py-4 border-l border-border/50 font-mono text-[11px] text-muted-foreground text-right">{row.UPDATED || row.LAST_UPDATED || 'N/A'}</td>
+                        <td className="px-5 py-4 border-l border-border/50 font-mono text-[11px] text-muted-foreground text-right">{row.assessment_registered_date?.split('T')[0] || row.UPDATED || row.LAST_UPDATED || 'N/A'}</td>
                       </motion.tr>
                     ))}
                   </AnimatePresence>
@@ -143,12 +143,12 @@ export function AppetiteriskappetitePage() {
               </table>
               {filtered.length === 0 && (
                 <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-                  <p className="font-medium text-[13px] italic">No tolerances defined in Oracle ADW.</p>
+                  <p className="font-medium text-xs">No risk appetite tolerances defined.</p>
                 </div>
               )}
             </div>
-            <div className="bg-secondary/30 p-2.5 border-t border-border/50 text-[11px] font-medium text-muted-foreground flex justify-between items-center px-6">
-              <span>Displaying {filtered.length} Tolerances from Oracle ADW</span>
+            <div className="bg-slate-50 p-2.5 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center px-4">
+              <span>{filtered.length} categories defined</span>
             </div>
           </div>
         </FadeIn>

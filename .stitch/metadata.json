@@ -1,0 +1,20 @@
+{
+  "name": "projects/12454896797640404660",
+  "projectId": "12454896797640404660",
+  "title": "Pericope Enterprise ERM",
+  "visibility": "PRIVATE",
+  "projectType": "PROJECT_DESIGN",
+  "origin": "STITCH",
+  "deviceType": "DESKTOP",
+  "designTheme": {
+    "colorMode": "LIGHT",
+    "font": "INTER",
+    "roundness": "ROUND_EIGHT",
+    "customColor": "#4f46e5",
+    "saturation": 3
+  },
+  "screens": {},
+  "metadata": {
+    "userRole": "OWNER"
+  }
+}

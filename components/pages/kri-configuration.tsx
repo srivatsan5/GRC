@@ -7,25 +7,30 @@ import { Input } from '@/components/ui/input'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/ui/fade-in'
 import { motion, AnimatePresence } from 'framer-motion'
 import { oracleService } from '@/lib/oracleService'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 
 export function KriconfigurationPage() {
   const [searchTerm, setSearchTerm] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<any[]>([])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const items = await oracleService.getKriConfiguration()
-        setData(items)
-      } catch (error) {
-        console.error('Failed to fetch KRI configuration:', error)
-      } finally {
-        setLoading(false)
-      }
+  const queryClient = useQueryClient()
+  const { data: rawData = [], isLoading: loading } = useQuery({
+    queryKey: ['kri-config'],
+    queryFn: () => oracleService.getKriConfiguration()
+  })
+
+  const data = Array.isArray(rawData) ? rawData : []
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string | number) => oracleService.deleteKriDefinition(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['kri-config'] })
+      toast.success("KRI Definition permanently removed.")
+    },
+    onError: (err: any) => {
+      toast.error(`Deletion failed: ${err.message}`)
     }
-    fetchData()
-  }, [])
+  })
 
   const filtered = data.filter(d => 
     (d.MEASURE || d.NAME || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -35,9 +40,9 @@ export function KriconfigurationPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/70" />
-          <p className="text-sm font-medium text-muted-foreground animate-pulse">Fetching Indicator Thresholds...</p>
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          <p className="text-xs text-slate-500">Loading KRI definitions...</p>
         </div>
       </div>
     )
@@ -121,22 +126,22 @@ export function KriconfigurationPage() {
                         className="border-b border-border/30 hover:bg-secondary/20 transition-colors last:border-0 group"
                       >
                         <td className="px-5 py-4 font-mono font-bold text-muted-foreground sticky left-0 bg-background group-hover:bg-secondary/20 transition-colors border-r border-border/50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                          {row.ID || row.KRI_ID || 'N/A'}
+                          {row.uuid || row.ID || row.KRI_ID || 'N/A'}
                         </td>
-                        <td className="px-5 py-4 font-bold text-foreground border-r border-border/50 truncate max-w-[200px]">{row.MEASURE || row.NAME || 'N/A'}</td>
+                        <td className="px-5 py-4 font-bold text-foreground border-r border-border/50 truncate max-w-[200px]">{row.monitoring_title || row.MEASURE || row.NAME || 'Unnamed Measure'}</td>
                         <td className="px-5 py-4">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider ${row.TYPE === 'Leading' ? 'bg-primary/10 text-primary border border-primary/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'}`}>
-                            {row.TYPE || 'Unknown'}
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-primary/10 text-primary border border-primary/20`}>
+                            Leading
                           </span>
                         </td>
-                        <td className="px-5 py-4 text-muted-foreground font-medium">{row.UNIT || 'N/A'}</td>
-                        <td className="px-5 py-4 font-medium text-muted-foreground">{row.DIRECTION || 'N/A'}</td>
-                        <td className="px-3 py-4 text-center border-l border-border/50 font-mono text-emerald-500 font-semibold">{row.LOWER_BOUND || 'N/A'}</td>
-                        <td className="px-3 py-4 text-center border-r border-border/50 font-mono text-destructive font-semibold">{row.UPPER_BOUND || 'N/A'}</td>
-                        <td className="px-5 py-4 text-muted-foreground truncate max-w-[250px]">{row.DESCRIPTION || 'N/A'}</td>
+                        <td className="px-5 py-4 text-muted-foreground font-medium">Count</td>
+                        <td className="px-5 py-4 font-medium text-muted-foreground">Maximize</td>
+                        <td className="px-3 py-4 text-center border-l border-border/50 font-mono text-emerald-500 font-semibold">0</td>
+                        <td className="px-3 py-4 text-center border-r border-border/50 font-mono text-destructive font-semibold">100</td>
+                        <td className="px-5 py-4 text-muted-foreground truncate max-w-[250px]">{row.monitoring_goal || row.DESCRIPTION || 'No description'}</td>
                         <td className="px-5 py-4">
                           <code className="px-1.5 py-0.5 rounded bg-secondary/50 text-foreground text-[11px] font-mono border border-border/50">
-                            {row.FORMULA || 'N/A'}
+                            {row.FORMULA || 'Auto'}
                           </code>
                         </td>
                         <td className="px-3 py-4 text-center sticky right-0 bg-background group-hover:bg-secondary/20 transition-colors border-l border-border/50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
@@ -144,7 +149,11 @@ export function KriconfigurationPage() {
                             <button className="p-1.5 rounded hover:bg-primary/20 text-muted-foreground hover:text-primary transition-colors">
                                 <Edit2 className="w-3.5 h-3.5" />
                             </button>
-                            <button className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                            <button 
+                              onClick={() => deleteMutation.mutate(row.uuid || row.ID || row.KRI_ID)}
+                              disabled={deleteMutation.isPending}
+                              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                            >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -156,13 +165,13 @@ export function KriconfigurationPage() {
               </table>
               {filtered.length === 0 && (
                 <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-                  <p className="font-medium text-[13px] italic">No KRI definitions found in Oracle ADW.</p>
+                  <p className="font-medium text-xs">No KRI definitions found.</p>
                 </div>
               )}
             </div>
             
-            <div className="bg-secondary/30 p-2.5 border-t border-border/50 text-[11px] font-medium text-muted-foreground flex justify-between items-center px-6">
-              <span>Displaying {filtered.length} KRI Definitions from Oracle ADW</span>
+            <div className="bg-slate-50 p-2.5 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center px-4">
+              <span>{filtered.length} KRI definitions</span>
             </div>
           </div>
         </FadeIn>

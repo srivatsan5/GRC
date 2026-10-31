@@ -1,31 +1,76 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { Loader2, Download, AlertOctagon, TrendingUp, DollarSign, Laptop } from 'lucide-react'
 import { FadeIn, StaggerContainer, StaggerItem } from '@/components/ui/fade-in'
 import { oracleService } from '@/lib/oracleService'
+import { cn } from '@/lib/utils'
 
 export function AssessmentsaccessPage() {
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<any>(null)
+  const { data: rawRisks = [], isLoading } = useQuery({
+    queryKey: ['assessments-access'],
+    queryFn: () => oracleService.getAssessmentsAccess(),
+  })
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const result = await oracleService.getAssessmentsAccess()
-        // result might be an array or object, we expect some structure for stats
-        setData(result)
-      } catch (error) {
-        console.error('Failed to fetch access inherent data:', error)
-      } finally {
-        setLoading(false)
-      }
+  const risks = useMemo(() => {
+    return oracleService.parseAllRisks(rawRisks)
+  }, [rawRisks])
+
+  // Compute real stats
+  const stats = useMemo(() => {
+    if (!risks.length) return { topRisk: 'No Data', topScore: 0, avgScore: '0.0', total: 0 }
+    const sorted = [...risks].sort((a, b) => b.sle - a.sle)
+    const top = sorted[0]
+    const avg = (risks.reduce((s, r) => s + r.sle, 0) / risks.length)
+    return {
+      topRisk: top?.risk_statement || top?.process_name || 'Unknown',
+      topScore: top?.sle || 0,
+      avgScore: avg.toFixed(0),
+      total: risks.length
     }
-    fetchData()
-  }, [])
+  }, [risks])
 
-  if (loading) {
+  // Build heatmap from real data
+  const heatmapData = useMemo(() => {
+    return Array.from({ length: 25 }, (_, i) => {
+      const row = Math.floor(i / 5)
+      const col = i % 5
+      const prob = 5 - row
+      const impact = col + 1
+      const score = prob * impact
+      const matching = risks.filter((r) => r.likelihood === prob && r.impact === impact).length
+      return { prob, impact, score, count: matching }
+    })
+  }, [risks])
+
+  // Build chart data from real risks
+  const financialImpact = useMemo(() => {
+    const groups: Record<string, number> = {}
+    risks.forEach((r: any) => {
+      const cat = r.risk_type || r.process_name || 'General'
+      groups[cat] = (groups[cat] || 0) + (r.inherent_sle || 0)
+    })
+    return Object.entries(groups).slice(0, 4).map(([category, score]) => ({
+      category: category.length > 15 ? category.substring(0, 15) + '…' : category,
+      score: Math.round(score / 1000)
+    }))
+  }, [risks])
+
+  const techImpact = useMemo(() => {
+    const byProcess: Record<string, number> = {}
+    risks.forEach((r: any) => {
+      const proc = r.process_name || r.sub_process_name || `Process ${r.business_process_uuid || 'N/A'}`
+      byProcess[proc] = (byProcess[proc] || 0) + 1
+    })
+    return Object.entries(byProcess).slice(0, 4).map(([category, score]) => ({
+      category: category.length > 15 ? category.substring(0, 15) + '…' : category,
+      score
+    }))
+  }, [risks])
+
+  if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[50vh]">
         <div className="flex flex-col items-center gap-4">
@@ -36,28 +81,13 @@ export function AssessmentsaccessPage() {
     )
   }
 
-  // Visual mock data for charts (fallback if no live data)
-  const financialImpact = data?.FINANCIAL_IMPACT || [
-    { category: 'Revenue Loss', score: 85 },
-    { category: 'Fines', score: 45 },
-    { category: 'Asset Damage', score: 20 },
-    { category: 'OpEx Increase', score: 60 }
-  ]
-
-  const techImpact = data?.TECH_IMPACT || [
-    { category: 'Data Breach', score: 90 },
-    { category: 'System Downtime', score: 65 },
-    { category: 'IP Loss', score: 75 },
-    { category: 'Integrity', score: 40 }
-  ]
-
   return (
     <div className="flex-1 pb-10">
       <FadeIn delay={0.1} direction="none">
         <div className="border-b border-border/50 px-6 py-5 bg-background/50 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center">
           <div>
             <h1 className="text-lg font-semibold text-foreground tracking-tight">Access Inherent Risk</h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5 font-medium">Dashboard visualizing pure baseline risk exposure</p>
+            <p className="text-[13px] text-muted-foreground mt-0.5 font-medium">Dashboard visualizing pure baseline risk exposure from ADW</p>
           </div>
           <button className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-secondary/80 text-foreground rounded-lg border border-border/50 hover:bg-secondary transition-colors shadow-sm">
             <Download className="w-3.5 h-3.5" />
@@ -78,33 +108,33 @@ export function AssessmentsaccessPage() {
                   <AlertOctagon className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-xl font-bold text-foreground tracking-tight">{data?.TOP_RISK || 'Data Breach (External)'}</p>
-              <p className="text-[11px] font-medium text-red-400 mt-1 uppercase tracking-wider">Score: {data?.TOP_SCORE || '25'}/25 (Critical)</p>
+              <p className="text-xl font-bold text-foreground tracking-tight">{stats.topRisk}</p>
+              <p className="text-[11px] font-medium text-red-400 mt-1 uppercase tracking-wider">SLE: ₹{stats.topScore.toLocaleString()}</p>
             </div>
           </StaggerItem>
           <StaggerItem>
             <div className="glass-card rounded-xl p-5 border-l-4 border-l-amber-500/50 shadow-sm relative overflow-hidden group">
               <div className="absolute -top-10 -right-10 w-24 h-24 rounded-full blur-[30px] opacity-10 bg-amber-500 pointer-events-none transition-opacity group-hover:opacity-20" />
               <div className="flex justify-between items-start mb-4">
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Avg Inherent Score</p>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Avg Inherent SLE</p>
                 <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500">
                   <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-foreground tabular-nums tracking-tight">{data?.AVG_SCORE || '14.2'}</p>
-              <p className="text-[11px] font-medium text-amber-400 mt-1 uppercase tracking-wider">Status: Elevated</p>
+              <p className="text-3xl font-bold text-foreground tabular-nums tracking-tight">₹{stats.avgScore}</p>
+              <p className="text-[11px] font-medium text-amber-400 mt-1 uppercase tracking-wider">Status: {Number(stats.avgScore) > 40000 ? 'Elevated' : 'Nominal'}</p>
             </div>
           </StaggerItem>
           <StaggerItem>
             <div className="glass-card rounded-xl p-5 border-l-4 border-l-emerald-500/50 shadow-sm">
               <div className="flex justify-between items-start mb-4">
-                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Assessments Logged</p>
+                <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Risks Identified</p>
                 <div className="p-2 rounded-lg bg-secondary/80 border border-border/50 text-foreground">
                   <AlertOctagon className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-foreground tabular-nums tracking-tight">{data?.TOTAL_ASSESSMENTS || '128'}</p>
-              <p className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">Last 30 Days</p>
+              <p className="text-3xl font-bold text-foreground tabular-nums tracking-tight">{stats.total}</p>
+              <p className="text-[11px] font-medium text-muted-foreground mt-1 uppercase tracking-wider">Total cataloged</p>
             </div>
           </StaggerItem>
         </StaggerContainer>
@@ -114,7 +144,7 @@ export function AssessmentsaccessPage() {
           <div className="glass-card rounded-xl p-6 shadow-sm">
             <div className="mb-6">
               <h2 className="text-sm font-bold text-foreground tracking-tight">Resultant Heat Map</h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">Distribution of raw inherent risk combinations</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">Distribution of {risks.length} risks across inherent risk combinations</p>
             </div>
             
             <div className="flex justify-center items-center py-4">
@@ -124,30 +154,22 @@ export function AssessmentsaccessPage() {
                 </div>
                 <div>
                   <div className="grid grid-cols-5 gap-1.5 w-full max-w-2xl mx-auto">
-                    {Array.from({ length: 25 }).map((_, i) => {
-                      const row = Math.floor(i / 5);
-                      const col = i % 5;
-                      const score = (5 - row) * (col + 1);
-                      const isRed = score >= 16;
-                      const isOrange = score >= 10 && score < 16;
-                      const isYellow = score >= 6 && score < 10;
-                      const isGreen = score < 6;
+                    {heatmapData.map((cell, i) => {
+                      const isRed = cell.score >= 16
+                      const isOrange = cell.score >= 10 && cell.score < 16
+                      const isYellow = cell.score >= 6 && cell.score < 10
+                      const isGreen = cell.score < 6
                       
                       const bgClass = isRed ? 'bg-destructive/20 border-destructive/30 text-destructive' : 
                                     isOrange ? 'bg-amber-500/20 border-amber-500/30 text-amber-500' : 
                                     isYellow ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-500' :
                                     isGreen ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' :
-                                    'bg-secondary/50 border-border/50 text-muted-foreground';
-                      
-                      // Mock distribution counts heavily skewed towards higher inherent risk
-                      const count = isRed ? Math.floor(Math.random() * 20) + 10 : 
-                                    isOrange ? Math.floor(Math.random() * 15) + 5 : 
-                                    Math.floor(Math.random() * 8);
+                                    'bg-secondary/50 border-border/50 text-muted-foreground'
 
                       return (
                         <div key={i} className={`h-20 rounded-lg border flex flex-col items-center justify-center shadow-sm transition-transform hover:scale-105 cursor-pointer ${bgClass}`}>
-                          <span className="text-[10px] font-bold opacity-60 mb-1">{score}</span>
-                          <span className="text-lg font-black tracking-tight">{count}</span>
+                          <span className="text-[10px] font-bold opacity-60 mb-1">{cell.score}</span>
+                          <span className="text-lg font-black tracking-tight">{cell.count || ''}</span>
                         </div>
                       )
                     })}
@@ -172,9 +194,9 @@ export function AssessmentsaccessPage() {
                 <div>
                   <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
                     <DollarSign className="w-4 h-4 text-emerald-500" />
-                    Impact on Financials
+                    SLE by Category
                   </h2>
-                  <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Average calculated loss potential by category</p>
+                  <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Single Loss Expectancy in ₹K</p>
                 </div>
               </div>
               <div className="flex-1 flex items-center justify-center">
@@ -197,9 +219,9 @@ export function AssessmentsaccessPage() {
                 <div>
                   <h2 className="text-sm font-bold text-foreground tracking-tight flex items-center gap-2">
                     <Laptop className="w-4 h-4 text-indigo-400" />
-                    Impact on Technological
+                    Risk by Process Area
                   </h2>
-                  <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Vulnerability scores without controls applied</p>
+                  <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Distribution across business processes</p>
                 </div>
               </div>
               <div className="flex-1 flex items-center justify-center">

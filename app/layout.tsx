@@ -1,29 +1,11 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import '@/styles/globals.css'
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: 'Pericope ERM - Enterprise Risk Management',
   description: 'Comprehensive risk management platform for identifying, assessing, and monitoring enterprise risks',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
+    icon: '/icon.svg',
     apple: '/apple-icon.png',
   },
 }
@@ -31,6 +13,9 @@ export const metadata: Metadata = {
 import { ThemeProvider } from '@/components/theme-provider'
 import { Toaster } from '@/components/ui/toaster'
 import { QueryProvider } from '@/components/providers/query-provider'
+import { AuthProvider } from '@/components/providers/auth-provider'
+import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog'
+import { AuditSeeder } from '@/components/providers/audit-seeder'
 
 export default function RootLayout({
   children,
@@ -39,17 +24,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background text-foreground">
+      <body className={`font-sans antialiased bg-background text-foreground transition-colors duration-300`}>
         <QueryProvider>
           <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="light"
+            forcedTheme="light"
+            enableSystem={false}
             disableTransitionOnChange
           >
-            {children}
+            <AuthProvider>
+              <ConfirmDialogProvider>
+                <AuditSeeder />
+                {children}
+              </ConfirmDialogProvider>
+            </AuthProvider>
             <Toaster />
-            <Analytics />
           </ThemeProvider>
         </QueryProvider>
       </body>

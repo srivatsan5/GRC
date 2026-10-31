@@ -1,12 +1,12 @@
 'use client'
 
-import { AppLayout } from '@/components/app-layout'
+import { PericopeLayout } from '@/components/pericope-layout'
 import { SettingsPage } from '@/components/pages/settings'
 
 export default function SettingsRoute() {
   return (
-    <AppLayout>
+    <PericopeLayout>
       <SettingsPage />
-    </AppLayout>
+    </PericopeLayout>
   )
 }

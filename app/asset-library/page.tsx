@@ -1,12 +1,12 @@
 'use client'
 
-import { AppLayout } from '@/components/app-layout'
+import { PericopeLayout } from '@/components/pericope-layout'
 import { AssetLibraryPage } from '@/components/pages/asset-library'
 
-export default function AssetLibraryRoute() {
+export default function AssetLibraryPageWrapper() {
   return (
-    <AppLayout>
+    <PericopeLayout>
       <AssetLibraryPage />
-    </AppLayout>
+    </PericopeLayout>
   )
 }

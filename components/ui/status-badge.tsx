@@ -1,41 +1,47 @@
 import React from 'react'
 import { cn } from '@/lib/utils'
 
-type StatusType = 'critical' | 'high' | 'medium' | 'low' | 'success' | 'warning' | 'info' | 'pending' | 'completed' | 'on-track' | 'at-risk'
+export type StatusType = 'critical' | 'high' | 'medium' | 'low' | 'success' | 'warning' | 'info' | 'pending' | 'completed' | 'on-track' | 'at-risk' | 'open' | 'in-review' | 'approved' | 'rejected'
 
-const statusStyles: Record<StatusType, { bg: string; text: string }> = {
-  critical: { bg: 'bg-red-500/10', text: 'text-red-500' },
-  high: { bg: 'bg-orange-500/10', text: 'text-orange-500' },
-  medium: { bg: 'bg-yellow-500/10', text: 'text-yellow-500' },
-  low: { bg: 'bg-green-500/10', text: 'text-green-500' },
-  success: { bg: 'bg-green-500/10', text: 'text-green-500' },
-  warning: { bg: 'bg-amber-500/10', text: 'text-amber-500' },
-  info: { bg: 'bg-blue-500/10', text: 'text-blue-500' },
-  pending: { bg: 'bg-gray-500/10', text: 'text-gray-500' },
-  completed: { bg: 'bg-green-500/10', text: 'text-green-500' },
-  'on-track': { bg: 'bg-green-500/10', text: 'text-green-500' },
-  'at-risk': { bg: 'bg-red-500/10', text: 'text-red-500' },
+const statusStyles: Record<string, { bg: string; text: string; border: string }> = {
+  critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  high: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  medium: { bg: 'bg-yellow-50', text: 'text-yellow-800', border: 'border-yellow-200' },
+  low: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  success: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  'on-track': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  approved: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  warning: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+  'at-risk': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  rejected: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+  info: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  'in-review': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+  pending: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
+  open: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
 }
 
 interface StatusBadgeProps {
-  status: StatusType
-  label: string
+  status: string
+  label?: string
   className?: string
 }
 
 export function StatusBadge({ status, label, className }: StatusBadgeProps) {
-  const styles = statusStyles[status]
+  const normalized = (status || 'pending').toLowerCase().replace(/\s+/g, '-')
+  const style = statusStyles[normalized] || statusStyles.pending
 
   return (
     <span
       className={cn(
-        'inline-block px-2 py-1 rounded text-xs font-medium',
-        styles.bg,
-        styles.text,
+        'inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border',
+        style.bg,
+        style.text,
+        style.border,
         className
       )}
     >
-      {label}
+      {label || status}
     </span>
   )
 }

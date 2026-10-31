@@ -19,8 +19,10 @@ import {
   Search,
   PlusCircle,
   Activity,
-  User
+  User,
+  LogOut
 } from 'lucide-react'
+import { useAuth } from '@/components/providers/auth-provider'
 
 const navigationItems = [
   {
@@ -37,10 +39,13 @@ const navigationItems = [
     ],
   },
   {
-    name: 'Risk Planning',
+    name: 'RCSA',
     icon: CheckSquare,
     submenu: [
-      { name: 'Identify', href: '/risk-planning/identify' },
+      { name: 'Provisioning', href: '/rcsa/provisioning' },
+      { name: 'Risk Identification', href: '/rcsa/identification' },
+      { name: 'Risk Mitigation', href: '/rcsa/mitigation' },
+      { name: 'Risk Monitoring', href: '/rcsa/monitoring' },
     ],
   },
   {
@@ -82,19 +87,20 @@ const navigationItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const { logout } = useAuth()
   const [expandedMenu, setExpandedMenu] = React.useState<string | null>('Risk Assessments')
 
   return (
-    <aside className="w-56 bg-[#09090b] text-zinc-400 border-r border-zinc-800 h-screen fixed left-0 top-0 flex flex-col z-50">
+    <aside className="w-56 bg-white text-slate-600 border-r border-border h-screen fixed left-0 top-0 flex flex-col z-50 shadow-[4px_0_24px_rgba(0,0,0,0.02)] transition-colors duration-300">
       {/* Brand Header */}
       <div className="px-6 py-6 mb-2">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center shadow-lg shadow-white/5">
-            <Activity className="w-5 h-5 text-zinc-950" />
+          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center shadow-sm">
+            <Activity className="w-5 h-5 text-primary" />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-zinc-100 tracking-tight leading-none">Pericope</span>
-            <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mt-1">Enterprise ERM</span>
+            <span className="text-sm font-bold text-slate-900 tracking-tight leading-none">Pericope</span>
+            <span className="text-[10px] font-bold uppercase text-slate-500 tracking-widest mt-1">Enterprise ERM</span>
           </div>
         </div>
       </div>
@@ -102,7 +108,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar">
         <div className="px-3 mb-2">
-           <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest">General</span>
+           <span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">General</span>
         </div>
         {navigationItems.map((item) => {
           const isActive = pathname === item.href || (item.submenu && item.submenu.some(sub => pathname === sub.href))
@@ -123,13 +129,13 @@ export function Sidebar() {
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-bold transition-all group',
                     isActive && !hasSubmenu
-                      ? 'bg-zinc-800 text-zinc-100'
-                      : 'hover:text-zinc-100 hover:bg-zinc-800/50'
+                      ? 'bg-primary/10 text-primary hover:bg-primary/15'
+                      : 'hover:text-primary hover:bg-slate-50'
                   )}
                 >
                   <item.icon className={cn(
                     "w-4 h-4 transition-colors", 
-                    isActive ? "text-zinc-100" : "text-zinc-500 group-hover:text-zinc-300"
+                    isActive ? "text-primary" : "text-slate-400 group-hover:text-primary"
                   )} />
                   <span className="flex-1">{item.name}</span>
                   {hasSubmenu && (
@@ -151,7 +157,7 @@ export function Sidebar() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="mt-0.5 space-y-0.5 ml-4 pl-3 border-l border-zinc-800">
+                    <div className="mt-0.5 space-y-0.5 ml-4 pl-3 border-l border-slate-200">
                       {item.submenu.map((subitem) => {
                         const isSubActive = pathname === subitem.href
                         return (
@@ -161,8 +167,8 @@ export function Sidebar() {
                             className={cn(
                               'block px-3 py-1.5 rounded-md text-[11px] font-bold transition-all',
                               isSubActive
-                                ? 'text-zinc-100 bg-zinc-800/40'
-                                : 'text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800/30'
+                                ? 'text-primary bg-primary/5'
+                                : 'text-slate-500 hover:text-primary hover:bg-slate-50'
                             )}
                           >
                             {subitem.name}
@@ -179,15 +185,24 @@ export function Sidebar() {
       </nav>
 
       {/* Profile Footer */}
-      <div className="p-4 bg-zinc-950/50 border-t border-zinc-900">
-        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-zinc-900 transition-colors cursor-pointer group">
-          <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center text-[10px] font-black text-zinc-400 group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-            SV
+      <div className="p-4 bg-slate-50 border-t border-border mt-auto">
+        <div className="flex items-center justify-between p-2 rounded-lg hover:bg-white hover:shadow-sm transition-all group">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-600 group-hover:border-primary/30 group-hover:bg-primary/5 group-hover:text-primary transition-all">
+              SV
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-bold text-slate-700 truncate">Srivatsan</span>
+              <span className="text-[10px] font-semibold uppercase text-slate-400 tracking-widest mt-0.5">Enterprise</span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-bold text-zinc-100 truncate">Srivatsan</span>
-            <span className="text-[10px] font-black uppercase text-zinc-600 tracking-widest mt-0.5">Enterprise</span>
-          </div>
+          <button 
+            onClick={logout} 
+            className="p-2 text-slate-400 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors" 
+            title="Log Out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </aside>

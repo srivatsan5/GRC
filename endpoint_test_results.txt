@@ -1,7 +1,0 @@
-Health Check: ✅ PASS (200)
-Risk Categories: ❌ FAIL (got 404, expected 200)
-Identified Risks: ❌ FAIL (got 404, expected 200)
-Risk Categories Count: ❌ FAIL (got 404, expected 200)
-Risks by Category: ❌ FAIL (got 404, expected 200)
-API Metrics: ❌ FAIL (got 404, expected 200)
-Server Status: ❌ FAIL (got 404, expected 200)

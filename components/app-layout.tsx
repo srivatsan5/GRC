@@ -28,11 +28,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pageLabel = routeLabels[pathname] || 'Enterprise ERM'
 
   return (
-    <div className="flex h-screen bg-[#09090b] overflow-hidden">
+    <div className="flex h-screen bg-background overflow-hidden relative selection:bg-primary/10">
       <Sidebar />
-      <div className="flex-1 ml-56 flex flex-col relative bg-background rounded-l-[32px] border-l border-zinc-800 my-2 shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden">
+      <div className="flex-1 ml-56 flex flex-col relative bg-white border-l border-border/50 overflow-hidden shadow-2xl shadow-slate-200/50 transition-all duration-300">
         {/* Top Navigation */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-8 bg-card/30 backdrop-blur-md sticky top-0 z-50">
+        <header className="h-14 border-b border-border/80 shadow-sm flex items-center justify-between px-8 bg-white/80 backdrop-blur-md sticky top-0 z-50 transition-all">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest">
               <span className="opacity-40">System</span>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Risk Mitigation: Applied Controls</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "outline": "#777587",
+              "tertiary-fixed": "#ffdbcc",
+              "on-secondary-fixed": "#140f54",
+              "on-secondary-fixed-variant": "#413f82",
+              "primary-fixed-dim": "#c3c0ff",
+              "inverse-surface": "#283044",
+              "inverse-on-surface": "#eef0ff",
+              "on-secondary": "#ffffff",
+              "inverse-primary": "#c3c0ff",
+              "primary-fixed": "#e2dfff",
+              "surface-dim": "#d2d9f4",
+              "on-error-container": "#93000a",
+              "secondary": "#58579b",
+              "secondary-fixed": "#e2dfff",
+              "on-background": "#131b2e",
+              "tertiary": "#7e3000",
+              "surface-bright": "#faf8ff",
+              "surface": "#faf8ff",
+              "on-tertiary-fixed-variant": "#7b2f00",
+              "tertiary-fixed-dim": "#ffb695",
+              "surface-container-low": "#f2f3ff",
+              "tertiary-container": "#a44100",
+              "background": "#faf8ff",
+              "surface-container-lowest": "#ffffff",
+              "surface-container-high": "#e2e7ff",
+              "on-surface-variant": "#464555",
+              "on-primary-container": "#dad7ff",
+              "primary": "#3525cd",
+              "surface-container-highest": "#dae2fd",
+              "error": "#ba1a1a",
+              "on-primary-fixed-variant": "#3323cc",
+              "surface-variant": "#dae2fd",
+              "on-error": "#ffffff",
+              "on-secondary-container": "#454386",
+              "primary-container": "#4f46e5",
+              "on-surface": "#131b2e",
+              "on-primary": "#ffffff",
+              "surface-container": "#eaedff",
+              "secondary-container": "#b6b4ff",
+              "outline-variant": "#c7c4d8",
+              "secondary-fixed-dim": "#c3c0ff",
+              "on-primary-fixed": "#0f0069",
+              "on-tertiary-fixed": "#351000",
+              "on-tertiary": "#ffffff",
+              "error-container": "#ffdad6",
+              "surface-tint": "#4d44e3",
+              "on-tertiary-container": "#ffd2be"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .headline-md { font-size: 1.75rem; line-height: 2.25rem; }
+        .title-md { font-size: 1.125rem; line-height: 1.75rem; }
+        .body-md { font-size: 0.875rem; line-height: 1.25rem; }
+        .label-sm { font-size: 0.6875rem; line-height: 1rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body antialiased">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shadow-[0px_20px_40px_rgba(15,23,42,0.06)] flex justify-between items-center px-6 py-4">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-indigo-600 cursor-pointer p-2 hover:bg-indigo-50 rounded-full transition-colors" data-icon="menu">menu</span>
+<h1 class="font-manrope headline-md font-semibold tracking-tight text-indigo-600">Risk Mitigation: Applied Controls</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex items-center gap-8">
+<span class="font-manrope title-md font-medium text-slate-500 cursor-pointer hover:text-indigo-600 transition-colors">Dashboard</span>
+<span class="font-manrope title-md font-medium text-slate-500 cursor-pointer hover:text-indigo-600 transition-colors">Risk Register</span>
+<span class="font-manrope title-md font-medium text-indigo-700 font-bold">Risk Mitigation</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold ring-2 ring-white ring-offset-2 overflow-hidden">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="professional portrait of a male corporate executive with glasses in a modern office setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAkdbNLT1WUKR7s0v0YgiR7gK5tN-lUpp6Nh0C-xf6KwBq4_CAAlnZvJM3c12wjlkITrv0bAQh23M5p24hJRuY9mB5eBExmh2u71SHGJgBJbG8tacblNdtS32LmCvRTtsYHxVtephZbr6ztDOsBkkUKgjjvSakYkFOTo04RJHzI9wDx1XrtWa3vBYjsy5lpYq3WUv3IWt7Xq8eOLxirSe-3i2SF2tgAuO2OUcCpKVLQOAC4S1kGxmoL592OQWniy7uIDijgTfpIO6De"/>
+</div>
+</div>
+</header>
+<!-- Navigation Drawer (Side Nav) -->
+<aside class="fixed left-0 top-0 h-screen w-72 bg-slate-50 flex flex-col py-6 gap-2 border-r border-outline-variant/15 z-40 pt-24 hidden lg:flex">
+<div class="px-6 mb-8">
+<span class="text-indigo-600 font-extrabold text-xl font-manrope">Enterprise ERM</span>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 text-slate-500 hover:text-indigo-600 px-6 py-3 hover:bg-slate-200 transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-manrope title-md font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 text-slate-500 hover:text-indigo-600 px-6 py-3 hover:bg-slate-200 transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="assessment">assessment</span>
+<span class="font-manrope title-md font-medium">RCSA</span>
+</a>
+<a class="flex items-center gap-3 text-slate-500 hover:text-indigo-600 px-6 py-3 hover:bg-slate-200 transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-manrope title-md font-medium">Risk Register</span>
+</a>
+<a class="flex items-center gap-3 text-slate-500 hover:text-indigo-600 px-6 py-3 hover:bg-slate-200 transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="warning">warning</span>
+<span class="font-manrope title-md font-medium">Incidents</span>
+</a>
+<a class="flex items-center gap-3 bg-indigo-100 text-indigo-700 font-semibold rounded-lg mx-2 px-4 py-3 cursor-pointer">
+<span class="material-symbols-outlined" data-icon="shield">shield</span>
+<span class="font-manrope title-md">Risk Mitigation</span>
+</a>
+<a class="flex items-center gap-3 text-slate-500 hover:text-indigo-600 px-6 py-3 hover:bg-slate-200 transition-all cursor-pointer">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-manrope title-md font-medium">Settings</span>
+</a>
+</nav>
+</aside>
+<main class="lg:ml-72 pt-28 pb-12 px-8 min-h-screen">
+<div class="max-w-7xl mx-auto space-y-8">
+<!-- Hero Stats & Header -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-outline-variant/15 pb-8">
+<div class="space-y-2">
+<span class="label-sm text-primary font-bold">Mitigation Strategy</span>
+<h2 class="font-manrope text-4xl font-extrabold text-on-surface tracking-tight">Active Control Framework</h2>
+<p class="text-on-surface-variant max-w-xl body-md">Review and optimize controls linked to <span class="font-semibold">IT Infrastructure Risk (ID: 4022)</span>. High-impact controls are prioritized for verification.</p>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-white px-6 py-3 rounded-xl flex items-center gap-2 hover:shadow-lg transition-all active:scale-95 group">
+<span class="material-symbols-outlined group-hover:rotate-90 transition-transform" data-icon="add">add</span>
+<span class="font-manrope title-sm font-semibold">Tag New Control</span>
+</button>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Residual Risk Matrix (Heat Map) -->
+<div class="lg:col-span-4 flex flex-col gap-6">
+<div class="bg-surface-container-lowest rounded-xl p-6 shadow-[0px_20px_40px_rgba(15,23,42,0.06)] ring-1 ring-outline-variant/10">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-manrope title-md font-bold">Residual Risk Matrix</h3>
+<span class="material-symbols-outlined text-on-surface-variant cursor-help" data-icon="info">info</span>
+</div>
+<div class="relative flex">
+<!-- Y-Axis Label -->
+<div class="absolute -left-12 top-1/2 -translate-y-1/2 -rotate-90">
+<span class="label-sm text-on-surface-variant">Impact</span>
+</div>
+<!-- Grid -->
+<div class="flex-1 grid grid-cols-3 grid-rows-3 gap-1 h-64 border-l-2 border-b-2 border-outline-variant">
+<!-- High Row -->
+<div class="bg-yellow-100/40 rounded-sm"></div>
+<div class="bg-red-400/40 rounded-sm"></div>
+<div class="bg-red-600/60 rounded-sm"></div>
+<!-- Medium Row -->
+<div class="bg-green-100/40 rounded-sm"></div>
+<div class="bg-yellow-100/40 rounded-sm"></div>
+<div class="bg-red-400/40 rounded-sm flex items-center justify-center relative">
+<!-- Marker -->
+<div class="w-8 h-8 bg-white rounded-full shadow-xl flex items-center justify-center ring-2 ring-primary relative z-10">
+<div class="w-4 h-4 bg-primary rounded-full animate-pulse"></div>
+</div>
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-inverse-surface text-inverse-on-surface text-[10px] px-2 py-1 rounded whitespace-nowrap font-bold">
+                                        CURRENT STATUS
+                                    </div>
+</div>
+<!-- Low Row -->
+<div class="bg-green-100/40 rounded-sm"></div>
+<div class="bg-green-100/40 rounded-sm"></div>
+<div class="bg-yellow-100/40 rounded-sm"></div>
+</div>
+</div>
+<!-- X-Axis Label -->
+<div class="mt-4 text-center">
+<span class="label-sm text-on-surface-variant">Likelihood</span>
+</div>
+<div class="mt-8 space-y-4">
+<div class="flex justify-between items-center bg-surface-container-low p-4 rounded-lg">
+<div>
+<p class="label-sm text-on-surface-variant">Residual Score</p>
+<p class="font-manrope text-xl font-bold">8 / 15</p>
+</div>
+<span class="px-3 py-1 rounded-full bg-tertiary-container text-on-tertiary text-xs font-bold uppercase tracking-wider">High Risk</span>
+</div>
+</div>
+</div>
+<!-- Insight Card -->
+<div class="bg-primary/5 rounded-xl p-6 border border-primary/10">
+<div class="flex gap-4">
+<div class="bg-primary text-white p-2 rounded-lg h-fit">
+<span class="material-symbols-outlined" data-icon="lightbulb">lightbulb</span>
+</div>
+<div class="space-y-1">
+<h4 class="font-manrope font-bold text-primary">Strategic Insight</h4>
+<p class="body-md text-slate-600 leading-relaxed">Implementing 1 additional preventative control could shift residual risk from <span class="font-bold">Red</span> to <span class="font-bold">Yellow</span>.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Data Table / Applied Controls List -->
+<div class="lg:col-span-8">
+<div class="bg-surface-container-lowest rounded-xl shadow-[0px_20px_40px_rgba(15,23,42,0.06)] ring-1 ring-outline-variant/10 overflow-hidden">
+<div class="px-6 py-5 border-b border-outline-variant/10 flex items-center justify-between">
+<h3 class="font-manrope title-md font-bold">Linked Controls <span class="ml-2 text-slate-400 font-normal">04 Total</span></h3>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-surface-container text-on-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="filter_list">filter_list</span>
+</button>
+<button class="p-2 hover:bg-surface-container text-on-surface-variant rounded-lg transition-colors">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant/10">
+<th class="px-6 py-4 label-sm text-on-surface-variant">Control Detail</th>
+<th class="px-6 py-4 label-sm text-on-surface-variant">Frequency</th>
+<th class="px-6 py-4 label-sm text-on-surface-variant text-center">Impact Impact</th>
+<th class="px-6 py-4 label-sm text-on-surface-variant">Effectiveness</th>
+<th class="px-6 py-4"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Row 1 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">Firewall Rule Set</p>
+<p class="text-xs text-on-surface-variant">Owner: Marcus Chen</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-6">
+<span class="body-md text-on-surface">Annual</span>
+</td>
+<td class="px-6 py-6 text-center">
+<div class="inline-flex gap-1">
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-outline-variant/30"></span>
+</div>
+</td>
+<td class="px-6 py-6">
+<select class="bg-green-50 text-green-700 border-none text-xs font-bold rounded-full py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-green-200 cursor-pointer appearance-none">
+<option selected="">Effective</option>
+<option>Improvement Req.</option>
+<option>Ineffective</option>
+</select>
+</td>
+<td class="px-6 py-6 text-right">
+<span class="material-symbols-outlined text-outline-variant cursor-pointer hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+<span class="material-symbols-outlined" data-icon="vpn_key">vpn_key</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">MFA Enforcement</p>
+<p class="text-xs text-on-surface-variant">Owner: Sarah Jenkins</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-6">
+<span class="body-md text-on-surface">Continuous</span>
+</td>
+<td class="px-6 py-6 text-center">
+<div class="inline-flex gap-1">
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+</div>
+</td>
+<td class="px-6 py-6">
+<select class="bg-green-50 text-green-700 border-none text-xs font-bold rounded-full py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-green-200 cursor-pointer appearance-none">
+<option selected="">Effective</option>
+<option>Improvement Req.</option>
+<option>Ineffective</option>
+</select>
+</td>
+<td class="px-6 py-6 text-right">
+<span class="material-symbols-outlined text-outline-variant cursor-pointer hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+<span class="material-symbols-outlined" data-icon="history_edu">history_edu</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">Data Access Logs</p>
+<p class="text-xs text-on-surface-variant">Owner: Alex Rivera</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-6">
+<span class="body-md text-on-surface">Weekly</span>
+</td>
+<td class="px-6 py-6 text-center">
+<div class="inline-flex gap-1">
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-outline-variant/30"></span>
+<span class="w-2 h-4 rounded-full bg-outline-variant/30"></span>
+</div>
+</td>
+<td class="px-6 py-6">
+<select class="bg-tertiary-fixed text-tertiary border-none text-xs font-bold rounded-full py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-tertiary-fixed cursor-pointer appearance-none">
+<option>Effective</option>
+<option selected="">Requires Improvement</option>
+<option>Ineffective</option>
+</select>
+</td>
+<td class="px-6 py-6 text-right">
+<span class="material-symbols-outlined text-outline-variant cursor-pointer hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-slate-50 transition-colors group">
+<td class="px-6 py-6">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 bg-indigo-50 rounded-lg flex items-center justify-center text-indigo-600">
+<span class="material-symbols-outlined" data-icon="verified_user">verified_user</span>
+</div>
+<div>
+<p class="font-semibold text-on-surface">Vendor Audits</p>
+<p class="text-xs text-on-surface-variant">Owner: Marcus Chen</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-6">
+<span class="body-md text-on-surface">Quarterly</span>
+</td>
+<td class="px-6 py-6 text-center">
+<div class="inline-flex gap-1">
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-primary"></span>
+<span class="w-2 h-4 rounded-full bg-outline-variant/30"></span>
+</div>
+</td>
+<td class="px-6 py-6">
+<select class="bg-green-50 text-green-700 border-none text-xs font-bold rounded-full py-1.5 pl-3 pr-8 focus:ring-2 focus:ring-green-200 cursor-pointer appearance-none">
+<option selected="">Effective</option>
+<option>Improvement Req.</option>
+<option>Ineffective</option>
+</select>
+</td>
+<td class="px-6 py-6 text-right">
+<span class="material-symbols-outlined text-outline-variant cursor-pointer hover:text-primary transition-colors" data-icon="more_vert">more_vert</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Footer / Pagination -->
+<div class="px-6 py-4 bg-surface-container-low flex items-center justify-between">
+<span class="body-sm text-on-surface-variant">Showing 4 of 4 controls</span>
+<div class="flex gap-4">
+<button class="text-primary title-sm font-semibold hover:underline">Download Report</button>
+<button class="text-primary title-sm font-semibold hover:underline">Control Mapping Docs</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB for quick action on mobile -->
+<button class="fixed bottom-6 right-6 lg:hidden w-14 h-14 bg-primary text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-transform z-50">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+</body></html>

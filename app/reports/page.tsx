@@ -1,12 +1,12 @@
 'use client'
 
-import { AppLayout } from '@/components/app-layout'
+import { PericopeLayout } from '@/components/pericope-layout'
 import { ReportsPage } from '@/components/pages/reports'
 
 export default function ReportsRoute() {
   return (
-    <AppLayout>
+    <PericopeLayout>
       <ReportsPage />
-    </AppLayout>
+    </PericopeLayout>
   )
 }

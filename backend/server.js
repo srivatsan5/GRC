@@ -1,84 +1,128 @@
-// Production-grade single-file Express backend (Phase 2 MVP)
-const express = require('express')
-const app = express()
-app.use(express.json())
+require("dotenv").config();
+const express = require("express");
+const axios = require("axios");
+const cors = require("cors");
 
-// In-memory data store (MVP)
-let risks = []
-let nextId = 1
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-// Simple RBAC: tokens are role strings in MVP
-function authorizeRole(roles) {
-  return (req, res, next) => {
-    const auth = req.headers['authorization'] || ''
-    const token = auth.split(' ')[1] || ''
-    const role = token
-    if (!token || !roles.includes(role)) {
-      return res.status(403).json({ success:false, error:{ code:'FORBIDDEN', message:'Access denied' }})
+const BASE_URL = "https://ga8231f10084da5-pericopeai.adb.us-chicago-1.oraclecloudapps.com/ords/grc";
+
+// ==========================
+// GENERIC ORDS CALL
+// ==========================
+const ordsRequest = async (method, url, data = null) => {
+  const config = {
+    method,
+    url: `${BASE_URL}${url}`,
+  };
+
+  if (data) {
+    config.data = data;
+    config.headers = {
+      "Content-Type": "application/json",
+    };
+  }
+
+  try {
+    const response = await axios(config);
+    return response;
+  } catch (err) {
+    throw err;
+  }
+};
+
+// ==========================
+// ERROR HANDLER
+// ==========================
+const handleError = (res, err) => {
+  if (err.response) {
+    return res.status(err.response.status).json(err.response.data);
+  }
+  return res.status(500).json({ error: err.message });
+};
+
+// ==========================
+// HEALTH
+// ==========================
+app.get("/", (req, res) => {
+  res.send("GRC API running");
+});
+
+// ==========================
+// GENERIC CRUD ROUTE FACTORY
+// ==========================
+const createRoutes = (table) => {
+
+  // GET ALL
+  app.get(`/api/${table}`, async (req, res) => {
+    try {
+      const response = await ordsRequest("GET", `/${table}/`);
+      res.status(response.status).json(response.data);
+    } catch (err) {
+      handleError(res, err);
     }
-    req.user = { role }
-    next()
-  }
-}
+  });
 
-// Health
-app.get('/health', (req, res) => res.json({ status:'OK', time: new Date().toISOString() }))
+  // GET BY ID
+  app.get(`/api/${table}/:id`, async (req, res) => {
+    try {
+      const response = await ordsRequest("GET", `/${table}/${req.params.id}`);
+      res.status(response.status).json(response.data);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
 
-// Auth login (returns token = role)
-app.post('/auth/login', (req, res) => {
-  const { role } = req.body || {}
-  if (!['admin','risk_manager','viewer'].includes(role)) {
-    return res.status(400).json({ success:false, error:{ code:'BAD_REQUEST', message:'Invalid role' }})
-  }
-  res.json({ success:true, token: role })
-})
+  // POST
+  app.post(`/api/${table}`, async (req, res) => {
+    try {
+      const response = await ordsRequest("POST", `/${table}/`, req.body);
+      res.status(response.status).json(response.data);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
 
-// List risks with pagination
-app.get('/api/risks', authorizeRole(['admin','risk_manager','viewer']), (req, res) => {
-  const page = Math.max(1, parseInt(req.query.page) || 1)
-  const limit = Math.max(1, parseInt(req.query.limit) || 10)
-  const start = (page - 1) * limit
-  const data = risks.slice(start, start + limit)
-  res.json({ success:true, total: risks.length, page, limit, data })
-})
+  // PUT
+  app.put(`/api/${table}/:id`, async (req, res) => {
+    try {
+      const response = await ordsRequest("PUT", `/${table}/${req.params.id}`, req.body);
+      res.status(response.status).json(response.data);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
 
-// Create risk
-app.post('/api/risks', authorizeRole(['admin','risk_manager']), (req, res) => {
-  const { name, description } = req.body
-  if (!name) return res.status(400).json({ success:false, error:{ code:'BAD_REQUEST', message:'Invalid risk payload' }})
-  const item = { id: nextId++, name, description: description || '', createdOn: new Date().toISOString() }
-  risks.push(item)
-  res.status(201).json({ success:true, data:item })
-})
+  // DELETE
+  app.delete(`/api/${table}/:id`, async (req, res) => {
+    try {
+      const response = await ordsRequest("DELETE", `/${table}/${req.params.id}`);
+      res.status(response.status).json(response.data);
+    } catch (err) {
+      handleError(res, err);
+    }
+  });
+};
 
-// Get risk by id
-app.get('/api/risks/:id', authorizeRole(['admin','risk_manager','viewer']), (req, res) => {
-  const id = parseInt(req.params.id)
-  const found = risks.find(r => r.id === id)
-  if (!found) return res.status(404).json({ success:false, error:{ code:'NOT_FOUND', message:'Risk not found' }})
-  res.json({ success:true, data: found })
-})
+// ==========================
+// REGISTER YOUR 6 TABLES
+// ==========================
+[
+  "per_trn_identify_risk",
+  "per_trn_risk_monitoring",
+  "per_trn_control_implementation",
+  "per_mst_business_process",
+  "per_mst_control_type",
+  "per_mst_risk_category"
+].forEach(createRoutes);
 
-// Update risk
-app.put('/api/risks/:id', authorizeRole(['admin','risk_manager']), (req, res) => {
-  const id = parseInt(req.params.id)
-  const idx = risks.findIndex(r => r.id === id)
-  if (idx < 0) return res.status(404).json({ success:false, error:{ code:'NOT_FOUND', message:'Risk not found' }})
-  const { name, description } = req.body
-  if (!name) return res.status(400).json({ success:false, error:{ code:'BAD_REQUEST', message:'Invalid risk payload' }})
-  risks[idx].name = name
-  risks[idx].description = description || ''
-  res.json({ success:true, data: risks[idx] })
-})
+// ==========================
+// START SERVER
+// ==========================
+const PORT = process.env.PORT || 5000;
 
-// Delete risk
-app.delete('/api/risks/:id', authorizeRole(['admin']), (req, res) => {
-  const id = parseInt(req.params.id)
-  const idx = risks.findIndex(r => r.id === id)
-  if (idx < 0) return res.status(404).json({ success:false, error:{ code:'NOT_FOUND', message:'Risk not found' }})
-  const [removed] = risks.splice(idx, 1)
-  res.json({ success:true, data: removed })
-})
-
-const PORT = 5000
-app.listen(PORT, () => console.log('API (production MVP) listening on http://localhost:' + PORT))
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});

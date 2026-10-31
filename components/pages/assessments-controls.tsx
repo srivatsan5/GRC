@@ -57,70 +57,112 @@ export function AssessmentscontrolsPage() {
     }
   })
 
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      return oracleService.createControlImplementation({
+        identify_risk_uuid: 1,
+        assessment_reference_number_uuid: 1,
+        control_design_effectiveness: 90,
+        control_frequency: 1,
+        is_stage_complted: 'N',
+        approval_status: 'DRAFT',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments-controls'] })
+      toast({ title: 'Success', description: 'New control created.' })
+    },
+    onError: () => {
+      toast({ title: 'Creation Failure', description: 'Failed to create control.', variant: 'destructive' })
+    }
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string | number) => {
+      // Use deleteControlImplementation if it exists, otherwise deleteMitigationPlan which maps to the same table
+      return (oracleService as any).deleteControlImplementation 
+        ? (oracleService as any).deleteControlImplementation(id) 
+        : oracleService.deleteMitigationPlan(id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessments-controls'] })
+      toast({ title: 'Success', description: 'Control deleted.' })
+    },
+    onError: (err: any) => {
+      toast({ title: 'Deletion Failure', description: err.message || 'Failed to delete control.', variant: 'destructive' })
+    }
+  })
+
   // 3. Column Definitions
   const columnHelper = createColumnHelper<any>()
   
   const columns = useMemo(() => [
     columnHelper.accessor('root_cause', {
       header: 'Root Cause',
-      cell: info => <span className="font-bold text-foreground block max-w-[200px] truncate">{info.getValue() || 'N/A'}</span>,
+      cell: info => <span className="font-bold text-foreground block max-w-[200px] truncate">{info.getValue() || info.row.original.control_description || 'Unknown'}</span>,
     }),
     columnHelper.accessor('inh_score', {
       header: 'Score',
-      cell: info => (
-        <span className={cn(
-          "px-2 py-0.5 rounded text-[10px] font-black tracking-tighter shadow-sm",
-          (info.getValue() || 0) >= 15 ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-        )}>
-          {info.getValue() || 0}
-        </span>
-      ),
+      cell: info => {
+        const score = info.getValue() || info.row.original.inherent_sle || 0;
+        return (
+          <span className={cn(
+            "px-2 py-0.5 rounded text-[10px] font-black tracking-tighter shadow-sm",
+            score >= 15 ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+          )}>
+            {score}
+          </span>
+        );
+      },
     }),
     columnHelper.accessor('control_id', {
       header: 'ID',
-      cell: info => <span className="font-mono text-[11px] text-muted-foreground/70">{info.getValue() || 'NEW'}</span>,
+      cell: info => <span className="font-mono text-[11px] text-muted-foreground/70">{info.getValue() || String(info.row.original.uuid || '').slice(0, 8) || 'NEW'}</span>,
     }),
-    columnHelper.accessor('control_name', {
-      header: 'Control Name',
-      cell: info => <span className="font-semibold text-foreground/90">{info.getValue() || 'N/A'}</span>,
-    }),
-    columnHelper.accessor('design_effectiveness', {
+    columnHelper.accessor('control_design_effectiveness', {
       header: 'Design Eff.',
+      cell: info => {
+        const val = info.getValue()
+        const label = val >= 70 ? 'Effective' : val >= 40 ? 'Needs Improvement' : val ? 'Ineffective' : 'Unset'
+        return <span className="font-semibold text-foreground/90">{label} {val ? `(${val})` : ''}</span>
+      },
+    }),
+    columnHelper.accessor('control_frequency', {
+      header: 'Frequency',
       cell: ({ row, getValue }) => (
         <select 
           className="w-full bg-secondary/50 border border-border/40 rounded px-2 py-1 text-[11px] font-bold outline-none focus:ring-1 focus:ring-primary/30"
-          value={editedRows[row.original.uuid]?.design_effectiveness ?? getValue() ?? 'Effective'}
+          value={editedRows[row.original.uuid]?.control_frequency ?? getValue() ?? 1}
           onChange={(e) => {
-            const val = e.target.value
+            const val = Number(e.target.value)
             setEditedRows(prev => ({
               ...prev,
-              [row.original.uuid]: { ...(prev[row.original.uuid] || row.original), design_effectiveness: val }
+              [row.original.uuid]: { ...(prev[row.original.uuid] || row.original), control_frequency: val }
             }))
           }}
         >
-          <option>Effective</option>
-          <option>Needs Improvement</option>
-          <option>Ineffective</option>
+          <option value={1}>Continuous</option>
+          <option value={2}>Daily</option>
+          <option value={3}>Weekly</option>
         </select>
       )
     }),
-    columnHelper.accessor('operational_effectiveness', {
-      header: 'Oper. Eff.',
+    columnHelper.accessor('is_stage_complted', {
+      header: 'Oper. Status',
       cell: ({ row, getValue }) => (
         <select 
           className="w-full bg-secondary/50 border border-border/40 rounded px-2 py-1 text-[11px] font-bold outline-none focus:ring-1 focus:ring-primary/30"
-          value={editedRows[row.original.uuid]?.operational_effectiveness ?? getValue() ?? 'Effective'}
+          value={editedRows[row.original.uuid]?.is_stage_complted ?? getValue() ?? 'N'}
           onChange={(e) => {
             const val = e.target.value
             setEditedRows(prev => ({
               ...prev,
-              [row.original.uuid]: { ...(prev[row.original.uuid] || row.original), operational_effectiveness: val }
+              [row.original.uuid]: { ...(prev[row.original.uuid] || row.original), is_stage_complted: val }
             }))
           }}
         >
-          <option>Effective</option>
-          <option>Needs Improvement</option>
-          <option>Ineffective</option>
+          <option value="Y">Complete</option>
+          <option value="N">In Progress</option>
         </select>
       )
     }),
@@ -129,7 +171,7 @@ export function AssessmentscontrolsPage() {
       header: 'Overall Status',
       cell: ({ row }) => {
         const edits = editedRows[row.original.uuid] || row.original
-        const isGreen = edits.design_effectiveness === 'Effective' && edits.operational_effectiveness === 'Effective'
+        const isGreen = edits.is_stage_complted === 'Y'
         return (
           <div className="flex items-center gap-2 px-1">
              <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]", isGreen ? "bg-emerald-500 text-emerald-500" : "bg-amber-500 text-amber-500")} />
@@ -143,13 +185,17 @@ export function AssessmentscontrolsPage() {
     columnHelper.display({
       id: 'actions',
       header: 'Act',
-      cell: () => (
-        <button className="p-1.5 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-md">
-          <Trash2 className="w-3.5 h-3.5" />
+      cell: ({ row }) => (
+        <button 
+          onClick={() => deleteMutation.mutate(row.original.uuid || row.original.id || row.original.control_id)}
+          disabled={deleteMutation.isPending}
+          className="p-1.5 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-md disabled:opacity-50"
+        >
+          {deleteMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
         </button>
       )
     })
-  ], [editedRows])
+  ], [editedRows, deleteMutation.isPending])
 
   // 4. Table instance
   const table = useReactTable({
@@ -203,8 +249,14 @@ export function AssessmentscontrolsPage() {
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground/60" />
               <Input placeholder="Search controls..." className="pl-10 h-9 bg-card/40 border-border/40 text-[13px] font-medium" />
            </div>
-           <Button size="sm" variant="ghost" className="h-9 px-4 text-[11px] font-bold uppercase tracking-widest border border-border/40 bg-card/20">
-              <Plus className="w-3.5 h-3.5 mr-2" />
+           <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-9 px-4 text-[11px] font-bold uppercase tracking-widest border border-border/40 bg-card/20"
+              onClick={() => createMutation.mutate()}
+              disabled={createMutation.isPending}
+            >
+              {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
               New Control
            </Button>
         </div>

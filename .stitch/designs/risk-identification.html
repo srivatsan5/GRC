@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Risk Identification | Sentinel Enterprise</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#3525cd",
+              "on-secondary": "#ffffff",
+              "surface": "#faf8ff",
+              "primary-container": "#4f46e5",
+              "on-error-container": "#93000a",
+              "inverse-on-surface": "#eef0ff",
+              "surface-container-low": "#f2f3ff",
+              "tertiary-fixed": "#ffdbcc",
+              "on-surface-variant": "#464555",
+              "tertiary-container": "#a44100",
+              "secondary": "#505f76",
+              "surface-bright": "#faf8ff",
+              "on-tertiary-fixed": "#351000",
+              "on-tertiary": "#ffffff",
+              "on-background": "#131b2e",
+              "surface-container": "#eaedff",
+              "outline-variant": "#c7c4d8",
+              "on-primary-fixed-variant": "#3323cc",
+              "outline": "#777587",
+              "surface-tint": "#4d44e3",
+              "error": "#ba1a1a",
+              "on-tertiary-container": "#ffd2be",
+              "surface-variant": "#dae2fd",
+              "primary-fixed-dim": "#c3c0ff",
+              "on-error": "#ffffff",
+              "surface-dim": "#d2d9f4",
+              "secondary-fixed": "#d3e4fe",
+              "primary-fixed": "#e2dfff",
+              "on-primary-fixed": "#0f0069",
+              "on-surface": "#131b2e",
+              "on-secondary-container": "#54647a",
+              "tertiary": "#7e3000",
+              "error-container": "#ffdad6",
+              "secondary-container": "#d0e1fb",
+              "secondary-fixed-dim": "#b7c8e1",
+              "on-primary": "#ffffff",
+              "surface-container-highest": "#dae2fd",
+              "background": "#faf8ff",
+              "on-primary-container": "#dad7ff",
+              "surface-container-high": "#e2e7ff",
+              "on-secondary-fixed-variant": "#38485d",
+              "tertiary-fixed-dim": "#ffb695",
+              "on-tertiary-fixed-variant": "#7b2f00",
+              "inverse-primary": "#c3c0ff",
+              "inverse-surface": "#283044",
+              "surface-container-lowest": "#ffffff",
+              "on-secondary-fixed": "#0b1c30"
+            },
+            fontFamily: {
+              "headline": ["Manrope"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface font-body text-on-surface antialiased">
+<!-- Navigation Drawer (Shared Component) -->
+<aside class="h-full w-64 fixed left-0 top-0 z-40 bg-slate-100 dark:bg-slate-900 flex flex-col h-full py-4 transition-all">
+<div class="font-manrope font-extrabold text-2xl text-indigo-700 dark:text-indigo-400 p-6">Sentinel Enterprise</div>
+<nav class="flex-1 px-2 space-y-1 overflow-y-auto no-scrollbar">
+<!-- Dashboard Tab (Inactive) -->
+<a class="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-4 py-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">dashboard</span>
+<span class="font-inter text-sm font-medium tracking-wide uppercase">Dashboard</span>
+</a>
+<!-- RCSA Tab (Active per context of Risk Identification) -->
+<a class="flex items-center bg-white dark:bg-slate-800 text-indigo-700 dark:text-indigo-400 rounded-lg mx-2 shadow-sm px-4 py-3 translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined mr-3" style="font-variation-settings: 'FILL' 1;">security_update_good</span>
+<span class="font-inter text-sm font-medium tracking-wide uppercase">RCSA</span>
+</a>
+<!-- Risk Register Tab (Inactive) -->
+<a class="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-4 py-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">list_alt</span>
+<span class="font-inter text-sm font-medium tracking-wide uppercase">Risk Register</span>
+</a>
+<!-- Incidents Tab (Inactive) -->
+<a class="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-4 py-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">error_outline</span>
+<span class="font-inter text-sm font-medium tracking-wide uppercase">Incidents</span>
+</a>
+<div class="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800">
+<a class="flex items-center text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 px-4 py-3 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-inter text-sm font-medium tracking-wide uppercase">Settings</span>
+</a>
+</div>
+</nav>
+</aside>
+<!-- Top App Bar (Shared Component) -->
+<header class="fixed top-0 right-0 left-64 z-30 bg-slate-50/80 dark:bg-slate-950/80 backdrop-blur-md shadow-sm dark:shadow-none flex justify-between items-center px-8 py-3">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-indigo-700 dark:text-indigo-400">menu</span>
+<h1 class="font-manrope font-bold text-lg tracking-tight text-slate-900 dark:text-slate-50">Risk Identification</h1>
+</div>
+<div class="flex items-center gap-6">
+<div class="hidden md:flex items-center gap-2">
+<span class="text-indigo-700 dark:text-indigo-400 font-semibold text-sm">Assessment v2.4</span>
+</div>
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center overflow-hidden border border-outline-variant/20">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Professional studio portrait of a corporate executive, clean lighting, blurred office background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVNi2daTxBW3Ji_zxj-xg_X8ZOnY0PBVEk8FibmDdlOqX8AcSrAS_CrXIsxoDstW7u43FMoe8yFF_tmVP78IuW9rYf6lR7dA2uIiZnsbGbaFKcsscnr8pejWn0ZElEKGnIOqtC-lNKxJSL2H6vckEmtyYeNieTYDORdHI9_JVZ258o57JJx3jTKcwsqRN5HI5N6vqoN3vmbMNe5A7kdEJNBEotpRFqwXIctscoSvoA9C3Qe9jg_1eOuJXzAduvZEP41PB8lycS4ZcW"/>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-20 pb-12 px-8">
+<!-- Page Title Area -->
+<section class="flex justify-between items-end mb-16">
+<div class="space-y-1">
+<p class="text-primary font-bold text-xs tracking-[0.2em] uppercase mb-2">Internal Audit • FY24</p>
+<h2 class="font-headline text-4xl font-extrabold text-on-background tracking-tighter">Risk Identification - Connected Risks</h2>
+<p class="text-on-surface-variant text-md max-w-2xl">Manage and categorize critical operational risks linked to current institutional assessments.</p>
+</div>
+<button class="bg-gradient-to-r from-primary to-primary-container text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                Add Risk
+            </button>
+</section>
+<!-- Bento Grid Data Layout -->
+<div class="grid grid-cols-12 gap-8 mb-12">
+<!-- Main Data Table Container -->
+<div class="col-span-12 lg:col-span-12 bg-surface-container-lowest rounded-xl overflow-hidden">
+<div class="p-6 flex justify-between items-center bg-white border-b border-surface-container-low">
+<h3 class="font-headline font-bold text-lg text-on-surface">Existing Connected Risks</h3>
+<div class="flex gap-2">
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-colors">
+<span class="material-symbols-outlined text-outline">filter_list</span>
+</button>
+<button class="p-2 hover:bg-surface-container-low rounded-lg transition-colors">
+<span class="material-symbols-outlined text-outline">search</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50">
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Risk Name</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Inherent Likelihood</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Inherent Impact</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">Risk Owner</th>
+<th class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-1 h-6 bg-error rounded-full"></div>
+<div>
+<p class="font-semibold text-on-surface">Data Breach - PII Exposure</p>
+<p class="text-xs text-on-surface-variant">ID: R-0492 • Cyber Security</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-error-container text-on-error-container text-xs font-bold rounded-full">High</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-error-container text-on-error-container text-xs font-bold rounded-full">High</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700">JS</div>
+<span class="text-sm text-on-surface">Jane Simmons</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-primary hover:text-primary-container font-semibold text-sm underline-offset-4 hover:underline transition-all flex items-center gap-1 justify-end ml-auto">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+                                        Applied Controls
+                                    </button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-1 h-6 bg-tertiary rounded-full"></div>
+<div>
+<p class="font-semibold text-on-surface">Regulatory Non-Compliance</p>
+<p class="text-xs text-on-surface-variant">ID: R-1283 • Legal &amp; Compliance</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant text-xs font-bold rounded-full">Medium</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-error-container text-on-error-container text-xs font-bold rounded-full">High</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-[10px] font-bold text-amber-700">MC</div>
+<span class="text-sm text-on-surface">Marcus Chen</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-primary hover:text-primary-container font-semibold text-sm underline-offset-4 hover:underline transition-all flex items-center gap-1 justify-end ml-auto">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+                                        Applied Controls
+                                    </button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-surface-container-low/30 transition-colors">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<div class="w-1 h-6 bg-primary rounded-full"></div>
+<div>
+<p class="font-semibold text-on-surface">Third-party Service Outage</p>
+<p class="text-xs text-on-surface-variant">ID: R-0855 • Operations</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-surface-variant text-on-surface-variant text-xs font-bold rounded-full">Low</span>
+</td>
+<td class="px-6 py-5">
+<span class="px-3 py-1 bg-tertiary-fixed text-on-tertiary-fixed-variant text-xs font-bold rounded-full">Medium</span>
+</td>
+<td class="px-6 py-5">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-700">SD</div>
+<span class="text-sm text-on-surface">Sarah Drumm</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-primary hover:text-primary-container font-semibold text-sm underline-offset-4 hover:underline transition-all flex items-center gap-1 justify-end ml-auto">
+<span class="material-symbols-outlined text-[18px]">account_tree</span>
+                                        Applied Controls
+                                    </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-6 bg-surface-container-low/20 flex justify-between items-center">
+<p class="text-xs font-medium text-on-surface-variant">Showing 1-3 of 12 Connected Risks</p>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-white border border-outline-variant/30 text-xs font-bold uppercase tracking-widest hover:bg-surface-container-low transition-all">Prev</button>
+<button class="px-4 py-2 bg-white border border-outline-variant/30 text-xs font-bold uppercase tracking-widest hover:bg-surface-container-low transition-all">Next</button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Slide-out Side Panel (Add Risk Form) -->
+<!-- Positioned for visible demonstration; usually would be toggled by JS -->
+<div class="fixed inset-y-0 right-0 w-[480px] bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-l border-outline-variant/10">
+<div class="h-full flex flex-col">
+<div class="p-8 border-b border-surface-container-low">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline text-2xl font-bold text-on-background">Identify New Risk</h3>
+<button class="text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex items-center gap-4 text-sm">
+<div class="flex items-center gap-2 text-primary font-bold">
+<span class="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px]">1</span>
+                        Risk Details
+                    </div>
+<div class="h-[1px] w-8 bg-surface-container"></div>
+<div class="flex items-center gap-2 text-on-surface-variant font-medium">
+<span class="w-6 h-6 rounded-full bg-surface-container flex items-center justify-center text-[10px]">2</span>
+                        Scoring
+                    </div>
+</div>
+</div>
+<div class="flex-1 overflow-y-auto p-8 space-y-8 no-scrollbar">
+<!-- Risk Selection -->
+<div class="space-y-3">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Select Risk Category</label>
+<select class="w-full bg-surface-container-low border-0 rounded-lg p-3 text-on-surface focus:ring-1 focus:ring-primary focus:bg-white transition-all appearance-none cursor-pointer">
+<option>New Risk Instance</option>
+<option>Existing Risk from Library</option>
+</select>
+</div>
+<!-- Likelihood & Impact Grid -->
+<div class="grid grid-cols-2 gap-6">
+<div class="space-y-3">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Inherent Likelihood</label>
+<select class="w-full bg-surface-container-low border-0 rounded-lg p-3 text-on-surface focus:ring-1 focus:ring-primary focus:bg-white transition-all cursor-pointer">
+<option>High</option>
+<option selected="">Medium</option>
+<option>Low</option>
+</select>
+</div>
+<div class="space-y-3">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Inherent Impact</label>
+<select class="w-full bg-surface-container-low border-0 rounded-lg p-3 text-on-surface focus:ring-1 focus:ring-primary focus:bg-white transition-all cursor-pointer">
+<option>High</option>
+<option>Medium</option>
+<option>Low</option>
+</select>
+</div>
+</div>
+<!-- Justification -->
+<div class="space-y-3">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Risk Justification</label>
+<textarea class="w-full bg-surface-container-low border-0 rounded-lg p-3 text-on-surface focus:ring-1 focus:ring-primary focus:bg-white transition-all resize-none" placeholder="Explain why this risk is being identified and its potential relevance to the current audit scope..." rows="4"></textarea>
+</div>
+<!-- Risk Owner -->
+<div class="space-y-3">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Risk Owner</label>
+<div class="relative">
+<select class="w-full bg-surface-container-low border-0 rounded-lg p-3 pl-10 text-on-surface focus:ring-1 focus:ring-primary focus:bg-white transition-all cursor-pointer">
+<option>Marcus Chen (Compliance Lead)</option>
+<option>Jane Simmons (IT Manager)</option>
+<option>Sarah Drumm (Ops Director)</option>
+</select>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">person</span>
+</div>
+</div>
+<!-- Contextual Hint -->
+<div class="p-4 bg-primary/5 rounded-lg border-l-4 border-primary flex gap-3">
+<span class="material-symbols-outlined text-primary text-[20px]">info</span>
+<p class="text-xs text-on-surface-variant leading-relaxed">Changes to high-impact risks will trigger an automatic notification to the ERM oversight committee.</p>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="p-8 border-t border-surface-container-low bg-surface/30 grid grid-cols-2 gap-4">
+<button class="px-6 py-3 border border-outline-variant/30 text-on-surface-variant font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-surface-container-low transition-all active:scale-95">Cancel</button>
+<button class="px-6 py-3 bg-gradient-to-r from-primary to-primary-container text-white font-bold uppercase tracking-widest text-xs rounded-lg shadow-lg hover:shadow-primary/20 transition-all active:scale-95">Save Risk</button>
+</div>
+</div>
+</div>
+<!-- Overlay (demonstration) -->
+<div class="fixed inset-0 bg-on-background/10 backdrop-blur-sm z-40 pointer-events-none"></div>
+</body></html>

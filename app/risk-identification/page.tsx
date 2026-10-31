@@ -1,12 +1,12 @@
 'use client'
 
-import { AppLayout } from '@/components/app-layout'
+import { PericopeLayout } from '@/components/pericope-layout'
 import { RiskIdentificationPage } from '@/components/pages/risk-identification'
 
 export default function RiskIdentificationRoute() {
   return (
-    <AppLayout>
+    <PericopeLayout>
       <RiskIdentificationPage />
-    </AppLayout>
+    </PericopeLayout>
   )
 }

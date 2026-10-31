@@ -16,22 +16,21 @@ export function MonitoringactionshierarchyPage() {
       try {
         const items = await oracleService.getMonitoringActionsHierarchy()
         
-        // Transform flat ORDS rows into hierarchy [Parent -> children]
-        const parents = items.filter((it: any) => it.TYPE === 'parent' || !it.PARENT_ID)
+        const parents = items.filter((it: any) => it.type === 'parent' || !it.parent_id)
         const hierarchy = parents.map((p: any) => ({
           ...p,
-          id: p.ID || p.PLAN_ID,
-          title: p.TITLE || p.NAME,
-          progress: p.PROGRESS || 0,
-          status: p.STATUS || 'Pending',
-          owner: p.OWNER || 'N/A',
-          children: items.filter((c: any) => c.PARENT_ID === (p.ID || p.PLAN_ID)).map((c: any) => ({
+          id: p.uuid || p.id || p.plan_id,
+          title: p.monitoring_title || p.title || p.name || 'Unnamed Action',
+          progress: p.is_stage_complted === 'Y' ? 100 : (p.progress || 25),
+          status: p.is_stage_complted === 'Y' ? 'Completed' : (p.status || 'In Progress'),
+          owner: p.mitigation_owner || p.owner || 'Unassigned',
+          children: items.filter((c: any) => (c.parent_id || c.PARENT_ID) === (p.id || p.ID || p.plan_id || p.PLAN_ID)).map((c: any) => ({
             ...c,
-            id: c.ID || c.ACTION_ID,
-            title: c.TITLE || c.NAME,
-            progress: c.PROGRESS || 0,
-            status: c.STATUS || 'Pending',
-            owner: c.OWNER || 'N/A'
+            id: c.uuid || c.id || c.action_id,
+            title: c.monitoring_title || c.title || c.name,
+            progress: c.is_stage_complted === 'Y' ? 100 : (c.progress || 25),
+            status: c.is_stage_complted === 'Y' ? 'Completed' : (c.status || 'In Progress'),
+            owner: c.mitigation_owner || c.owner || 'Unassigned'
           }))
         }))
 
@@ -73,9 +72,9 @@ export function MonitoringactionshierarchyPage() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/70" />
-          <p className="text-sm font-medium text-muted-foreground animate-pulse">Building Action Hierarchy from Oracle ADW...</p>
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          <p className="text-xs text-slate-500">Loading monitoring actions...</p>
         </div>
       </div>
     )
@@ -108,7 +107,7 @@ export function MonitoringactionshierarchyPage() {
             {/* Tree content */}
             <div className="divide-y divide-border/30">
               <AnimatePresence>
-                {hierarchyData.map((parent: HierarchyItem) => (
+                {hierarchyData.map((parent: any) => (
                   <div key={parent.id} className="group">
                     {/* Parent Row */}
                     <motion.div 
@@ -127,7 +126,7 @@ export function MonitoringactionshierarchyPage() {
                       <div className="col-span-2">
                         <span className="text-[12px] font-medium flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary">
-                            {parent.owner.split(' ').map(n => n[0]).join('')}
+                            {parent.owner.split(' ').map((n: string) => n[0]).join('')}
                           </span>
                           {parent.owner}
                         </span>
@@ -172,7 +171,7 @@ export function MonitoringactionshierarchyPage() {
                             <div className="col-span-2">
                               <span className="text-[12px] font-medium flex items-center gap-2 text-muted-foreground">
                                 <span className="w-5 h-5 rounded-full bg-secondary border border-border/50 flex items-center justify-center text-[9px] font-bold">
-                                  {child.owner.split(' ').map(n => n[0]).join('')}
+                                  {child.owner.split(' ').map((n: string) => n[0]).join('')}
                                 </span>
                                 {child.owner}
                               </span>

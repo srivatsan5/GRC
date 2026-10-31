@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(taskkill //PID 14324 //F)",
+      "Bash(curl -s -X POST http://localhost:5000/api/per_trn_identify_risk -H 'Content-Type: application/json' -H 'X-User-Id: U-ADMIN' -H 'X-User-Name: Admin Tester' -H 'X-User-Role: Administrator' -d '{\"risk_statement\":\"Vendor concentration risk in payment processing\"}' -w '\\\\nHTTP_STATUS:%{http_code}\\\\n')",
+      "Bash(curl -s -X PUT http://localhost:5000/api/per_trn_identify_risk/1525 -H 'Content-Type: application/json' -H 'X-User-Name: Admin Tester' -H 'X-User-Role: Administrator' -d '{\"risk_statement\":\"Vendor concentration risk \\(updated\\)\",\"approval_status\":\"SUBMITTED\"}' -w '\\\\nHTTP_STATUS:%{http_code}\\\\n')",
+      "Bash(curl -s -X DELETE http://localhost:5000/api/per_trn_identify_risk/1525 -H 'X-User-Name: Admin Tester' -H 'X-User-Role: Administrator' -w '\\\\nHTTP_STATUS:%{http_code}\\\\n')",
+      "Bash(curl -s \"https://ga8231f10084da5-pericopeai.adb.us-chicago-1.oraclecloudapps.com/ords/grc/per_trn_identify_risk/1525\" --max-time 15 -w \"\\\\nHTTP_STATUS:%{http_code}\\\\n\")",
+      "Bash(rm -rf .next dist-deploy)",
+      "Bash(mkdir -p dist-deploy)",
+      "Bash(npm run *)"
+    ]
+  }
+}

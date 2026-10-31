@@ -1,12 +1,12 @@
 'use client'
 
-import { AppLayout } from '@/components/app-layout'
+import { PericopeLayout } from '@/components/pericope-layout'
 import { AuditTrailPage } from '@/components/pages/audit-trail'
 
 export default function AuditTrailRoute() {
   return (
-    <AppLayout>
+    <PericopeLayout>
       <AuditTrailPage />
-    </AppLayout>
+    </PericopeLayout>
   )
 }

@@ -1,14 +1,22 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search, Download, TrendingUp, TrendingDown, MoreVertical, AlertTriangle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { FadeIn } from '@/components/ui/fade-in'
 import { motion, AnimatePresence } from 'framer-motion'
 import { oracleService } from '@/lib/oracleService'
 
 export function KrimatrixPage() {
+  const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<any[]>([])
@@ -27,35 +35,33 @@ export function KrimatrixPage() {
     fetchData()
   }, [])
 
-  const filtered = data.filter(d => 
-    (d.ID || d.KRI_ID || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (d.DEPT || d.DEPARTMENT || '').toLowerCase().includes(searchTerm.toLowerCase())
+  const mappedData = data.map((d: any) => ({
+    id: d.uuid ? `KRI-${d.uuid}` : (d.ID || d.KRI_ID || 'N/A'),
+    dept: d.monitoring_goal || d.DEPT || d.DEPARTMENT || 'Operations',
+    value: d.is_stage_complted === 'Y' ? 100 : 65,
+    score: d.is_stage_complted === 'Y' ? 'Green' : 'Amber',
+    prevValue: 50,
+    prevScore: 'Amber',
+    threshold: 80,
+    nextBound: 60,
+    breach: d.is_stage_complted === 'Y' ? 'Safe' : 'Warning',
+    owner: d.mitigation_owner || d.OWNER || 'Unassigned',
+    freq: 'Monthly',
+    target: 100,
+    type: 'LGI',
+    source: 'Oracle ADW',
+    updated: d.actual_start_date?.split('T')[0] || d.estimated_start_date?.split('T')[0] || 'N/A',
+    trend: d.is_stage_complted === 'Y' ? 'up' : 'down'
+  }))
+
+  const filtered = mappedData.filter(d => 
+    d.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    d.dept.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const getScoreColor = (score: string) => {
-    switch (score?.toLowerCase()) {
-      case 'green': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-      case 'amber':
-      case 'yellow': return 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-      case 'red': return 'bg-destructive/10 text-destructive border-destructive/20'
-      default: return 'bg-secondary text-muted-foreground border-border/50'
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-primary/70" />
-          <p className="text-sm font-medium text-muted-foreground animate-pulse">Scanning Risk Indicators...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const redCount = data.filter(d => d.SCORE?.toLowerCase() === 'red').length
-  const amberCount = data.filter(d => ['amber', 'yellow'].includes(d.SCORE?.toLowerCase())).length
-  const greenCount = data.filter(d => d.SCORE?.toLowerCase() === 'green').length
+  const redCount = mappedData.filter(d => d.score?.toLowerCase() === 'red').length
+  const amberCount = mappedData.filter(d => ['amber', 'yellow'].includes(d.score?.toLowerCase())).length
+  const greenCount = mappedData.filter(d => d.score?.toLowerCase() === 'green').length
 
   return (
     <div className="flex-1 pb-10 flex flex-col h-full">
@@ -133,60 +139,72 @@ export function KrimatrixPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        key={row.ID || row.KRI_ID || idx} 
+                        key={row.id || idx} 
                         className="border-b border-border/30 hover:bg-secondary/20 transition-colors last:border-0 group"
                       >
                         <td className="px-4 py-3 font-mono font-bold text-foreground sticky left-0 bg-background group-hover:bg-secondary/20 transition-colors border-r border-border/50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                          {row.ID || row.KRI_ID || 'N/A'}
+                          {row.id}
                         </td>
                         
                         <td className="px-4 py-3 text-center border-r border-border/50 bg-secondary/10">
                           <div className="flex items-center justify-center gap-2 font-mono text-[13px] font-bold text-foreground">
-                            {row.VALUE || row.CURRENT_VALUE}
-                            {row.TREND === 'up' ? <TrendingUp className="w-3.5 h-3.5 text-destructive" /> : <TrendingDown className="w-3.5 h-3.5 text-emerald-500" />}
+                            {row.value}
+                            {row.trend === 'up' ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> : <TrendingDown className="w-3.5 h-3.5 text-amber-500" />}
                           </div>
                         </td>
                         <td className="px-4 py-3 text-center border-r border-border/50 bg-secondary/10">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${getScoreColor(row.SCORE || row.CURRENT_SCORE)}`}>
-                            {row.SCORE || row.CURRENT_SCORE || 'N/A'}
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${row.score === 'Green' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                            {row.score}
                           </span>
                         </td>
                         
-                        <td className="px-4 py-3 text-center border-r border-border/50 font-mono text-muted-foreground">{row.PREV_VALUE || row.PREVIOUS_VALUE || 'N/A'}</td>
+                        <td className="px-4 py-3 text-center border-r border-border/50 font-mono text-muted-foreground">{row.prevValue}</td>
                         <td className="px-4 py-3 text-center border-r border-border/50">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border opacity-70 ${getScoreColor(row.PREV_SCORE || row.PREVIOUS_SCORE)}`}>
-                            {row.PREV_SCORE || row.PREVIOUS_SCORE || 'N/A'}
+                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border opacity-70 bg-amber-500/10 text-amber-500 border-amber-500/20`}>
+                            {row.prevScore}
                           </span>
                         </td>
                         
-                        <td className="px-4 py-3 font-mono text-amber-500 font-semibold">{row.THRESHOLD || row.WARNING_THRESHOLD || 'N/A'}</td>
-                        <td className="px-4 py-3 font-mono text-destructive font-semibold">{row.NEXT_BOUND || row.CRITICAL_THRESHOLD || 'N/A'}</td>
+                        <td className="px-4 py-3 font-mono text-amber-500 font-semibold">{row.threshold}</td>
+                        <td className="px-4 py-3 font-mono text-destructive font-semibold">{row.nextBound}</td>
                         
                         <td className="px-4 py-3 border-r border-border/50">
-                          <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${(row.BREACH || '').includes('Warning') ? 'text-amber-500' : (row.BREACH || '').includes('Breached') ? 'text-destructive' : 'text-emerald-500'}`}>
-                            {(row.BREACH || '').includes('Warning') && <AlertTriangle className="w-3 h-3" />}
-                            {row.BREACH || 'Safe'}
+                          <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${row.breach === 'Warning' ? 'text-amber-500' : 'text-emerald-500'}`}>
+                            {row.breach === 'Warning' && <AlertTriangle className="w-3 h-3" />}
+                            {row.breach}
                           </span>
                         </td>
                         
-                        <td className="px-4 py-3 font-medium text-foreground">{row.DEPT || row.DEPARTMENT || 'N/A'}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{row.OWNER || 'N/A'}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{row.FREQ || row.FREQUENCY || 'N/A'}</td>
-                        <td className="px-4 py-3 font-mono text-emerald-500 font-semibold bg-emerald-500/5">{row.TARGET || 'N/A'}</td>
+                        <td className="px-4 py-3 font-medium text-foreground">{row.dept.substring(0, 30)}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{row.owner}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{row.freq}</td>
+                        <td className="px-4 py-3 font-mono text-emerald-500 font-semibold bg-emerald-500/5">{row.target}</td>
                         
                         <td className="px-4 py-3 text-center">
                           <span className="inline-block px-1.5 py-0.5 rounded bg-secondary text-muted-foreground text-[10px] font-bold uppercase tracking-wider border border-border/50">
-                            {row.TYPE === 'Leading' ? 'LDI' : 'LGI'}
+                            {row.type}
                           </span>
                         </td>
                         
-                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[150px]">{row.SOURCE || 'N/A'}</td>
-                        <td className="px-4 py-3 border-l border-border/50 font-mono text-[11px] text-muted-foreground">{row.UPDATED || row.LAST_UPDATED || 'N/A'}</td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[150px]">{row.source}</td>
+                        <td className="px-4 py-3 border-l border-border/50 font-mono text-[11px] text-muted-foreground">{row.updated}</td>
                         
                         <td className="px-3 py-3 text-center sticky right-0 bg-background group-hover:bg-secondary/20 transition-colors border-l border-border/50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                          <button className="p-1.5 rounded hover:bg-secondary text-muted-foreground transition-colors">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="p-1.5 rounded hover:bg-secondary text-muted-foreground transition-colors">
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg rounded-xl">
+                               <DropdownMenuItem onClick={() => router.push(`/monitoring?kriId=${row.id}`)} className="text-[11px] font-bold hover:bg-secondary cursor-pointer uppercase tracking-wider text-muted-foreground">
+                                 Monitor Indicator
+                               </DropdownMenuItem>
+                               <DropdownMenuItem onClick={() => router.push(`/rcsa?kriId=${row.id}`)} className="text-[11px] font-bold hover:bg-secondary cursor-pointer uppercase tracking-wider text-muted-foreground">
+                                 Trigger Provisioning
+                               </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </motion.tr>
                     ))}
@@ -195,13 +213,13 @@ export function KrimatrixPage() {
               </table>
               {filtered.length === 0 && (
                 <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-                  <p className="font-medium text-[13px] italic">No indicators found in Oracle ADW.</p>
+                  <p className="font-medium text-xs">No indicators found.</p>
                 </div>
               )}
             </div>
             
-            <div className="bg-secondary/30 p-2.5 border-t border-border/50 text-[11px] font-medium text-muted-foreground flex justify-between items-center px-6">
-              <span>Displaying {filtered.length} Key Risk Indicators from Oracle ADW</span>
+            <div className="bg-slate-50 p-2.5 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center px-4">
+              <span>{filtered.length} Key Risk Indicators</span>
             </div>
           </div>
         </FadeIn>

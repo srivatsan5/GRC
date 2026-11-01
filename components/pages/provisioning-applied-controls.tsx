@@ -47,49 +47,23 @@ export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props)
   })
 
   const currentRisk = useMemo(() => {
+    // No invented placeholder risk: show plainly when the record can't be found.
     return allRisks.find((r: any) => String(r.uuid) === String(riskId) || String(r.id) === String(riskId)) || {
       uuid: riskId,
-      risk_statement: 'SWIFT payment settlement latency and batch reconciliation discrepancy',
-      process_name: 'Finance & Treasury',
-      inherent_sle: 160000,
+      risk_statement: '(risk not found)',
+      process_name: '—',
+      inherent_sle: 0,
     }
   }, [allRisks, riskId])
 
+  // Only controls actually linked to this risk. (Matching on the assessment id pulled in every control
+  // of the assessment, and the old sample rows had ids that a Delete click would send to the database.)
   const controls = useMemo(() => {
-    const directMatches = rawControls.filter((c: any) =>
+    return rawControls.filter((c: any) =>
       String(c.risk_uuid) === String(riskId) ||
-      String(c.identify_risk_uuid) === String(riskId) ||
-      String(c.assessment_reference_number_uuid) === String(assessmentId)
+      String(c.identify_risk_uuid) === String(riskId)
     )
-
-    if (directMatches.length > 0) return directMatches
-
-    // Default sample controls mapped to this risk
-    return [
-      {
-        uuid: Number(riskId) * 100 + 1,
-        control_id: 'CTL-IT-AUTH-01',
-        evidence_notes: 'Multi-factor authentication (MFA) and automated session timeout on payment gateway',
-        control_owner: 'CISO / IT Security',
-        control_frequency: 'Continuous',
-        control_design_effectiveness: 4,
-        control_operating_effectiveness: 5,
-        residual_likelihood: 2,
-        residual_impact: 2,
-      },
-      {
-        uuid: Number(riskId) * 100 + 2,
-        control_id: 'CTL-FIN-REC-02',
-        evidence_notes: 'Daily automated ERP settlement reconciliation with dual maker-checker authorization',
-        control_owner: 'CFO / Treasury Lead',
-        control_frequency: 'Daily',
-        control_design_effectiveness: 5,
-        control_operating_effectiveness: 4,
-        residual_likelihood: 2,
-        residual_impact: 2,
-      }
-    ]
-  }, [rawControls, riskId, assessmentId])
+  }, [rawControls, riskId])
 
   const [newControl, setNewControl] = useState<ControlEntry>({
     id: 0,
@@ -103,14 +77,17 @@ export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props)
 
   const createMutation = useMutation({
     mutationFn: (data: ControlEntry) => oracleService.createControlImplementation({
-      identify_risk_uuid: Number(riskId) || 1,
-      assessment_reference_number_uuid: Number(assessmentId) || 1,
-      risk_uuid: Number(riskId) || 1,
+      // Never fall back to a made-up id: an unlinked control is better than one linked to the wrong risk.
+      identify_risk_uuid: Number(riskId) || undefined,
+      assessment_reference_number_uuid: Number(assessmentId) || undefined,
+      risk_uuid: Number(riskId) || undefined,
       residual_likelihood: Number(data.likelihood) || 2,
       inherent_likelihood: Number(data.residual_impact) || 2,
       control_effectiveness_rating: data.control_effectiveness,
-      evidence_notes: data.control,
-      control_owner: data.control_owner,
+      // CONTROL_OWNER is a numeric user id in Oracle. Until owners are picked from the user list,
+      // keep a free-text owner in the notes instead of writing a wrong id.
+      evidence_notes: /^\d+$/.test(String(data.control_owner).trim()) ? data.control : `${data.control}\nOwner: ${data.control_owner}`,
+      control_owner: /^\d+$/.test(String(data.control_owner).trim()) ? Number(data.control_owner) : undefined,
       control_frequency: data.control_frequency,
       is_stage_complted: 'N',
       approval_status: 'DRAFT',
@@ -207,7 +184,7 @@ export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props)
             </div>
             <h1 className="text-lg font-bold text-slate-900 mt-1">{currentRisk.risk_statement}</h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Inherent Exposure: <strong className="text-slate-800">${Number(currentRisk.inherent_sle || 160000).toLocaleString()} SLE</strong> &middot; Mapped Controls: <strong className="text-emerald-700">{controls.length}</strong>
+              Inherent Exposure: <strong className="text-slate-800">${Number(currentRisk.inherent_sle || 0).toLocaleString()} SLE</strong> &middot; Mapped Controls: <strong className="text-emerald-700">{controls.length}</strong>
             </p>
           </div>
 
@@ -320,11 +297,11 @@ export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props)
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 bg-slate-50 rounded border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Gross Inherent SLE</span>
-            <span className="text-base font-bold text-slate-900 tabular-nums">${Number(currentRisk.inherent_sle || 160000).toLocaleString()}</span>
+            <span className="text-base font-bold text-slate-900 tabular-nums">${Number(currentRisk.inherent_sle || 0).toLocaleString()}</span>
           </div>
           <div className="p-3 bg-slate-50 rounded border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Net Residual SLE</span>
-            <span className="text-base font-bold text-blue-800 tabular-nums">${Math.round(Number(currentRisk.inherent_sle || 160000) * 0.25).toLocaleString()}</span>
+            <span className="text-base font-bold text-blue-800 tabular-nums">${Math.round(Number(currentRisk.inherent_sle || 0) * 0.25).toLocaleString()}</span>
           </div>
           <div className="p-3 bg-slate-50 rounded border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Exposure Mitigated</span>

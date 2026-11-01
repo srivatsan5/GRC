@@ -150,7 +150,13 @@ export function KriconfigurationPage() {
                                 <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button 
-                              onClick={() => deleteMutation.mutate(row.uuid || row.ID || row.KRI_ID)}
+                              type="button"
+                              aria-label="Delete KRI definition"
+                              onClick={() => {
+                                if (window.confirm('Delete this KRI definition permanently? This cannot be undone.')) {
+                                  deleteMutation.mutate(row.uuid || row.ID || row.KRI_ID)
+                                }
+                              }}
                               disabled={deleteMutation.isPending}
                               className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                             >

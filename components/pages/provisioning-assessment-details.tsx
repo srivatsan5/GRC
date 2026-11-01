@@ -54,82 +54,33 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: Props) {
     return allAssessments.find((a: any) => String(a.uuid) === String(assessmentId) || String(a.id) === String(assessmentId)) || null
   }, [allAssessments, assessmentId])
 
-  // Filter or synthesize risks specific to this assessment
+  // Risks linked to this assessment. Only real rows are shown: the assessment row itself is
+  // excluded (deleting it from here would delete the whole assessment) and nothing is invented.
   const connectedRisks = useMemo(() => {
-    const directMatches = allAssessments.filter((r: any) => 
-      String(r.assessment_reference_number_uuid) === String(assessmentId) ||
-      String(r.identify_risk_uuid) === String(assessmentId) ||
-      String(r.uuid) === String(assessmentId)
-    )
-
-    if (directMatches.length > 0) {
-      return directMatches.map((r: any) => {
-        const sle = Number(r.inherent_sle) || 40000
-        const l = Math.min(5, Math.max(1, Math.ceil(sle / 50000)))
-        const imp = Math.min(5, Math.max(1, Math.ceil((sle % 50000) / 10000) || 1))
+    return allAssessments
+      .filter((r: any) =>
+        String(r.uuid) !== String(assessmentId) &&
+        (String(r.identify_risk_uuid) === String(assessmentId) ||
+          String(r.assessment_reference_number_uuid) === String(assessmentId))
+      )
+      .map((r: any) => {
+        const sle = Number(r.inherent_sle) || 0
+        const l = sle > 0 ? Math.min(5, Math.max(1, Math.ceil(sle / 50000))) : null
+        const imp = sle > 0 ? Math.min(5, Math.max(1, Math.ceil((sle % 50000) / 10000) || 1)) : null
         const riskControls = allControls.filter((c: any) => String(c.risk_uuid) === String(r.uuid) || String(c.identify_risk_uuid) === String(r.uuid))
-        
-        let statement = r.risk_statement
-        if (!statement || statement.trim().length === 0 || statement.startsWith('RCSA cycle')) {
-          const dept = r.process_name || currentAssessment?.process_name || 'Operations'
-          if (dept.includes('Procurement')) statement = 'Supplier contract concentration and single-point-of-failure risk'
-          else if (dept.includes('Retail')) statement = 'Point-of-Sale (POS) transaction latency and cash reconciliation discrepancy'
-          else if (dept.includes('Inventory')) statement = 'Warehouse inventory shrinkage and stockout valuation discrepancy'
-          else if (dept.includes('Finance') || dept.includes('Treasury')) statement = 'SWIFT payment gateway latency during peak settlement batch'
-          else if (dept.includes('IT') || dept.includes('Technology')) statement = 'Cloud network redundancy failover delay during regional outage'
-          else if (dept.includes('Legal') || dept.includes('Compliance')) statement = 'Third-party vendor SOC 2 attestation gap and data protection audit delay'
-          else statement = `Operational process failure in ${dept}`
-        }
-
         return {
           ...r,
-          risk_statement: statement,
-          category: r.risk_type || 'Operational',
+          risk_statement: r.risk_statement?.trim() || '(no risk statement recorded)',
+          category: r.risk_type || 'Uncategorised',
           likelihood: l,
           impact: imp,
-          score: l * imp,
+          score: l && imp ? l * imp : null,
           sle,
-          controlCount: riskControls.length > 0 ? riskControls.length : (r.is_stage_complted === 'Y' ? 2 : 1),
-          owner: r.risk_owner || r.risk_champion || currentAssessment?.risk_champion || 'Assessor',
+          controlCount: riskControls.length,
+          owner: r.risk_owner || r.risk_champion || '—',
         }
       })
-    }
-
-    // Default connected risks for this assessment
-    const dept = currentAssessment?.process_name || 'Operations'
-    return [
-      {
-        uuid: Number(assessmentId) * 10 + 1,
-        risk_statement: dept.includes('Finance') 
-          ? 'SWIFT settlement batch processing timeout and cash reconciliation delay'
-          : dept.includes('IT')
-          ? 'Cloud direct-connect failover latency during core database batch operations'
-          : `Critical operational process interruption and workflow blockage in ${dept}`,
-        category: 'Operational',
-        likelihood: 4,
-        impact: 4,
-        score: 16,
-        sle: 160000,
-        controlCount: 2,
-        owner: currentAssessment?.risk_champion || 'Assessor',
-        is_stage_complted: 'N',
-        approval_status: 'DRAFT',
-      },
-      {
-        uuid: Number(assessmentId) * 10 + 2,
-        risk_statement: `Vendor dependency and external service level agreement breach in ${dept}`,
-        category: 'Third Party',
-        likelihood: 3,
-        impact: 4,
-        score: 12,
-        sle: 120000,
-        controlCount: 1,
-        owner: currentAssessment?.risk_champion || 'Assessor',
-        is_stage_complted: 'Y',
-        approval_status: 'APPROVED',
-      }
-    ]
-  }, [allAssessments, allControls, assessmentId, currentAssessment])
+  }, [allAssessments, allControls, assessmentId])
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<AddRiskFormValues>({
     resolver: zodResolver(addRiskSchema),
@@ -191,7 +142,7 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: Props) {
     router.push(`/rcsa/provisioning/${assessmentId}/controls/${riskUuid}`)
   }
 
-  const totalAssessmentSLE = connectedRisks.reduce((acc: number, r: any) => acc + (Number(r.sle) || 40000), 0)
+  const totalAssessmentSLE = connectedRisks.reduce((acc: number, r: any) => acc + (Number(r.sle) || 0), 0)
 
   if (assessmentsLoading) {
     return (
@@ -350,7 +301,11 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: Props) {
           </div>
           <div className="p-3 bg-slate-50 rounded border border-slate-200">
             <span className="text-[11px] text-slate-500 block">Control Coverage</span>
-            <span className="text-lg font-bold text-emerald-700 tabular-nums">100%</span>
+            <span className="text-lg font-bold text-emerald-700 tabular-nums">
+              {connectedRisks.length
+                ? `${Math.round((connectedRisks.filter((r: any) => r.controlCount > 0).length / connectedRisks.length) * 100)}%`
+                : '—'}
+            </span>
           </div>
         </div>
       </div>
@@ -391,10 +346,10 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: Props) {
                   </td>
                   <td className="text-center font-mono text-xs">
                     <span className="font-semibold text-slate-800">{r.likelihood}/5 &times; {r.impact}/5</span>
-                    <span className="block text-[10px] text-slate-400">(Score: {r.score})</span>
+                    <span className="block text-[10px] text-slate-400">(Score: {r.score ?? 'not rated'})</span>
                   </td>
                   <td className="text-right font-medium tabular-nums text-slate-900">
-                    <div>${Number(r.sle || 40000).toLocaleString()}</div>
+                    <div>{r.sle ? `$${Number(r.sle).toLocaleString()}` : '—'}</div>
                     <span className={cn(
                       'text-[9px] font-semibold uppercase px-1 rounded',
                       isHigh ? 'bg-red-50 text-red-700' : 'bg-slate-100 text-slate-600'
@@ -404,7 +359,7 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: Props) {
                   </td>
                   <td className="text-center">
                     <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      {r.controlCount || 1} Mapped
+                      {r.controlCount} Mapped
                     </span>
                   </td>
                   <td className="text-right">
@@ -420,7 +375,7 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: Props) {
                         variant="ghost"
                         size="icon"
                         onClick={() => {
-                          if (confirm(`Remove risk from this assessment?`)) {
+                          if (confirm(`Delete this risk permanently? This cannot be undone.`)) {
                             deleteMutation.mutate(r.uuid)
                           }
                         }}

@@ -12,7 +12,9 @@ import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { oracleService } from '@/lib/oracleService'
 import { cn } from '@/lib/utils'
-import { recordAudit, listAudit } from '@/lib/auditLog'
+import { recordAudit } from '@/lib/auditLog'
+import { auditApi } from '@/lib/apiClient'
+import { useAuth } from '@/components/providers/auth-provider'
 import { controlsStore } from '@/components/pages/control-library'
 import { vendorStore } from '@/components/pages/vendor-risk'
 import { kriStore } from '@/components/pages/kri-intelligence'
@@ -49,14 +51,13 @@ export function ReportsPage() {
   const localControls = useStoreSnapshot(controlsStore)
   const localVendors = useStoreSnapshot(vendorStore)
   const localKri = useStoreSnapshot(kriStore)
-  const [auditEntries, setAuditEntries] = useState<any[]>([])
-
-  React.useEffect(() => {
-    setAuditEntries(listAudit())
-    const handler = () => setAuditEntries(listAudit())
-    window.addEventListener('storage', handler)
-    return () => window.removeEventListener('storage', handler)
-  }, [])
+  const { hasPermission } = useAuth()
+  const { data: auditData } = useQuery({
+    queryKey: ['audit', 'reports'],
+    queryFn: () => auditApi.list({ limit: 1000 }),
+    enabled: hasPermission('audit'),
+  })
+  const auditEntries = auditData?.items ?? []
 
   const { data: rawRisks = [] } = useQuery({
     queryKey: ['reports-risks'],

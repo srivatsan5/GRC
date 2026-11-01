@@ -98,7 +98,7 @@ const NAVIGATION: Array<{
   {
     group: 'Administration',
     items: [
-      { name: 'Audit Trail', href: '/audit-trail', icon: History },
+      { name: 'Audit Trail', href: '/audit-trail', icon: History, roleRequired: ['Administrator', 'Risk Manager', 'Auditor'] },
       { name: 'User Management', href: '/users', icon: Users, roleRequired: ['Administrator'] },
       { name: 'Settings', href: '/settings', icon: Settings, roleRequired: ['Administrator'] },
     ]
@@ -146,6 +146,8 @@ export function PericopeSidebar() {
                 const isActive = pathname === item.href || (item.submenu && item.submenu.some(sub => pathname === sub.href))
                 const isExpanded = expandedGroups.includes(item.name)
                 const isRestricted = item.roleRequired && !item.roleRequired.includes(currentRole)
+                // Don't show links the user can't use (the pages are also guarded).
+                if (isRestricted) return null
 
                 return (
                   <div key={item.name}>

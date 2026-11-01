@@ -1,0 +1,97 @@
+import express from 'express'
+import cookieParser from 'cookie-parser'
+import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
+import type { AppContext } from './context.js'
+import { authenticate, csrfGuard } from './auth/middleware.js'
+import { authRoutes } from './auth/routes.js'
+import { userRoutes } from './users/routes.js'
+import { auditRoutes } from './audit/routes.js'
+import { tableRoutes } from './tables/routes.js'
+import { buildOpenApi } from './openapi.js'
+import { errorHandler, notFoundHandler } from './http/errors.js'
+
+export function createApp(ctx: AppContext) {
+  const app = express()
+  app.disable('x-powered-by')
+  app.set('trust proxy', ctx.config.TRUST_PROXY)
+
+  app.use(helmet())
+  app.use(
+    cors({
+      origin: (origin, cb) => cb(null, !origin || ctx.config.CORS_ORIGINS.includes(origin)),
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+      allowedHeaders: ['Content-Type', 'X-Requested-With', 'Authorization'],
+      exposedHeaders: ['X-Ignored-Fields'],
+      maxAge: 600,
+    }),
+  )
+  app.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: ctx.config.RATE_LIMIT_PER_MINUTE,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Please slow down.' } },
+    }),
+  )
+  app.use(express.json({ limit: '256kb' }))
+  app.use(cookieParser())
+  app.use(requestLogger(ctx.config.NODE_ENV !== 'test'))
+
+  // Unauthenticated probes. They reveal nothing about the upstream host.
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok' })
+  })
+  app.get('/ready', async (_req, res) => {
+    if (!ctx.ords.configured) {
+      res.status(503).json({ status: 'not_ready', database: 'unconfigured' })
+      return
+    }
+    try {
+      await ctx.ords.ping('per_trn_identify_risk')
+      res.json({ status: 'ready', database: 'ok' })
+    } catch {
+      res.status(503).json({ status: 'not_ready', database: 'unavailable' })
+    }
+  })
+  const openapi = buildOpenApi()
+  app.get('/api/openapi.json', (_req, res) => {
+    res.json(openapi)
+  })
+
+  app.use(authenticate(ctx))
+  app.use(csrfGuard(ctx.config.CORS_ORIGINS))
+
+  app.use('/api/auth', authRoutes(ctx))
+  app.use('/api/users', userRoutes(ctx))
+  app.use('/api/audit', auditRoutes(ctx))
+  app.use('/api', tableRoutes(ctx))
+
+  app.use(notFoundHandler)
+  app.use(errorHandler)
+  return app
+}
+
+function requestLogger(enabled: boolean): express.RequestHandler {
+  return (req, res, next) => {
+    if (!enabled) return next()
+    const start = process.hrtime.bigint()
+    res.on('finish', () => {
+      const ms = Number(process.hrtime.bigint() - start) / 1e6
+      const line = {
+        t: new Date().toISOString(),
+        method: req.method,
+        path: req.path,
+        status: res.statusCode,
+        ms: Math.round(ms),
+        user: req.user?.id ?? null,
+        ip: req.ip,
+      }
+      console.log(JSON.stringify(line))
+    })
+    next()
+  }
+}

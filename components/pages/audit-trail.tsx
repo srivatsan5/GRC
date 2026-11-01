@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   useReactTable,
   getCoreRowModel,
@@ -17,13 +18,16 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { StatusBadge } from '@/components/ui/status-badge'
-import { listAudit, AuditEntry } from '@/lib/auditLog'
+import { auditApi, apiErrorMessage, type ApiAuditEntry as AuditEntry } from '@/lib/apiClient'
+import { recordAudit } from '@/lib/auditLog'
 import { useToast } from '@/hooks/use-toast'
 
 export function AuditTrailPage() {
@@ -32,47 +36,41 @@ export function AuditTrailPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [sorting, setSorting] = useState<SortingState>([{ id: 'timestamp', desc: true }])
-  const [entries, setEntries] = useState<AuditEntry[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    setEntries(listAudit())
-    setLoading(false)
-    const handler = () => setEntries(listAudit())
-    window.addEventListener('storage', handler)
-    return () => window.removeEventListener('storage', handler)
-  }, [])
+  // The server-side, hash-chained audit log (newest first).
+  const auditQuery = useQuery({ queryKey: ['audit', 'list'], queryFn: () => auditApi.list({ limit: 1000 }), staleTime: 15_000 })
+  const chainQuery = useQuery({ queryKey: ['audit', 'verify'], queryFn: auditApi.verify, staleTime: 60_000 })
+  const entries: AuditEntry[] = useMemo(() => auditQuery.data?.items ?? [], [auditQuery.data])
+  const loading = auditQuery.isLoading
 
   const filteredByDate = useMemo(() => {
+    // Date pickers are in local time; compare against local-midnight boundaries.
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : -Infinity
+    const to = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : Infinity
     return entries.filter(e => {
-      if (dateFrom && e.timestamp < dateFrom) return false
-      if (dateTo && e.timestamp > dateTo + 'T23:59:59') return false
-      return true
+      const t = new Date(e.timestamp).getTime()
+      return t >= from && t <= to
     })
   }, [entries, dateFrom, dateTo])
 
   const stats = useMemo(() => ({
     total: entries.length,
     create: entries.filter(e => e.action === 'CREATE').length,
-    update: entries.filter(e => e.action === 'UPDATE' || e.action === 'SETTINGS_CHANGE' || e.action === 'ROLE_CHANGE').length,
+    update: entries.filter(e => ['UPDATE', 'SETTINGS_CHANGE', 'ROLE_CHANGE', 'APPROVE', 'REJECT'].includes(e.action)).length,
     delete: entries.filter(e => e.action === 'DELETE').length,
   }), [entries])
 
   const exportCSV = () => {
-    const headers = ['ID', 'Timestamp', 'Actor ID', 'Actor Name', 'Role', 'Action', 'Entity', 'Entity ID', 'Description', 'Result', 'Source']
+    const headers = ['Seq', 'ID', 'Timestamp', 'Actor ID', 'Actor Name', 'Actor Email', 'Role', 'Action', 'Entity', 'Entity ID', 'Description', 'Result', 'Source', 'Hash']
+    // Quote every field and neutralise spreadsheet formulas (=, +, -, @) so the export is safe to open in Excel.
+    const cell = (v: unknown) => {
+      let t = v == null ? '' : String(v)
+      if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`
+      return `"${t.replace(/"/g, '""')}"`
+    }
     const rows = filteredByDate.map(e => [
-      e.id,
-      e.timestamp,
-      e.actor_id,
-      `"${e.actor_name}"`,
-      e.actor_role,
-      e.action,
-      `"${e.entity}"`,
-      e.entity_id || '',
-      `"${(e.description || '').replace(/"/g, '""')}"`,
-      e.result,
-      e.source,
-    ])
+      e.seq, e.id, e.timestamp, e.actor_id, e.actor_name, e.actor_email, e.actor_role, e.action,
+      e.entity, e.entity_id, e.description, e.result, e.source, e.hash,
+    ].map(cell))
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -82,6 +80,7 @@ export function AuditTrailPage() {
     a.click()
     URL.revokeObjectURL(url)
     toast({ title: 'Audit log exported to CSV' })
+    recordAudit({ action: 'EXPORT', entity: 'Audit Trail', description: `Exported ${filteredByDate.length} audit entries to CSV`, result: 'SUCCESS' })
   }
 
   const columnHelper = createColumnHelper<AuditEntry>()
@@ -174,13 +173,31 @@ export function AuditTrailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Audit Trail</h1>
-          <p className="text-xs text-slate-500">Immutable chronological record of all system events and data changes</p>
+          <p className="text-xs text-slate-500">Server-recorded, tamper-evident history of sign-ins and data changes</p>
+          {chainQuery.data && (
+            chainQuery.data.valid ? (
+              <p className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+                <ShieldCheck className="w-3 h-3" aria-hidden="true" /> Hash chain verified · {chainQuery.data.entries} entries
+              </p>
+            ) : (
+              <p role="alert" className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-red-800 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">
+                <ShieldAlert className="w-3 h-3" aria-hidden="true" /> Integrity check FAILED at entry {chainQuery.data.brokenAt} ({chainQuery.data.reason})
+              </p>
+            )
+          )}
         </div>
         <Button onClick={exportCSV} variant="outline" size="sm">
           <Download className="w-3.5 h-3.5 mr-1.5" />
           Export CSV
         </Button>
       </div>
+
+      {auditQuery.isError && (
+        <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-xs text-red-800 flex items-center justify-between">
+          <span>{apiErrorMessage(auditQuery.error, 'Could not load the audit trail')}</span>
+          <Button size="sm" variant="outline" onClick={() => auditQuery.refetch()}>Retry</Button>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

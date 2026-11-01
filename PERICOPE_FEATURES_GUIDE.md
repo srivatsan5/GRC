@@ -1,3 +1,5 @@
+> **Note (Phase 0/1 security update):** sign-in now uses real accounts with passwords managed under **Users**; the one-click persona buttons and the role switcher described below have been removed, and the backend now lives in `api/`. See `FRONTEND_README.md` and `api/README.md`.
+
 # Pericope ERM — Complete Feature-by-Feature Reference Manual
 
 **Platform:** Pericope Enterprise Risk Management & GRC Suite  

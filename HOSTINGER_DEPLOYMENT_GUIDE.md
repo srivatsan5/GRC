@@ -1,247 +1,78 @@
-# GRC Application - Hostinger Deployment Guide
+# Deploying Pericope (Hostinger / any VPS)
 
-## Overview
+Two parts are deployed separately:
 
-This guide will help you deploy the GRC (Governance, Risk, and Compliance) application to Hostinger. The application consists of:
-- **Backend**: Node.js/Express API server
-- **Frontend**: Next.js React application
+| Part | Folder | Example domain |
+|---|---|---|
+| API | `api/` | `https://api.datapulsefusion.com` |
+| Web app (Next.js) | repo root | `https://datapulsefusion.com` |
 
-## Prerequisites
+> **Never upload a `.env` file inside a zip, and never commit one.** Enter environment variables in
+> hPanel (or in a `.env` created directly on the server).
 
-- Hostinger account with Node.js hosting
-- Access to Oracle APEX ORDS endpoint
-- FTP/SFTP access or File Manager access to Hostinger
+## 1. API
 
----
+On the server (Node.js 20.9+; 22 recommended):
 
-## Part 1: Backend Deployment
+```bash
+cd api
+npm ci
+npm run build
+npm prune --omit=dev
+```
 
-### Files Included in `hostinger-backend-deployment.zip`
+Create `api/.env` on the server from `api/.env.example`. Production values:
 
-- `server.js` - Express server with API endpoints
-- `package.json` - Backend dependencies
-- `.env` - Environment variables (update with your values)
+```
+NODE_ENV=production
+PORT=5000
+CORS_ORIGINS=https://datapulsefusion.com
+COOKIE_SECURE=true
+COOKIE_DOMAIN=.datapulsefusion.com
+JWT_SECRET=<48+ random characters>
+DATA_DIR=/home/<user>/pericope-data
+ORDS_BASE_URL=https://<adb-host>/ords/<schema>
+ORDS_TOKEN_URL=https://<adb-host>/ords/<schema>/oauth/token
+ORDS_CLIENT_ID=<new, rotated client id>
+ORDS_CLIENT_SECRET=<new, rotated secret>
+BOOTSTRAP_ADMIN_EMAIL=you@yourcompany.com
+BOOTSTRAP_ADMIN_PASSWORD=<12+ chars, used once>
+TRUST_PROXY=1
+```
 
-### Deployment Steps
+Start it:
 
-1. **Upload Files**
-   - Extract `hostinger-backend-deployment.zip`
-   - Upload all files to your Hostinger server (e.g., in a `backend` folder)
+- **hPanel Node.js app**: application root `api`, startup file `dist/server.js`.
+- **or pm2**: `pm2 start ecosystem.config.cjs && pm2 save`.
 
-2. **Install Dependencies**
-   ```bash
-   cd backend
-   npm install
-   ```
+After the first start, sign in with the bootstrap admin, then **delete `BOOTSTRAP_ADMIN_PASSWORD`**
+from the environment and restart. Back up `DATA_DIR` (users and audit chain) regularly.
 
-3. **Configure Environment Variables**
-   - Edit `.env` file with your Oracle APEX credentials:
-   ```env
-   CLIENT_ID=your_client_id
-   CLIENT_SECRET=your_client_secret
-   ORDS_BASE_URL=https://your-ords-url/ords/your_schema
-   ORDS_TOKEN_URL=https://your-ords-url/ords/your_schema/oauth/token
-   BASE_URL=https://your-ords-url/ords/your_schema
-   PORT=5000
-   ```
-   - The backend will be hosted at: **https://api.datapulsefusion.com**
+Check: `https://api.datapulsefusion.com/health` → `{"status":"ok"}` and `/ready` → `"database":"ok"`.
 
-4. **Start the Server**
-   ```bash
-   npm start
-   ```
-   The server will run on port 5000
+## 2. Web app
 
-5. **Setup PM2 (Recommended for Production)**
-   ```bash
-   npm install -g pm2
-   pm2 start server.js --name grc-backend
-   pm2 startup
-   pm2 save
-   ```
+`NEXT_PUBLIC_API_URL` is compiled into the browser bundle, so set it **before building**:
 
-### Backend API Endpoints
+```bash
+npm ci
+NEXT_PUBLIC_API_URL=https://api.datapulsefusion.com npm run build
+```
 
-The backend provides generic CRUD endpoints for all tables:
+The build produces a self-contained server in `.next/standalone`. Copy the static files next to it:
 
-- `GET /api/{table_name}` - Fetch all records
-- `POST /api/{table_name}` - Create new record
-- `PUT /api/{table_name}/{id}` - Update record
-- `DELETE /api/{table_name}/{id}` - Delete record
+```bash
+cp -r .next/static .next/standalone/.next/static
+cp -r public .next/standalone/public
+```
 
-### Supported Tables
+Upload the contents of `.next/standalone` (on Windows you can zip it with
+`tar -a -c -f web.zip -C .next/standalone .`) and set the Node.js app's startup file to `server.js`.
 
-**Master Tables:**
-- per_mst_business_process
-- per_mst_business_sub_process
-- per_mst_risk_statement
-- per_mst_roles
-- per_mst_control_category
-- per_mst_control_clasification
-- per_mst_control_design_effectiveness
-- per_mst_control_frequency
-- per_mst_control_register
-- per_mst_control_type
-- per_mst_currency_type
-- per_mst_designation
-- per_mst_impact
-- per_mst_impact_category
-- per_mst_impact_parties
-- per_mst_impact_sub_category
-- per_mst_likelihood
-- per_mst_org_hierarchy
-- per_mst_org_level
-- per_mst_risk_category
-- per_mst_risk_causal_factor
-- per_mst_risk_compuation_logic
-- per_mst_risk_cycle
-- per_mst_risk_data_source
-- per_mst_risk_root_cause
-- per_mst_risk_sub_category
-- per_mst_risk_type
-- per_mst_user_details
-- per_mst_user_roles_mapping
+## 3. Security checklist
 
-**Transaction Tables:**
-- per_trn_control_implementation
-- per_trn_identify_risk
-- per_trn_impact_category
-- per_trn_inherent_risk_assessment
-- per_trn_mitigation_plans
-- per_trn_mitigation_type
-- per_trn_risk_monitoring
-
----
-
-## Part 2: Frontend Deployment
-
-### Option A: Static Export (Recommended for Shared Hosting)
-
-1. **Build the Application**
-   ```bash
-   npm run build
-   ```
-
-2. **Upload Built Files**
-   - Upload the contents of `.next/static` folder to your `public_html` directory
-   - Upload the `.next/build-manifest.json` file
-
-3. **Configure .htaccess**
-   Create or update `.htaccess` in `public_html`:
-   ```apache
-   <IfModule mod_rewrite.c>
-     RewriteEngine On
-     RewriteBase /
-     RewriteRule ^index\.html$ - [L]
-     RewriteCond %{REQUEST_FILENAME} !-f
-     RewriteCond %{REQUEST_FILENAME} !-d
-     RewriteRule . /index.html [L]
-   </IfModule>
-   ```
-
-### Option B: Node.js Deployment (VPS/Cloud Hosting)
-
-1. **Upload Source Files**
-   - Upload the entire project folder to your Hostinger server
-
-2. **Install Dependencies**
-   ```bash
-   npm install --production
-   ```
-
-3. **Configure Environment Variables**
-   Create `.env` file:
-   ```env
-   NEXT_PUBLIC_API_URL=https://api.datapulsefusion.com
-   ```
-   - The frontend will be hosted at: **https://datapulsefusion.com**
-
-4. **Build the Application**
-   ```bash
-   npm run build
-   ```
-
-5. **Start the Application**
-   ```bash
-   npm start
-   ```
-
-6. **Setup PM2**
-   ```bash
-   pm2 start npm --name grc-frontend -- start
-   pm2 startup
-   pm2 save
-   ```
-
----
-
-## Application Structure
-
-### Frontend Pages
-
-- `/` - Home/Dashboard
-- `/rcsa/provisioning` - Risk Assessments (3.1 Provisioning)
-- `/rcsa/provisioning/[id]` - Assessment Details (3.1.1.1)
-- `/rcsa/provisioning/[id]/controls/[riskId]` - Applied Controls (3.1.1.3)
-- `/rcsa/identification` - Risk Identification (3.2)
-- `/rcsa/mitigation` - Risk Mitigation (3.3)
-- `/rcsa/mitigation/[id]` - Mitigation Details
-- `/rcsa/monitoring` - Risk Monitoring (4.4)
-
-### Features
-
-- ✅ Full CRUD operations for risk assessments
-- ✅ Risk identification and control tagging
-- ✅ Heat map calculation (Max Impact × Max Likelihood)
-- ✅ Real-time data fetching with React Query
-- ✅ Smooth animations with Framer Motion
-- ✅ Responsive design with Tailwind CSS
-- ✅ Form validation with Zod
-- ✅ Toast notifications for user feedback
-- ✅ All button clicks mapped to API functions
-- ✅ Loading states and error handling
-
----
-
-## Troubleshooting
-
-### Backend Issues
-
-**Server won't start:**
-- Check if port 5000 is available
-- Verify environment variables are set correctly
-- Check Oracle APEX credentials are valid
-
-**API returns 404:**
-- Verify table names match Oracle schema exactly
-- Check ORDS endpoint URL is correct
-
-### Frontend Issues
-
-**Build fails:**
-- Ensure all dependencies are installed
-- Check Node.js version (requires >=18.0.0)
-
-**API calls fail:**
-- Verify NEXT_PUBLIC_API_URL is set correctly
-- Check backend is running and accessible
-- Check CORS configuration on backend
-
----
-
-## Security Notes
-
-1. **Never commit .env files to version control**
-2. **Use strong passwords for Oracle APEX credentials**
-3. **Enable HTTPS on your Hostinger domain**
-4. **Keep dependencies updated**
-5. **Use PM2 for process management in production**
-
----
-
-## Support
-
-For issues or questions:
-- Check the application logs
-- Verify Oracle APEX ORDS endpoint is accessible
-- Test API endpoints using tools like Postman or curl
+- [ ] Rotate the Oracle OAuth client secret (the old one was committed to git).
+- [ ] Run `cd api && npm run check:ords-anon` — every table must answer **401** without a token.
+- [ ] `COOKIE_SECURE=true` and HTTPS on both domains.
+- [ ] `CORS_ORIGINS` lists only the web app's URL.
+- [ ] Bootstrap password removed from the environment after first sign-in.

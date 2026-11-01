@@ -15,7 +15,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog'
-import { AuditSeeder } from '@/components/providers/audit-seeder'
+import { Toaster as SonnerToaster } from '@/components/ui/sonner'
 
 export default function RootLayout({
   children,
@@ -35,11 +35,11 @@ export default function RootLayout({
           >
             <AuthProvider>
               <ConfirmDialogProvider>
-                <AuditSeeder />
                 {children}
               </ConfirmDialogProvider>
             </AuthProvider>
             <Toaster />
+            <SonnerToaster position="bottom-right" />
           </ThemeProvider>
         </QueryProvider>
       </body>

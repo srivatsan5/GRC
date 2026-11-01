@@ -23,7 +23,6 @@ import { motion } from 'framer-motion'
 import { oracleService } from '@/lib/oracleService'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { recordAudit } from '@/lib/auditLog'
 
 // 1. Validation Schema
 const assessmentSchema = z.object({
@@ -77,8 +76,8 @@ export function AssessmentsinherentPage() {
     if (riskId) {
       const loadContext = async () => {
         try {
-          const risks = await oracleService.getIdentifyRisks({ id: riskId })
-          const risk = Array.isArray(risks) ? risks[0] : risks
+          // Load this exact risk by id (the list endpoint has no id filter).
+          const [risk] = await oracleService.fetch(`api/per_trn_identify_risk/${encodeURIComponent(riskId)}`, {}, { skipCache: true })
           
           if (risk) {
             if (risk.risk_category) setValue('RISK_CATEGORY', risk.risk_category)
@@ -120,14 +119,6 @@ export function AssessmentsinherentPage() {
         new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), 10000)),
       ]).catch(err => { throw err })
 
-      recordAudit({
-        action: 'CREATE',
-        entity: 'Inherent Risk Assessment',
-        entity_id: (result as any)?.uuid || (result as any)?.id || riskId || 'new',
-        description: `Saved inherent assessment for ${data.RISK_CATEGORY}/${data.SUB_CATEGORY}`,
-        after: submissionData,
-        result: 'SUCCESS',
-      })
 
       toast({
         title: 'Assessment saved',
@@ -137,12 +128,6 @@ export function AssessmentsinherentPage() {
       setTimeout(() => router.back(), 800)
     } catch (error: any) {
       console.error('[InherentAssessment] Save failed:', error)
-      recordAudit({
-        action: 'CREATE',
-        entity: 'Inherent Risk Assessment',
-        description: `Failed to save inherent assessment — ${error?.message || 'unknown error'}`,
-        result: 'FAILURE',
-      })
       toast({
         title: 'Save failed',
         description: error?.message || 'Could not save the assessment. Please retry.',

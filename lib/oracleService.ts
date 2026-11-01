@@ -1,40 +1,11 @@
-import axios, { AxiosError } from 'axios'
+import { http } from './apiClient'
 
-// API Base URL — controlled via NEXT_PUBLIC_API_URL in .env
-// For local dev: NEXT_PUBLIC_API_URL=http://localhost:5000
-// For production: NEXT_PUBLIC_API_URL=https://api.datapulsefusion.com
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '')
-
-export const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  // Bounded — the original 30s caused spinners that never resolved if the
-  // backend was unreachable. The backend itself has an 8s upstream timeout
-  // and an in-memory fallback, so 12s is plenty for any healthy round-trip.
-  timeout: 12000,
-})
-
-// Attach user attribution to every request so the backend can log who did what.
-// This satisfies REC-07 / SEC-04 from the QA report — every audit entry can now
-// be tied to a specific user, not just "System".
-api.interceptors.request.use(config => {
-  if (typeof window !== 'undefined') {
-    try {
-      const raw = sessionStorage.getItem('pericope_current_user')
-      if (raw) {
-        const u = JSON.parse(raw)
-        config.headers = config.headers || {}
-        config.headers['X-User-Id'] = u.id || ''
-        config.headers['X-User-Name'] = u.name || ''
-        config.headers['X-User-Role'] = u.role || ''
-      }
-    } catch { /* ignore */ }
-  }
-  return config
-})
-
+/**
+ * Data access for the Oracle-backed modules. Requests go through the shared
+ * authenticated client (session cookie + CSRF header). Who the user is comes
+ * from the server-side session, never from request headers.
+ */
+export const api = http
 
 /**
  * Cache management for GET requests
@@ -236,9 +207,7 @@ export const oracleService = {
         return res.data
       }, options.maxRetries || 2)
 
-      console.log(`[OracleService] Fetch OK: ${resource}`, result);
       const normalized = normalizeItems(result)
-      console.log(`[OracleService] Normalized: ${resource}`, normalized);
       
       // Cache successful GET responses
       if (!options.skipCache) {
@@ -248,8 +217,8 @@ export const oracleService = {
       return normalized
     } catch (error: any) {
       handleApiError(error, resource)
-      // Return empty array to prevent UI errors
-      return []
+      // Surface the failure: callers (React Query) show an error state instead of "no data".
+      throw error
     }
   },
 
@@ -346,7 +315,7 @@ export const oracleService = {
         // Invalidate cache after mutation
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/per_trn_identify_risk')
       throw error
@@ -358,7 +327,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_identify_risk/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_identify_risk/${id}`)
       throw error
@@ -370,7 +339,7 @@ export const oracleService = {
         const res = await api.delete(`api/per_trn_identify_risk/${id}`)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `DELETE api/per_trn_identify_risk/${id}`)
       throw error
@@ -385,7 +354,7 @@ export const oracleService = {
         const res = await api.post('api/per_trn_control_implementation', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/per_trn_control_implementation')
       throw error
@@ -397,7 +366,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_control_implementation/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_control_implementation/${id}`)
       throw error
@@ -409,7 +378,7 @@ export const oracleService = {
         const res = await api.delete(`api/per_trn_control_implementation/${id}`)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `DELETE api/per_trn_control_implementation/${id}`)
       throw error
@@ -424,7 +393,7 @@ export const oracleService = {
         const res = await api.post('api/per_trn_identify_risk', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/per_trn_identify_risk')
       throw error
@@ -436,7 +405,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_identify_risk/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_identify_risk/${id}`)
       throw error
@@ -448,7 +417,7 @@ export const oracleService = {
         const res = await api.delete(`api/per_trn_identify_risk/${id}`)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `DELETE api/per_trn_identify_risk/${id}`)
       throw error
@@ -463,7 +432,7 @@ export const oracleService = {
         const res = await api.post('api/per_trn_control_implementation', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/per_trn_control_implementation')
       throw error
@@ -475,7 +444,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_control_implementation/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_control_implementation/${id}`)
       throw error
@@ -487,7 +456,7 @@ export const oracleService = {
         const res = await api.delete(`api/per_trn_control_implementation/${id}`)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `DELETE api/per_trn_control_implementation/${id}`)
       throw error
@@ -502,7 +471,7 @@ export const oracleService = {
         const res = await api.post('api/per_trn_risk_monitoring', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST per_trn_risk_monitoring')
       throw error
@@ -514,7 +483,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_risk_monitoring/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT per_trn_risk_monitoring/${id}`)
       throw error
@@ -526,7 +495,7 @@ export const oracleService = {
         const res = await api.delete(`api/per_trn_risk_monitoring/${id}`)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `DELETE per_trn_risk_monitoring/${id}`)
       throw error
@@ -638,7 +607,7 @@ export const oracleService = {
         const res = await api.post('api/erm_trn_kri_readings', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/erm_trn_kri_readings')
       throw error
@@ -653,7 +622,7 @@ export const oracleService = {
         const res = await api.post('api/per_trn_inherent_risk_assessment', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/per_trn_inherent_risk_assessment')
       throw error
@@ -665,7 +634,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_inherent_risk_assessment/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_inherent_risk_assessment/${id}`)
       throw error
@@ -680,7 +649,7 @@ export const oracleService = {
         const res = await api.post('api/per_trn_mitigation_plans', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/per_trn_mitigation_plans')
       throw error
@@ -692,7 +661,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_mitigation_plans/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_mitigation_plans/${id}`)
       throw error
@@ -707,7 +676,7 @@ export const oracleService = {
         const res = await api.post('api/erm_trn_assessment_cycle', data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, 'POST api/erm_trn_assessment_cycle')
       throw error
@@ -725,7 +694,7 @@ export const oracleService = {
         const res = await api.put(`api/per_trn_control_implementation/${id}`, data)
         requestCache.clear()
         return res.data
-      }, 3)
+      }, 1)
     } catch (error: any) {
       handleApiError(error, `PUT api/per_trn_control_implementation/${id}`)
       throw error
@@ -735,7 +704,6 @@ export const oracleService = {
 
   // Asset Management and Audit APIs
   getAssets: () => oracleService.fetch('api/per_mst_business_process', {}, { cacheTTL: 10 * 60 * 1000 }),
-  getAuditTrail: (params = {}) => oracleService.fetch('api/erm_trn_audit_log', params),
 
   // Monitoring Action Plans
   getMonitoringActionPlan: () => oracleService.fetch('api/per_trn_risk_monitoring', {}, { cacheTTL: 5 * 60 * 1000 }),

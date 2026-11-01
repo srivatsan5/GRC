@@ -2,15 +2,41 @@ name: CI
 on:
   push:
   pull_request:
+
 jobs:
-  build:
+  api:
+    name: API (typecheck, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+          cache-dependency-path: api/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: OpenAPI spec is up to date
+        run: npm run openapi && git diff --exit-code openapi.json
+
+  web:
+    name: Web app (typecheck, build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '22.x'
+          cache: npm
       - run: npm ci
-      - run: npm test --if-present
-      - run: npm run build --if-present
+      - name: Generated API types are up to date
+        run: npm run api:types && git diff --exit-code lib/api-types.ts
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.example.invalid

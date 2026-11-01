@@ -1,168 +1,130 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { LoginPage } from '@/components/pages/login'
-import { recordAudit } from '@/lib/auditLog'
+import { authApi, UNAUTHORIZED_EVENT, type ApiUser } from '@/lib/apiClient'
 
 export type Role = 'Administrator' | 'Risk Manager' | 'Assessor' | 'Auditor' | 'Viewer'
 
-export interface AppUser {
-  id: string
-  name: string
-  email: string
-  role: Role
-  department: string
-  active: boolean
-  lastLogin?: string
+export type AppUser = ApiUser
+
+/** UI-level actions mapped onto the server's permission names. */
+type UiAction = 'create' | 'read' | 'update' | 'delete' | 'approve' | 'admin' | 'audit'
+const UI_TO_SERVER: Record<UiAction, string> = {
+  create: 'create',
+  read: 'read',
+  update: 'update',
+  delete: 'delete',
+  approve: 'approve',
+  admin: 'users:manage',
+  audit: 'audit:read',
 }
 
 interface AuthContextType {
   isAuthenticated: boolean
   user: AppUser | null
-  users: AppUser[]
-  login: (email?: string) => void
-  logout: () => void
-  switchUser: (userId: string) => void
-  switchRole: (role: Role) => void
-  setUsers: (users: AppUser[]) => void
-  hasPermission: (action: 'create' | 'read' | 'update' | 'delete' | 'admin') => boolean
+  permissions: string[]
+  /** Throws with a readable message when sign-in fails. */
+  login: (email: string, password: string) => Promise<void>
+  logout: () => Promise<void>
+  /** Re-read the session (e.g. after changing the password). */
+  refresh: () => Promise<void>
+  hasPermission: (action: UiAction) => boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const DEFAULT_USERS: AppUser[] = [
-  { id: 'U-001', name: 'Srivatsan B', email: 'srivatsan@pericope.local', role: 'Administrator', department: 'Risk Office', active: true, lastLogin: new Date().toISOString() },
-  { id: 'U-002', name: 'Priya Sharma', email: 'priya.sharma@pericope.local', role: 'Risk Manager', department: 'Finance', active: true, lastLogin: '2026-05-26T09:14:00Z' },
-  { id: 'U-003', name: 'Anthony Muller', email: 'anthony.muller@pericope.local', role: 'Assessor', department: 'Operations', active: true, lastLogin: '2026-05-25T11:20:00Z' },
-  { id: 'U-004', name: 'Lin Wei', email: 'lin.wei@pericope.local', role: 'Auditor', department: 'Internal Audit', active: true, lastLogin: '2026-05-22T16:48:00Z' },
-  { id: 'U-005', name: 'Karen Diaz', email: 'karen.diaz@pericope.local', role: 'Viewer', department: 'Compliance', active: false, lastLogin: '2026-03-19T08:00:00Z' },
-]
-
-const PERMISSIONS: Record<Role, Set<string>> = {
-  Administrator: new Set(['create', 'read', 'update', 'delete', 'admin']),
-  'Risk Manager': new Set(['create', 'read', 'update', 'delete']),
-  Assessor: new Set(['create', 'read', 'update']),
-  Auditor: new Set(['read']),
-  Viewer: new Set(['read']),
-}
-
-const USERS_KEY = 'pericope_users_v1'
+// Kept only so the audit helper can label events while a request is in flight.
 const CURRENT_USER_KEY = 'pericope_current_user'
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const queryClient = useQueryClient()
+  const [status, setStatus] = useState<'checking' | 'signed-in' | 'signed-out'>('checking')
   const [user, setUser] = useState<AppUser | null>(null)
-  const [users, setUsersState] = useState<AppUser[]>(DEFAULT_USERS)
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [sessionMessage, setSessionMessage] = useState<string | null>(null)
 
-  useEffect(() => {
-    try {
-      const storedUsers = localStorage.getItem(USERS_KEY)
-      if (storedUsers) setUsersState(JSON.parse(storedUsers))
-    } catch { /* noop */ }
-
-    const storedAuth = sessionStorage.getItem('pericope_auth')
-    const storedUser = sessionStorage.getItem(CURRENT_USER_KEY)
-    if (storedAuth === 'true' && storedUser) {
-      try {
-        setUser(JSON.parse(storedUser))
-        setIsAuthenticated(true)
-      } catch {
-        setIsAuthenticated(false)
-      }
+  const applySession = useCallback((session: { user: AppUser; permissions: string[] } | null) => {
+    if (session) {
+      setUser(session.user)
+      setPermissions(session.permissions)
+      setStatus('signed-in')
+      try { sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(session.user)) } catch { /* noop */ }
     } else {
-      setIsAuthenticated(false)
+      setUser(null)
+      setPermissions([])
+      setStatus('signed-out')
+      try { sessionStorage.removeItem(CURRENT_USER_KEY) } catch { /* noop */ }
     }
   }, [])
 
-  const setUsers = useCallback((next: AppUser[]) => {
-    setUsersState(next)
-    try { localStorage.setItem(USERS_KEY, JSON.stringify(next)) } catch { /* noop */ }
-  }, [])
-
-  const login = useCallback((email?: string) => {
-    const pool = users.length ? users : DEFAULT_USERS
-    const target = email
-      ? pool.find(u => u.email.toLowerCase() === email.toLowerCase() && u.active)
-      : pool.find(u => u.role === 'Administrator')
-    const next = target || pool[0]
-    const stamped: AppUser = { ...next, lastLogin: new Date().toISOString() }
-    sessionStorage.setItem('pericope_auth', 'true')
-    sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(stamped))
-    setUser(stamped)
-    setIsAuthenticated(true)
-    recordAudit({
-      action: 'LOGIN',
-      entity: 'Session',
-      entity_id: stamped.id,
-      description: `User ${stamped.name} signed in`,
-      result: 'SUCCESS',
-      actor: stamped,
-    })
-  }, [users])
-
-  const switchUser = useCallback((userId: string) => {
-    const target = users.find(u => u.id === userId) || DEFAULT_USERS.find(u => u.id === userId)
-    if (!target) return
-    const stamped: AppUser = { ...target, lastLogin: new Date().toISOString() }
-    sessionStorage.setItem('pericope_auth', 'true')
-    sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(stamped))
-    setUser(stamped)
-    recordAudit({
-      action: 'ROLE_CHANGE',
-      entity: 'Persona',
-      entity_id: stamped.id,
-      description: `Switched active persona to ${stamped.name} (${stamped.role})`,
-      result: 'SUCCESS',
-      actor: stamped,
-    })
-  }, [users])
-
-  const switchRole = useCallback((role: Role) => {
-    const target = users.find(u => u.role === role) || DEFAULT_USERS.find(u => u.role === role)
-    if (target) {
-      switchUser(target.id)
-    } else if (user) {
-      const updated: AppUser = { ...user, role }
-      sessionStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updated))
-      setUser(updated)
+  const refresh = useCallback(async () => {
+    try {
+      applySession(await authApi.me())
+    } catch {
+      applySession(null)
     }
-  }, [users, user, switchUser])
+  }, [applySession])
 
-  const logout = useCallback(() => {
-    if (user) {
-      recordAudit({
-        action: 'LOGOUT',
-        entity: 'Session',
-        entity_id: user.id,
-        description: `User ${user.name} signed out`,
-        result: 'SUCCESS',
-        actor: user,
-      })
+  // Restore an existing session on first load.
+  useEffect(() => {
+    refresh()
+  }, [refresh])
+
+  // Any 401 from the API means the session ended (expired, signed out elsewhere, role changed).
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setSessionMessage('Your session has ended. Please sign in again.')
+      queryClient.clear()
+      applySession(null)
     }
-    sessionStorage.removeItem('pericope_auth')
-    sessionStorage.removeItem(CURRENT_USER_KEY)
-    setUser(null)
-    setIsAuthenticated(false)
-  }, [user])
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+  }, [applySession, queryClient])
 
-  const hasPermission = useCallback((action: 'create' | 'read' | 'update' | 'delete' | 'admin') => {
-    if (!user) return false
-    return PERMISSIONS[user.role].has(action)
-  }, [user])
+  const login = useCallback(async (email: string, password: string) => {
+    const session = await authApi.login(email, password)
+    setSessionMessage(null)
+    queryClient.clear()
+    applySession(session)
+  }, [applySession, queryClient])
 
-  if (isAuthenticated === null) return null
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout()
+    } finally {
+      queryClient.clear()
+      applySession(null)
+    }
+  }, [applySession, queryClient])
 
-  if (!isAuthenticated) {
+  const hasPermission = useCallback(
+    (action: UiAction) => permissions.includes(UI_TO_SERVER[action]),
+    [permissions],
+  )
+
+  const value: AuthContextType = {
+    isAuthenticated: status === 'signed-in',
+    user,
+    permissions,
+    login,
+    logout,
+    refresh,
+    hasPermission,
+  }
+
+  if (status === 'checking') {
     return (
-      <AuthContext.Provider value={{ isAuthenticated: false, user: null, users, login, logout, switchUser, switchRole, setUsers, hasPermission }}>
-        <LoginPage />
-      </AuthContext.Provider>
+      <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9]" role="status" aria-live="polite">
+        <span className="text-sm text-slate-500">Loading Pericope…</span>
+      </div>
     )
   }
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: true, user, users, login, logout, switchUser, switchRole, setUsers, hasPermission }}>
-      {children}
+    <AuthContext.Provider value={value}>
+      {status === 'signed-in' ? children : <LoginPage notice={sessionMessage} />}
     </AuthContext.Provider>
   )
 }

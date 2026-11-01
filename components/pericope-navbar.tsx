@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronDown,
   FileText,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from './ui/button'
@@ -27,8 +28,8 @@ import {
 } from './ui/dropdown-menu'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSidebar } from './pericope-layout'
-import { useAuth, Role } from './providers/auth-provider'
-import { toast } from 'sonner'
+import { useAuth } from './providers/auth-provider'
+import { ChangePasswordDialog } from './change-password-dialog'
 
 const SEARCH_ROUTES: Array<{ label: string; href: string }> = [
   { label: 'Dashboard', href: '/dashboard' },
@@ -61,19 +62,12 @@ const NOTIFICATIONS = [
   { id: 'n-3', title: 'Control tested', body: 'CTL-FIN-SOD-07 test completed successfully.', time: '2h ago' },
 ]
 
-const PERSONAS: Array<{ id: string; name: string; role: Role }> = [
-  { id: 'U-001', name: 'Srivatsan B', role: 'Administrator' },
-  { id: 'U-002', name: 'Priya Sharma', role: 'Risk Manager' },
-  { id: 'U-003', name: 'Anthony Muller', role: 'Assessor' },
-  { id: 'U-004', name: 'Lin Wei', role: 'Auditor' },
-  { id: 'U-005', name: 'Karen Diaz', role: 'Viewer' },
-]
-
 export function PericopeNavbar() {
   const pathname = usePathname()
   const router = useRouter()
   const { toggle } = useSidebar()
-  const { user, switchUser, logout } = useAuth()
+  const { user, logout } = useAuth()
+  const [passwordOpen, setPasswordOpen] = React.useState(false)
 
   const [searchOpen, setSearchOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState('')
@@ -239,7 +233,7 @@ export function PericopeNavbar() {
           )}
         </div>
 
-        {/* User / Role Switcher Menu */}
+        {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -263,26 +257,13 @@ export function PericopeNavbar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
 
-            <div className="px-2 py-1 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-              Switch role
-            </div>
-            {PERSONAS.map(p => (
-              <DropdownMenuItem
-                key={p.id}
-                onClick={() => {
-                  switchUser(p.id)
-                  toast.success(`Active role: ${p.role}`)
-                }}
-                className={cn(
-                  'px-2 py-1.5 text-xs cursor-pointer flex items-center justify-between',
-                  user?.id === p.id ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-700'
-                )}
-              >
-                <span>{p.name}</span>
-                <span className="text-[11px] text-slate-500">{p.role}</span>
-              </DropdownMenuItem>
-            ))}
-
+            <DropdownMenuItem
+              onClick={() => setPasswordOpen(true)}
+              className="px-2 py-1.5 text-xs text-slate-700 cursor-pointer flex items-center gap-2"
+            >
+              <KeyRound className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
+              <span>Change password</span>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => router.push('/reports')}
@@ -300,6 +281,7 @@ export function PericopeNavbar() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
       </div>
     </header>
   )

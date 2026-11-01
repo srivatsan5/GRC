@@ -105,9 +105,6 @@ export function createStore<T extends { id: string }>(opts: StoreOptions<T>): St
 
 export function resetAllDemoStores(): void {
   REGISTERED_STORES.forEach(store => store.reset())
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('pericope_audit_log_v1')
-  }
 }
 
 export function useStoreSnapshot<T extends { id: string }>(store: StoreApi<T>): T[] {

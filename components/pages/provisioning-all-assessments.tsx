@@ -22,7 +22,6 @@ import {
 } from '@tanstack/react-table'
 import { oracleService } from '@/lib/oracleService'
 import { toast } from 'sonner'
-import { recordAudit } from '@/lib/auditLog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -128,7 +127,6 @@ export function ProvisioningAllAssessmentsPage() {
     }),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ['assessments-list'] })
-      recordAudit({ action: 'CREATE', entity: 'Assessment', entity_id: result?.uuid || result?.id, description: `Created RCSA cycle for ${watch('department')}`, after: result, result: 'SUCCESS' })
       toast.success('Assessment created')
       setIsDialogOpen(false)
       reset()
@@ -142,7 +140,6 @@ export function ProvisioningAllAssessmentsPage() {
     mutationFn: (id: string | number) => oracleService.deleteIdentifyRisk(id),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['assessments-list'] })
-      recordAudit({ action: 'DELETE', entity: 'Assessment', entity_id: id, description: `Deleted assessment ${id}`, result: 'SUCCESS' })
       toast.success('Assessment deleted')
     },
     onError: (err: any) => {

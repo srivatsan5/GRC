@@ -1,141 +1,165 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
-import { Plus, Trash2, Search, AlertCircle } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AlertCircle, KeyRound, Loader2, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
-import { recordAudit } from '@/lib/auditLog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
-import { useAuth, AppUser, Role } from '@/components/providers/auth-provider'
+import { useAuth, type Role } from '@/components/providers/auth-provider'
+import { usersApi, apiErrorMessage, type ApiUser } from '@/lib/apiClient'
 
 const ROLES: Role[] = ['Administrator', 'Risk Manager', 'Assessor', 'Auditor', 'Viewer']
+const USERS_KEY = ['users']
+
+const emptyDraft = { name: '', email: '', role: 'Viewer' as Role, department: '', password: '' }
+
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return 'Never'
+  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
 
 export function UserManagementPage() {
-  const { users, setUsers, user: currentUser, hasPermission } = useAuth()
+  const { user: currentUser } = useAuth()
   const { toast } = useToast()
   const confirm = useConfirm()
+  const queryClient = useQueryClient()
+
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'All' | Role>('All')
   const [isAdding, setIsAdding] = useState(false)
-  const [draft, setDraft] = useState<Omit<AppUser, 'id' | 'lastLogin'>>({ name: '', email: '', role: 'Viewer', department: 'Operations', active: true })
+  const [draft, setDraft] = useState(emptyDraft)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [resetTarget, setResetTarget] = useState<ApiUser | null>(null)
+  const [newPassword, setNewPassword] = useState('')
 
-  const filtered = useMemo(() => users.filter(u => {
-    if (roleFilter !== 'All' && u.role !== roleFilter) return false
-    if (search && !`${u.name} ${u.email} ${u.department}`.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  }), [users, search, roleFilter])
+  const { data: users = [], isLoading, isError, error, refetch } = useQuery({ queryKey: USERS_KEY, queryFn: usersApi.list })
 
-  const stats = useMemo(() => ({
-    total: users.length,
-    active: users.filter(u => u.active).length,
-    admins: users.filter(u => u.role === 'Administrator').length,
-    roleCount: new Set(users.map(u => u.role)).size,
-  }), [users])
+  const onFail = (title: string) => (err: unknown) => toast({ title, description: apiErrorMessage(err), variant: 'destructive' })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: USERS_KEY })
 
-  const addUser = () => {
-    if (!hasPermission('admin')) { toast({ title: 'Insufficient permission', variant: 'destructive' }); return }
-    if (!draft.name || !draft.email) { toast({ title: 'Name and email required', variant: 'destructive' }); return }
-    const id = `U-${String(users.length + 1).padStart(3, '0')}`
-    const created: AppUser = { ...draft, id }
-    setUsers([...users, created])
-    recordAudit({ action: 'CREATE', entity: 'User', entity_id: id, description: `Created ${created.role} ${created.name}`, after: created, result: 'SUCCESS' })
-    toast({ title: 'User created' })
-    setDraft({ name: '', email: '', role: 'Viewer', department: 'Operations', active: true })
-    setIsAdding(false)
+  const createUser = useMutation({
+    mutationFn: usersApi.create,
+    onSuccess: u => {
+      toast({ title: 'User created', description: `${u.name} can now sign in as ${u.role}.` })
+      setDraft(emptyDraft)
+      setFormError(null)
+      setIsAdding(false)
+      refresh()
+    },
+    onError: err => setFormError(apiErrorMessage(err, 'Could not create the user')),
+  })
+
+  const updateUser = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: Parameters<typeof usersApi.update>[1] }) => usersApi.update(id, patch),
+    onSuccess: () => {
+      toast({ title: 'User updated' })
+      refresh()
+    },
+    onError: onFail('Could not update the user'),
+  })
+
+  const resetPassword = useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) => usersApi.resetPassword(id, password),
+    onSuccess: () => {
+      toast({ title: 'Password reset', description: 'Share it with the user securely; their old sessions were signed out.' })
+      setResetTarget(null)
+      setNewPassword('')
+    },
+    onError: onFail('Could not reset the password'),
+  })
+
+  const filtered = useMemo(
+    () =>
+      users.filter(u => {
+        if (roleFilter !== 'All' && u.role !== roleFilter) return false
+        if (search && !`${u.name} ${u.email} ${u.department}`.toLowerCase().includes(search.toLowerCase())) return false
+        return true
+      }),
+    [users, search, roleFilter],
+  )
+
+  const stats = useMemo(
+    () => ({
+      total: users.length,
+      active: users.filter(u => u.active).length,
+      admins: users.filter(u => u.role === 'Administrator' && u.active).length,
+      neverSignedIn: users.filter(u => !u.lastLoginAt).length,
+    }),
+    [users],
+  )
+
+  const changeRole = async (u: ApiUser, role: Role) => {
+    const ok = await confirm({
+      title: `Change ${u.name}'s role to ${role}?`,
+      description: 'Their current sessions end immediately and they sign in again with the new permissions.',
+      confirmLabel: 'Change role',
+    })
+    if (ok) updateUser.mutate({ id: u.id, patch: { role } })
   }
 
-  const changeRole = (id: string, role: Role) => {
-    const before = users.find(u => u.id === id)
-    const next = users.map(u => u.id === id ? { ...u, role } : u)
-    setUsers(next)
-    if (before) recordAudit({ action: 'ROLE_CHANGE', entity: 'User', entity_id: id, description: `Changed role of ${before.name} from ${before.role} to ${role}`, before, after: { ...before, role }, result: 'SUCCESS' })
-  }
-
-  const toggleActive = (id: string) => {
-    const before = users.find(u => u.id === id)
-    const next = users.map(u => u.id === id ? { ...u, active: !u.active } : u)
-    setUsers(next)
-    if (before) recordAudit({ action: 'UPDATE', entity: 'User', entity_id: id, description: `${!before.active ? 'Activated' : 'Deactivated'} ${before.name}`, before, after: { ...before, active: !before.active }, result: 'SUCCESS' })
-  }
-
-  const removeUser = async (id: string) => {
-    const target = users.find(u => u.id === id); if (!target) return
-    if (target.id === currentUser?.id) { toast({ title: 'You cannot delete your own account', variant: 'destructive' }); return }
-    const ok = await confirm({ title: `Remove ${target.name}?`, description: 'All access for this user will be revoked.', confirmLabel: 'Remove user', tone: 'danger' })
-    if (!ok) return
-    setUsers(users.filter(u => u.id !== id))
-    recordAudit({ action: 'DELETE', entity: 'User', entity_id: id, description: `Removed user ${target.name}`, before: target, result: 'SUCCESS' })
-    toast({ title: 'User removed' })
+  const toggleActive = async (u: ApiUser) => {
+    if (u.active) {
+      const ok = await confirm({
+        title: `Deactivate ${u.name}?`,
+        description: 'They are signed out everywhere and can no longer sign in. Their history stays in the audit trail.',
+        confirmLabel: 'Deactivate',
+        tone: 'danger',
+      })
+      if (!ok) return
+    }
+    updateUser.mutate({ id: u.id, patch: { active: !u.active } })
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">User & Access Administration</h1>
-          <p className="text-xs text-slate-500">Manage user accounts and role-based permissions</p>
+          <h1 className="text-lg font-semibold text-slate-900">User &amp; Access Administration</h1>
+          <p className="text-xs text-slate-500">Accounts, roles and sign-in access. Every change is recorded in the audit trail.</p>
         </div>
-        {hasPermission('admin') && (
-          <Button onClick={() => setIsAdding(true)} size="sm">
-            <Plus className="w-3.5 h-3.5 mr-1.5" />
-            Add user
-          </Button>
-        )}
+        <Button onClick={() => setIsAdding(true)} size="sm">
+          <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+          Add user
+        </Button>
       </div>
 
-      {/* Metrics Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-3 bg-white rounded border border-slate-200">
-          <div className="text-xs text-slate-500">Total users</div>
-          <div className="text-xl font-semibold text-slate-900 mt-0.5 tabular-nums">{stats.total}</div>
-        </div>
-        <div className="p-3 bg-white rounded border border-slate-200">
-          <div className="text-xs text-slate-500">Active accounts</div>
-          <div className="text-xl font-semibold text-emerald-700 mt-0.5 tabular-nums">{stats.active}</div>
-        </div>
-        <div className="p-3 bg-white rounded border border-slate-200">
-          <div className="text-xs text-slate-500">Administrators</div>
-          <div className="text-xl font-semibold text-blue-700 mt-0.5 tabular-nums">{stats.admins}</div>
-        </div>
-        <div className="p-3 bg-white rounded border border-slate-200">
-          <div className="text-xs text-slate-500">Distinct roles</div>
-          <div className="text-xl font-semibold text-slate-900 mt-0.5 tabular-nums">{stats.roleCount}</div>
-        </div>
+        {[
+          { label: 'Total users', value: stats.total, tone: 'text-slate-900' },
+          { label: 'Active accounts', value: stats.active, tone: 'text-emerald-700' },
+          { label: 'Active administrators', value: stats.admins, tone: 'text-blue-700' },
+          { label: 'Never signed in', value: stats.neverSignedIn, tone: 'text-slate-900' },
+        ].map(s => (
+          <div key={s.label} className="p-3 bg-white rounded border border-slate-200">
+            <div className="text-xs text-slate-500">{s.label}</div>
+            <div className={cn('text-xl font-semibold mt-0.5 tabular-nums', s.tone)}>{isLoading ? '–' : s.value}</div>
+          </div>
+        ))}
       </div>
 
-      {!hasPermission('admin') && (
-        <div className="rounded border border-amber-200 bg-amber-50 p-3 flex items-center gap-2 text-xs text-amber-800">
-          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <span>Read-only view. Only Administrators can modify user accounts or assign roles.</span>
-        </div>
-      )}
-
-      {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row gap-3 items-stretch justify-between">
         <div className="relative w-72">
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-          <Input 
-            placeholder="Search users..." 
-            value={search} 
-            onChange={e => setSearch(e.target.value)} 
-            className="pl-8 h-8 text-xs bg-white" 
+          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+          <Input
+            aria-label="Search users"
+            placeholder="Search users..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-8 h-8 text-xs bg-white"
           />
         </div>
-        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
+        <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 text-xs" role="group" aria-label="Filter by role">
           {(['All', ...ROLES] as const).map(r => (
             <button
               key={r}
               type="button"
-              onClick={() => setRoleFilter(r as any)}
-              className={cn(
-                'px-2.5 py-1 rounded text-xs transition-colors',
-                roleFilter === r ? 'bg-white font-medium text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-              )}
+              aria-pressed={roleFilter === r}
+              onClick={() => setRoleFilter(r)}
+              className={cn('px-2.5 py-1 rounded text-xs transition-colors', roleFilter === r ? 'bg-white font-medium text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900')}
             >
               {r}
             </button>
@@ -143,135 +167,163 @@ export function UserManagementPage() {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
-        <table className="enterprise-table">
-          <thead>
-            <tr>
-              <th className="w-[10%]">ID</th>
-              <th className="w-[25%]">Name</th>
-              <th className="w-[25%]">Email</th>
-              <th className="w-[18%]">Role</th>
-              <th className="w-[12%]">Status</th>
-              <th className="w-[10%] text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(u => (
-              <tr key={u.id}>
-                <td className="font-mono text-slate-500">{u.id}</td>
-                <td>
-                  <div className="font-medium text-slate-900">{u.name}</div>
-                  <div className="text-[11px] text-slate-400">{u.department}</div>
-                </td>
-                <td className="text-slate-600">{u.email}</td>
-                <td>
-                  <select
-                    value={u.role}
-                    disabled={!hasPermission('admin')}
-                    onChange={e => changeRole(u.id, e.target.value as Role)}
-                    className="h-7 px-2 rounded border border-slate-200 text-xs bg-white disabled:bg-slate-50"
-                  >
-                    {ROLES.map(r => <option key={r}>{r}</option>)}
-                  </select>
-                </td>
-                <td>
-                  <button
-                    disabled={!hasPermission('admin')}
-                    onClick={() => toggleActive(u.id)}
-                    className={cn(
-                      'px-2 py-0.5 rounded text-[11px] font-medium border transition-colors',
-                      u.active ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'
-                    )}
-                  >
-                    {u.active ? 'Active' : 'Inactive'}
-                  </button>
-                </td>
-                <td className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    disabled={!hasPermission('admin') || u.id === currentUser?.id}
-                    onClick={() => removeUser(u.id)}
-                    className="h-7 w-7 text-red-600 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-            {filtered.length === 0 && (
+      {isError ? (
+        <div role="alert" className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex items-center justify-between">
+          <span className="flex items-center gap-2"><AlertCircle className="w-4 h-4" aria-hidden="true" />{apiErrorMessage(error, 'Could not load users')}</span>
+          <Button size="sm" variant="outline" onClick={() => refetch()}>Retry</Button>
+        </div>
+      ) : (
+        <div className="bg-white rounded border border-slate-200 overflow-x-auto">
+          <table className="enterprise-table">
+            <thead>
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
-                  No users found.
-                </td>
+                <th className="w-[24%]">Name</th>
+                <th className="w-[24%]">Email</th>
+                <th className="w-[16%]">Role</th>
+                <th className="w-[11%]">Status</th>
+                <th className="w-[15%]">Last sign-in</th>
+                <th className="w-[10%] text-right">Actions</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Add User Modal */}
-      {isAdding && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full p-5 space-y-4 text-xs">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-              <h2 className="text-sm font-semibold text-slate-900">Add User</h2>
-              <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600 text-sm">&times;</button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Full name *</label>
-                <Input
-                  value={draft.name}
-                  onChange={e => setDraft({ ...draft, name: e.target.value })}
-                  placeholder="e.g. Jane Doe"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-medium mb-1">Email address *</label>
-                <Input
-                  type="email"
-                  value={draft.email}
-                  onChange={e => setDraft({ ...draft, email: e.target.value })}
-                  placeholder="name@company.com"
-                  className="h-8 text-xs"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Role</label>
-                  <select
-                    value={draft.role}
-                    onChange={e => setDraft({ ...draft, role: e.target.value as Role })}
-                    className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                  >
-                    {ROLES.map(r => <option key={r}>{r}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Department</label>
-                  <Input
-                    value={draft.department}
-                    onChange={e => setDraft({ ...draft, department: e.target.value })}
-                    placeholder="e.g. Operations"
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-              <Button variant="outline" size="sm" onClick={() => setIsAdding(false)}>Cancel</Button>
-              <Button size="sm" onClick={addUser}>Create user</Button>
-            </div>
-          </div>
+            </thead>
+            <tbody>
+              {isLoading && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
+                    <Loader2 className="w-4 h-4 animate-spin inline mr-2" aria-hidden="true" />Loading users…
+                  </td>
+                </tr>
+              )}
+              {filtered.map(u => {
+                const isSelf = u.id === currentUser?.id
+                return (
+                  <tr key={u.id}>
+                    <td>
+                      <div className="font-medium text-slate-900">{u.name}{isSelf && <span className="ml-1.5 text-[10px] text-slate-400">(you)</span>}</div>
+                      <div className="text-[11px] text-slate-400">{u.department || '—'}</div>
+                    </td>
+                    <td className="text-slate-600">{u.email}</td>
+                    <td>
+                      <select
+                        aria-label={`Role for ${u.name}`}
+                        value={u.role}
+                        disabled={isSelf || updateUser.isPending}
+                        onChange={e => changeRole(u, e.target.value as Role)}
+                        className="h-7 px-2 rounded border border-slate-200 text-xs bg-white disabled:bg-slate-50"
+                      >
+                        {ROLES.map(r => <option key={r}>{r}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        disabled={isSelf || updateUser.isPending}
+                        onClick={() => toggleActive(u)}
+                        aria-label={`${u.active ? 'Deactivate' : 'Activate'} ${u.name}`}
+                        className={cn(
+                          'px-2 py-0.5 rounded text-[11px] font-medium border transition-colors disabled:cursor-not-allowed',
+                          u.active ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-600 border-slate-200',
+                        )}
+                      >
+                        {u.active ? 'Active' : 'Inactive'}
+                      </button>
+                    </td>
+                    <td className="text-slate-500 text-[11px]">{formatDate(u.lastLoginAt)}</td>
+                    <td className="text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setResetTarget(u)}
+                        aria-label={`Reset password for ${u.name}`}
+                        title="Reset password"
+                        className="h-7 w-7 text-slate-600 hover:bg-slate-100"
+                      >
+                        <KeyRound className="w-3.5 h-3.5" aria-hidden="true" />
+                      </Button>
+                    </td>
+                  </tr>
+                )
+              })}
+              {!isLoading && filtered.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">No users match these filters.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
+
+      {/* Add user */}
+      <Dialog open={isAdding} onOpenChange={o => { setIsAdding(o); if (!o) setFormError(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add user</DialogTitle>
+            <DialogDescription>Set an initial password and share it with the person securely. They can change it after signing in.</DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-3 text-xs"
+            onSubmit={e => {
+              e.preventDefault()
+              createUser.mutate(draft)
+            }}
+          >
+            {formError && <p role="alert" className="text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1.5">{formError}</p>}
+            <div>
+              <label htmlFor="nu-name" className="block text-slate-700 font-medium mb-1">Full name</label>
+              <Input id="nu-name" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} className="h-8 text-xs" required minLength={2} />
+            </div>
+            <div>
+              <label htmlFor="nu-email" className="block text-slate-700 font-medium mb-1">Email address</label>
+              <Input id="nu-email" type="email" value={draft.email} onChange={e => setDraft({ ...draft, email: e.target.value })} className="h-8 text-xs" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="nu-role" className="block text-slate-700 font-medium mb-1">Role</label>
+                <select id="nu-role" value={draft.role} onChange={e => setDraft({ ...draft, role: e.target.value as Role })} className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white">
+                  {ROLES.map(r => <option key={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="nu-dept" className="block text-slate-700 font-medium mb-1">Department</label>
+                <Input id="nu-dept" value={draft.department} onChange={e => setDraft({ ...draft, department: e.target.value })} className="h-8 text-xs" />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="nu-password" className="block text-slate-700 font-medium mb-1">Initial password</label>
+              <Input id="nu-password" type="password" autoComplete="new-password" value={draft.password} onChange={e => setDraft({ ...draft, password: e.target.value })} className="h-8 text-xs" required minLength={12} />
+              <p className="mt-1 text-[11px] text-slate-500">At least 12 characters, with letters and numbers.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setIsAdding(false)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={createUser.isPending}>{createUser.isPending ? 'Creating…' : 'Create user'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset password */}
+      <Dialog open={!!resetTarget} onOpenChange={o => { if (!o) { setResetTarget(null); setNewPassword('') } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reset password</DialogTitle>
+            <DialogDescription>Set a new password for {resetTarget?.name}. Their current sessions end immediately.</DialogDescription>
+          </DialogHeader>
+          <form
+            className="space-y-3"
+            onSubmit={e => {
+              e.preventDefault()
+              if (resetTarget) resetPassword.mutate({ id: resetTarget.id, password: newPassword })
+            }}
+          >
+            <label htmlFor="rp-password" className="block text-xs font-medium text-slate-700">New password</label>
+            <Input id="rp-password" type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="h-9" required minLength={12} />
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setResetTarget(null)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={resetPassword.isPending || newPassword.length < 12}>{resetPassword.isPending ? 'Saving…' : 'Reset password'}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

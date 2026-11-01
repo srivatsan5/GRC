@@ -48,7 +48,7 @@ import { workflowStore } from '@/components/pages/workflow'
 import { kriStore } from '@/components/pages/kri-intelligence'
 import { controlsStore } from '@/components/pages/control-library'
 import { vendorStore } from '@/components/pages/vendor-risk'
-import { listAudit } from '@/lib/auditLog'
+import { auditApi } from '@/lib/apiClient'
 import { useStoreSnapshot } from '@/lib/localStore'
 import { useAuth } from '@/components/providers/auth-provider'
 
@@ -73,7 +73,12 @@ export default function HomePage() {
   const kris = useStoreSnapshot(kriStore)
   const controls = useStoreSnapshot(controlsStore)
   const vendors = useStoreSnapshot(vendorStore)
-  const auditLogs = useMemo(() => listAudit().slice(0, 5), [])
+  const { data: auditData } = useQuery({
+    queryKey: ['audit', 'recent'],
+    queryFn: () => auditApi.list({ limit: 5 }),
+    enabled: hasPermission('audit'),
+  })
+  const auditLogs = auditData?.items ?? []
 
   // Process and Sanitize Risk Records using the unified oracleService.parseAllRisks
   const risks = useMemo(() => {

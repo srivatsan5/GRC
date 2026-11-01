@@ -81,23 +81,9 @@ export function RiskMonitoringPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['risk-monitoring'] })
-      recordAudit({
-        action: 'APPROVE',
-        entity: 'Assessment Cycle',
-        entity_id: assessmentId || undefined,
-        description: 'Finalized and archived assessment cycle',
-        result: 'SUCCESS',
-      })
       toast.success('Assessment cycle archived.')
     },
     onError: (err: any) => {
-      recordAudit({
-        action: 'APPROVE',
-        entity: 'Assessment Cycle',
-        entity_id: assessmentId || undefined,
-        description: `Failed to finalize: ${err.message}`,
-        result: 'FAILURE',
-      })
       toast.error(`Archive failed: ${err.message}`)
     },
   })

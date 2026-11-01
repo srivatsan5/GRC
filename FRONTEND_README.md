@@ -1,52 +1,46 @@
-# GRC Frontend - Hostinger Deployment
+# Pericope ERM — Web app (Next.js)
 
-## Quick Start
-
-### Option 1: Static Export (Shared Hosting)
-
-1. Run: `npm run build`
-2. Upload `.next/static` folder contents to `public_html`
-3. Upload `.next/build-manifest.json` to `public_html`
-4. Configure .htaccess for client-side routing
-
-### Option 2: Node.js Deployment (VPS/Cloud)
-
-1. Upload all files to your Hostinger server (datapulsefusion.com)
-2. Run: `npm install --production`
-3. Create `.env` file: `NEXT_PUBLIC_API_URL=https://api.datapulsefusion.com`
-4. Run: `npm run build`
-5. Run: `npm start`
-
-## Environment Variables
-
-Create `.env` file:
-
-```
-NEXT_PUBLIC_API_URL=https://api.datapulsefusion.com
-```
-
-**Frontend URL:** https://datapulsefusion.com
-**Backend API URL:** https://api.datapulsefusion.com
-
-## Production Setup (Recommended for Node.js)
-
-Install and use PM2 for process management:
+## Run locally
 
 ```bash
-npm install -g pm2
-pm2 start npm --name grc-frontend -- start
-pm2 startup
-pm2 save
+# 1. API (see api/README.md)
+cd api && cp .env.example .env   # fill in JWT_SECRET, ORDS_*, BOOTSTRAP_ADMIN_*
+npm install && npm run dev       # http://localhost:5000
+
+# 2. Web app, in another terminal at the repo root
+cp .env.example .env.local       # NEXT_PUBLIC_API_URL=http://localhost:5000
+npm install && npm run dev       # http://localhost:3000
 ```
 
-## Application Pages
+Sign in with the bootstrap administrator from `api/.env`, then add other users under **Users**.
 
-- / - Dashboard
-- /rcsa/provisioning - Risk Assessments
-- /rcsa/provisioning/[id] - Assessment Details
-- /rcsa/provisioning/[id]/controls/[riskId] - Applied Controls
-- /rcsa/identification - Risk Identification
-- /rcsa/mitigation - Risk Mitigation
-- /rcsa/monitoring - Risk Monitoring
+**No database access?** Run `cd api && npm run dev:fake-db` for an in-memory stand-in for Oracle ORDS
+(seeded from `probe_risks.json`) and point `ORDS_BASE_URL` / `ORDS_TOKEN_URL` at `http://localhost:8181/ords/grc`
+(any client id/secret). Nothing is saved when it stops.
 
-For full documentation, see HOSTINGER_DEPLOYMENT_GUIDE.md
+## Environment
+
+| Variable | Where | Meaning |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `.env.local` or build environment | URL of the Pericope API. **Compiled into the bundle at build time**: rebuild after changing it. |
+
+The app's URL must be listed in the API's `CORS_ORIGINS`.
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build (standalone output) / serve it |
+| `npm run typecheck` | TypeScript check |
+| `npm run api:types` | Regenerate `lib/api-types.ts` from `api/openapi.json` |
+
+## How the app talks to the API
+
+- `lib/apiClient.ts`: shared axios client (session cookie + `X-Requested-With`), typed calls for
+  auth, users and audit, and `apiErrorMessage()` for readable errors.
+- `lib/oracleService.ts`: table data for the risk / control / monitoring modules. Failures throw and are
+  shown to the user; nothing is silently replaced with empty data.
+- `components/providers/auth-provider.tsx`: session state; any 401 returns to the sign-in screen.
+
+Deployment: see [HOSTINGER_DEPLOYMENT_GUIDE.md](HOSTINGER_DEPLOYMENT_GUIDE.md).

@@ -1,3 +1,5 @@
+> **Note (Phase 0/1 security update):** sign-in now uses real accounts with passwords managed under **Users**; the one-click persona buttons and the role switcher described below have been removed, and the backend now lives in `api/`. See `FRONTEND_README.md` and `api/README.md`.
+
 # Pericope ERM — Comprehensive Master Demo Runbook & Technical Defense Manual
 
 **Project Title:** Pericope ERM: A Resilience-First, Three-Tier Architecture for Full-Lifecycle Enterprise Risk Management  

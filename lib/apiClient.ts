@@ -10,14 +10,33 @@ export type ApiRole = components['schemas']['Role']
 export type ApiSession = components['schemas']['Session']
 export type ApiAuditEntry = components['schemas']['AuditEntry']
 
-export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '')
+declare global {
+  interface Window {
+    __PERICOPE_CONFIG__?: { apiUrl?: string }
+  }
+}
+
+/**
+ * The API's base URL. A deployment sets it at runtime (public/runtime-config.js, written by the
+ * web container from API_URL); otherwise the build-time NEXT_PUBLIC_API_URL; otherwise local dev.
+ */
+export function apiBaseUrl(): string {
+  const runtime = typeof window !== 'undefined' ? window.__PERICOPE_CONFIG__?.apiUrl : undefined
+  return (runtime || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/$/, '')
+}
 
 /** Shared axios instance: sends the session cookie and the CSRF header on every call. */
 export const http = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: apiBaseUrl(),
   withCredentials: true,
   timeout: 15000,
   headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+})
+
+// Resolve per request, so the runtime setting wins even if this module loaded first.
+http.interceptors.request.use(config => {
+  config.baseURL = apiBaseUrl()
+  return config
 })
 
 export const UNAUTHORIZED_EVENT = 'pericope:unauthorized'

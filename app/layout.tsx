@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Script from 'next/script'
 import { Inter, JetBrains_Mono, Newsreader } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -26,6 +27,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${newsreader.variable} ${mono.variable}`}>
       <body>
+        {/* Runtime settings (API URL) written by the web container at start-up; must load before the app. */}
+        <Script src="/runtime-config.js" strategy="beforeInteractive" />
         <QueryProvider>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
             <AuthProvider>

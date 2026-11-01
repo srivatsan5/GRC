@@ -11,9 +11,6 @@ const nextConfig = {
   // Shown in the footer, from package.json (no hardcoded version strings).
   env: { NEXT_PUBLIC_APP_VERSION: version },
   output: 'standalone',
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   images: {
     unoptimized: true,
   },

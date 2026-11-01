@@ -1,20 +1,39 @@
-# Local/production stack for the Pericope API.
-#   cp api/.env.example api/.env   (fill it in)
+# The full Pericope stack: web app + API. The database is your Oracle Autonomous Database (ORDS).
+#
+#   cp api/.env.example api/.env      # fill it in (ORDS, JWT_SECRET, AUDIT_HMAC_KEY, …)
 #   docker compose up -d --build
-# The Next.js app is deployed separately (see FRONTEND_README.md); point
-# NEXT_PUBLIC_API_URL at this API and add the app's URL to CORS_ORIGINS.
+#
+# Then open http://localhost:3000. In production, put both behind HTTPS on sibling hostnames
+# (e.g. erm.example.com and api.example.com), set WEB_URL / API_URL below to those, set
+# COOKIE_SECURE=true in api/.env, and TRUST_PROXY to your proxy's hop count.
 services:
   api:
     build: ./api
     image: pericope-api:latest
+    init: true
     env_file: ./api/.env
     environment:
       NODE_ENV: production
       DATA_DIR: /data
+      CORS_ORIGINS: ${WEB_URL:-http://localhost:3000}
     ports:
       - "5000:5000"
     volumes:
       - pericope-data:/data
+    restart: unless-stopped
+
+  web:
+    build: .
+    image: pericope-web:latest
+    init: true
+    environment:
+      # The URL the *browser* uses to reach the API.
+      API_URL: ${API_URL:-http://localhost:5000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

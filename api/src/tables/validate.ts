@@ -6,7 +6,7 @@ const toNull = (v: unknown) => (v === '' || v === undefined ? null : v)
 
 const numeric = z.preprocess(
   v => (typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v)) ? Number(v) : v),
-  z.number({ invalid_type_error: 'must be a number' }).finite(),
+  z.number({ error: 'must be a number' }).finite(),
 )
 
 const COLUMN_SCHEMAS: Record<ColumnType, z.ZodTypeAny> = {
@@ -22,7 +22,7 @@ const COLUMN_SCHEMAS: Record<ColumnType, z.ZodTypeAny> = {
       if (['N', 'NO', 'FALSE', '0'].includes(s)) return 'N'
     }
     return v
-  }, z.enum(['Y', 'N'], { errorMap: () => ({ message: "must be 'Y' or 'N'" }) })),
+  }, z.enum(['Y', 'N'], { error: "must be 'Y' or 'N'" })),
   date: z
     .string()
     .trim()
@@ -31,7 +31,7 @@ const COLUMN_SCHEMAS: Record<ColumnType, z.ZodTypeAny> = {
   text: z.string().trim().max(4000, 'must be at most 4000 characters'),
   approval: z.preprocess(
     v => (typeof v === 'string' ? v.trim().toUpperCase().replace(/[\s-]+/g, '_') : v),
-    z.enum(APPROVAL_STATUSES, { errorMap: () => ({ message: `must be one of ${APPROVAL_STATUSES.join(', ')}` }) }),
+    z.enum(APPROVAL_STATUSES, { error: `must be one of ${APPROVAL_STATUSES.join(', ')}` }),
   ),
   scalar: z.union([z.string().trim().max(4000), z.number().finite()]),
   rating: numeric.pipe(z.number().int('must be a whole number').min(1, 'must be 1–5').max(5, 'must be 1–5')),
@@ -53,7 +53,7 @@ export function schemaFor(spec: ColumnSpec): z.ZodTypeAny {
     const canonical = new Map(spec.enum.map(v => [v.toLowerCase(), v]))
     schema = z.preprocess(
       v => (typeof v === 'string' ? canonical.get(v.trim().toLowerCase()) ?? v : v),
-      z.enum(spec.enum as [string, ...string[]], { errorMap: () => ({ message: `must be one of: ${spec.enum.join(', ')}` }) }),
+      z.enum(spec.enum as [string, ...string[]], { error: `must be one of: ${spec.enum.join(', ')}` }),
     )
     enumSchemas.set(spec.enum, schema)
   }

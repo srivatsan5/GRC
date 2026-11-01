@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Plus, Play, Trash2, Pencil } from 'lucide-react'
+import { ArrowUp, Loader2, Play, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,15 +11,14 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
 import { useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
-import { DASH, formatDateTime, formatPct } from '@/lib/format'
+import { DASH, formatDate, formatPct } from '@/lib/format'
+import { CountUp, FilterChip, PageHeader, Panel, SearchField } from '@/components/charter/primitives'
+import { HatchChip, Headline, HeadlineCell, Muted, NameCell, RowActions, Toolbar } from '@/components/controls/charter-bits'
 import { useOrgSettings } from '@/lib/settings'
 import { apiErrorMessage } from '@/lib/apiClient'
 import {
   ExportButton,
   Field,
-  FilterTabs,
-  Kpi,
-  SearchBox,
   exportCsv,
   hasErrors,
   num,
@@ -195,117 +194,151 @@ export function ScenarioPage() {
 
   const items = pageQ.data?.items ?? []
   const filtered = !!debounced.trim() || type !== 'All'
+  const canCreate = hasPermission('create')
+  const loadingAll = allQ.isLoading
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Scenario Analysis & Stress Testing</h1>
-          <p className="text-xs text-slate-500">Expected loss = stressed loss × probability. Loss uplift = stressed loss − baseline loss.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportButton onClick={doExport} disabled={all.length === 0} />
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing({ row: null })} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              New scenario
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Enterprise risk"
+        title="Scenarios"
+        description="Stress tests and what-if scenarios. Expected loss = stressed loss × probability; uplift = stressed loss − baseline loss."
+        actions={
+          <>
+            <ExportButton onClick={doExport} disabled={all.length === 0} />
+            {canCreate && (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
+                New scenario
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <DataState query={allQ} compact>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <Kpi label="Scenarios" value={stats.total} />
-          <Kpi
+      {allQ.isError ? (
+        <DataState query={allQ} compact>
+          {null}
+        </DataState>
+      ) : (
+        <Headline label="Scenario figures">
+          <HeadlineCell label="Scenarios" loading={loadingAll} value={<CountUp value={stats.total} />} context={stats.total ? `${stats.total - stats.neverRun} run at least once` : 'None recorded yet'} />
+          <HeadlineCell
             label="Total expected loss"
+            loading={loadingAll}
             value={money(stats.expectedTotal, { compact: true })}
-            hint={stats.expectedCount < stats.total ? `${stats.expectedCount} of ${stats.total} scenarios have stressed loss and probability` : undefined}
+            context={stats.expectedCount < stats.total ? `${stats.expectedCount} of ${stats.total} scenarios have stressed loss and probability` : 'Probability-weighted, all scenarios'}
           />
-          <Kpi label="Worst stressed loss" value={money(stats.worst?.stressed ?? null, { compact: true })} tone="danger" hint={stats.worst ? str(stats.worst.row.scenario_name) ?? undefined : undefined} />
-          <Kpi label="Never run" value={stats.neverRun} tone="warning" />
-        </div>
-      </DataState>
+          <HeadlineCell
+            label="Worst stressed loss"
+            loading={loadingAll}
+            value={money(stats.worst?.stressed ?? null, { compact: true })}
+            tone={stats.worst ? 'text-risk-critical-text' : undefined}
+            context={stats.worst ? str(stats.worst.row.scenario_name) ?? undefined : 'No stressed loss recorded'}
+          />
+          <HeadlineCell
+            label="Never run"
+            loading={loadingAll}
+            value={<CountUp value={stats.neverRun} />}
+            tone={stats.neverRun > 0 ? 'text-status-warning-fg' : undefined}
+            context={stats.neverRun ? 'Use Run to evaluate and stamp them' : 'Every scenario has been run'}
+          />
+        </Headline>
+      )}
 
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <SearchBox id="scenario-search" value={search} onChange={setSearch} placeholder="Search scenarios…" />
-        <FilterTabs label="Filter by type" options={TYPES} value={type} onChange={setType} />
-      </div>
+      <Toolbar>
+        <SearchField label="Search scenarios" placeholder="Scenario, category, owner…" value={search} onChange={setSearch} />
+        <FilterChip label="Type" value={type === 'All' ? '' : type} onChange={v => setType((v || 'All') as ScenarioType | 'All')} options={TYPES.map(t => ({ value: t, label: t }))} />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setType('All')
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Toolbar>
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <Panel bodyClassName="p-0" className="overflow-hidden">
         <DataState
           query={pageQ}
           empty={items.length === 0}
           emptyTitle={filtered ? 'No scenarios match these filters' : 'No scenarios yet'}
           emptyDescription={filtered ? 'Try a different search or filter.' : 'Create a scenario with baseline and stressed losses to see its expected loss.'}
           emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setEditing({ row: null })}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            !filtered && canCreate ? (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
                 New scenario
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[940px]">
               <thead>
                 <tr>
-                  <th>Scenario</th>
-                  <th>Type</th>
-                  <th className="text-right">Shock</th>
-                  <th className="text-right">Baseline loss</th>
-                  <th className="text-right">Stressed loss</th>
-                  <th className="text-right">Uplift</th>
-                  <th className="text-right">Probability</th>
-                  <th className="text-right">Expected loss</th>
-                  <th>Last run</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col" className="pl-6">Scenario</th>
+                  <th scope="col" data-numeric>Shock</th>
+                  <th scope="col" data-numeric>Stressed loss</th>
+                  <th scope="col" data-numeric>Uplift</th>
+                  <th scope="col" data-numeric>Probability</th>
+                  <th scope="col" data-numeric>Expected loss</th>
+                  <th scope="col">Last run</th>
+                  <th scope="col" className="pr-4">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(r => {
                   const m = metrics(r)
+                  const isRunning = running === Number(r.uuid)
                   return (
                     <tr key={r.uuid}>
-                      <td>
-                        <div className="font-medium text-slate-900">{r.scenario_name}</div>
-                        <div className="text-slate-400 text-[11px]">{[str(r.category), str(r.owner_name)].filter(Boolean).join(' · ') || DASH}</div>
-                        {str(r.description) && <div className="text-slate-500 text-[11px] mt-0.5">{r.description}</div>}
+                      <td className="pl-6">
+                        <NameCell
+                          name={r.scenario_name ?? DASH}
+                          detail={[str(r.scenario_type) ?? 'Type not set', str(r.category), str(r.owner_name)].filter(Boolean).join(' · ')}
+                          maxWidth="max-w-[215px]"
+                        />
                       </td>
-                      <td>
-                        {str(r.scenario_type) ? (
-                          <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200 whitespace-nowrap">{r.scenario_type}</span>
+                      <td data-numeric className="tabular-nums">{num(r.shock_pct) === null ? <Muted>{DASH}</Muted> : formatPct(num(r.shock_pct), 1)}</td>
+                      <td data-numeric className="tabular-nums">
+                        <div className="py-1.5">
+                          <div className="text-foreground">{money(m.stressed)}</div>
+                          <div className="text-caption text-muted-foreground">from {money(m.baseline)}</div>
+                        </div>
+                      </td>
+                      <td data-numeric className="tabular-nums">
+                        {m.uplift === null ? (
+                          <Muted>{DASH}</Muted>
                         ) : (
-                          DASH
+                          <span className={m.uplift > 0 ? 'inline-flex items-center gap-1 text-risk-high-text' : 'text-foreground'}>
+                            {m.uplift > 0 && <ArrowUp className="size-3.5" aria-hidden="true" />}
+                            {money(m.uplift)}
+                          </span>
                         )}
                       </td>
-                      <td className="text-right tabular-nums text-xs">{formatPct(num(r.shock_pct), 1)}</td>
-                      <td className="text-right tabular-nums text-xs text-slate-600">{money(m.baseline)}</td>
-                      <td className="text-right tabular-nums text-xs font-semibold text-rose-700">{money(m.stressed)}</td>
-                      <td className="text-right tabular-nums text-xs">{money(m.uplift)}</td>
-                      <td className="text-right tabular-nums text-xs">{formatPct(m.probability, 1)}</td>
-                      <td className="text-right tabular-nums text-xs font-semibold text-slate-900">{money(m.expected)}</td>
-                      <td className="text-[11px] text-slate-500 whitespace-nowrap">{r.last_run_on ? formatDateTime(r.last_run_on) : 'Never'}</td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td data-numeric className="tabular-nums">{m.probability === null ? <Muted>{DASH}</Muted> : formatPct(m.probability, 1)}</td>
+                      <td data-numeric className="tabular-nums font-semibold text-foreground">{money(m.expected)}</td>
+                      <td className="whitespace-nowrap">{r.last_run_on ? <Muted>{formatDate(r.last_run_on)}</Muted> : <HatchChip>Never run</HatchChip>}</td>
+                      <td className="pr-4">
+                        <RowActions
+                          name={r.scenario_name}
+                          onEdit={hasPermission('update') ? () => setEditing({ row: r }) : undefined}
+                          onDelete={hasPermission('delete') ? () => remove(r) : undefined}
+                        >
                           {hasPermission('update') && (
-                            <Button variant="outline" size="sm" onClick={() => run(r)} className="h-7 text-xs" disabled={running === Number(r.uuid)}>
-                              <Play className="w-3 h-3 mr-1" aria-hidden="true" />
-                              {running === Number(r.uuid) ? 'Running…' : 'Run'}
+                            <Button variant="secondary" size="sm" onClick={() => run(r)} disabled={isRunning} aria-label={`Run ${r.scenario_name}`}>
+                              {isRunning ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Play aria-hidden="true" />}
+                              {isRunning ? 'Running' : 'Run'}
                             </Button>
                           )}
-                          {hasPermission('update') && (
-                            <Button variant="ghost" size="icon" onClick={() => setEditing({ row: r })} className="h-7 w-7" aria-label={`Edit ${r.scenario_name}`}>
-                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                          {hasPermission('delete') && (
-                            <Button variant="ghost" size="icon" onClick={() => remove(r)} className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label={`Delete ${r.scenario_name}`}>
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
+                        </RowActions>
                       </td>
                     </tr>
                   )
@@ -315,7 +348,7 @@ export function ScenarioPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
         </DataState>
-      </div>
+      </Panel>
 
       <ScenarioDialog editing={editing} onClose={() => setEditing(null)} />
     </div>
@@ -374,7 +407,7 @@ function ScenarioDialog({ editing, onClose }: { editing: { row: Row | null } | n
       step="any"
       value={form[k]}
       onChange={e => set(k, e.target.value)}
-      className="h-8 text-xs"
+     
       aria-invalid={!!errors[k]}
       aria-describedby={describedBy(k)}
       {...extra}
@@ -383,18 +416,18 @@ function ScenarioDialog({ editing, onClose }: { editing: { row: Row | null } | n
 
   return (
     <Dialog open={!!editing} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{row ? `Edit ${row.scenario_name}` : 'New scenario'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required. Use Run on the register to stamp when the scenario was last evaluated.</DialogDescription>
+          <DialogTitle>{row ? `Edit ${row.scenario_name}` : 'New scenario'}</DialogTitle>
+          <DialogDescription>Fields marked * are required. Use Run on the register to stamp when the scenario was last evaluated.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} noValidate className="space-y-3 text-xs">
+        <form onSubmit={submit} noValidate className="space-y-5">
           <Field id="s-scenario_name" label="Scenario name" required error={errors.scenario_name}>
             <Input
               id="s-scenario_name"
               value={form.scenario_name}
               onChange={e => set('scenario_name', e.target.value)}
-              className="h-8 text-xs"
+             
               aria-invalid={!!errors.scenario_name}
               aria-describedby={describedBy('scenario_name')}
             />
@@ -402,7 +435,7 @@ function ScenarioDialog({ editing, onClose }: { editing: { row: Row | null } | n
           <Field id="s-description" label="Description">
             <textarea id="s-description" value={form.description} onChange={e => set('description', e.target.value)} className={textareaClass} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="s-scenario_type" label="Type">
               <select id="s-scenario_type" value={form.scenario_type} onChange={e => set('scenario_type', e.target.value as ScenarioType | '')} className={selectClass}>
                 <option value="">Not set</option>
@@ -412,10 +445,10 @@ function ScenarioDialog({ editing, onClose }: { editing: { row: Row | null } | n
               </select>
             </Field>
             <Field id="s-category" label="Category">
-              <Input id="s-category" value={form.category} onChange={e => set('category', e.target.value)} className="h-8 text-xs" />
+              <Input id="s-category" value={form.category} onChange={e => set('category', e.target.value)} />
             </Field>
             <Field id="s-owner_name" label="Owner">
-              <Input id="s-owner_name" value={form.owner_name} onChange={e => set('owner_name', e.target.value)} className="h-8 text-xs" />
+              <Input id="s-owner_name" value={form.owner_name} onChange={e => set('owner_name', e.target.value)} />
             </Field>
             <Field id="s-shock_pct" label="Shock (%)" error={errors.shock_pct}>
               {numberInput('shock_pct')}
@@ -430,21 +463,21 @@ function ScenarioDialog({ editing, onClose }: { editing: { row: Row | null } | n
               {numberInput('probability_pct', { min: 0, max: 100 })}
             </Field>
           </div>
-          <dl className="grid grid-cols-2 gap-3 rounded border border-slate-200 bg-slate-50 p-3">
-            <div>
-              <dt className="text-[11px] text-slate-500">Expected loss</dt>
-              <dd className="text-sm font-semibold tabular-nums text-slate-900">{money(previewExpected)}</dd>
+          <dl aria-live="polite" className="grid grid-cols-2 gap-px overflow-hidden rounded-md bg-[linear-gradient(var(--border),var(--border))] shadow-[inset_0_0_0_1px_var(--border)]">
+            <div className="bg-surface-sunken px-4 py-3">
+              <dt className="label-caps">Expected loss</dt>
+              <dd className="figure mt-1 text-figure-sm text-foreground">{money(previewExpected)}</dd>
             </div>
-            <div>
-              <dt className="text-[11px] text-slate-500">Loss uplift</dt>
-              <dd className="text-sm font-semibold tabular-nums text-slate-900">{money(previewUplift)}</dd>
+            <div className="bg-surface-sunken px-4 py-3">
+              <dt className="label-caps">Loss uplift</dt>
+              <dd className="figure mt-1 text-figure-sm text-foreground">{money(previewUplift)}</dd>
             </div>
           </dl>
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy ? 'Saving…' : row ? 'Save changes' : 'Create scenario'}
             </Button>
           </DialogFooter>

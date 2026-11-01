@@ -1,11 +1,13 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Pencil, Link2, X } from 'lucide-react'
+import Link from 'next/link'
+import { Check, CircleDot, Link2, Plus, Search as SearchIcon, ShieldCheck, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { Chip, CountUp, FilterChip, PageHeader, Panel, Person, SearchField } from '@/components/charter/primitives'
+import { Headline, HeadlineCell, Muted, NameCell, RowActions, TierChip, Toolbar, useQueryParamSearch } from '@/components/controls/charter-bits'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
@@ -20,9 +22,6 @@ import { currentScore, toRisk, type Risk } from '@/lib/risk'
 import {
   ExportButton,
   Field,
-  FilterTabs,
-  Kpi,
-  SearchBox,
   exportCsv,
   hasErrors,
   num,
@@ -45,8 +44,6 @@ type Severity = (typeof SEVERITIES)[number]
 type Status = (typeof STATUSES)[number]
 
 const isResolved = (s: unknown) => s === 'Closed' || s === 'Mitigated'
-const SEVERITY_BADGE: Record<string, string> = { Critical: 'critical', High: 'high', Medium: 'warning', Low: 'low' }
-const STATUS_BADGE: Record<string, string> = { Open: 'open', Investigating: 'in-review', Mitigated: 'success', Closed: 'completed' }
 
 /** Whole days between two date strings, or null. */
 function daysBetween(from: unknown, to: unknown): number | null {
@@ -137,6 +134,7 @@ export function IncidentsPage() {
   const [severity, setSeverity] = useState<Severity | 'All'>('All')
   const [editing, setEditing] = useState<{ row: Row | null } | null>(null)
   const debounced = useDebounced(search)
+  useQueryParamSearch(setSearch)
 
   useEffect(() => setPage(1), [debounced, status, severity])
 
@@ -218,133 +216,193 @@ export function IncidentsPage() {
 
   const items = pageQ.data?.items ?? []
   const filtered = !!debounced.trim() || status !== 'All' || severity !== 'All'
+  const canCreate = hasPermission('create')
+  const loadingAll = allQ.isLoading
+
+  // Risks linked to the incidents on this page, to show their current band.
+  const pageLinks = useMemo(() => {
+    const ids = new Set(items.map(i => Number(i.uuid)))
+    const m = new Map<number, number[]>()
+    for (const l of linksQ.data ?? []) {
+      const iid = Number(l.incident_uuid)
+      if (!ids.has(iid)) continue
+      m.set(iid, [...(m.get(iid) ?? []), Number(l.risk_uuid)])
+    }
+    return m
+  }, [items, linksQ.data])
+  const pageRiskIds = useMemo(() => Array.from(new Set(Array.from(pageLinks.values()).flat())), [pageLinks])
+  const pageRisksQ = useRows(RISKS, { filter: { uuid: pageRiskIds }, enabled: pageRiskIds.length > 0 })
+  const riskById = useMemo(() => new Map((pageRisksQ.data ?? []).map(r => [Number(r.uuid), toRisk(r)])), [pageRisksQ.data])
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Incident & Loss Event Management</h1>
-          <p className="text-xs text-slate-500">Log, investigate, and remediate loss events linked to enterprise risks</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportButton onClick={doExport} disabled={all.length === 0} />
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing({ row: null })} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              Report incident
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Enterprise risk"
+        title="Incidents"
+        description="Loss events and incidents: severity, investigation status, time to close, losses and the risks they relate to."
+        actions={
+          <>
+            <ExportButton onClick={doExport} disabled={all.length === 0} />
+            {canCreate && (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
+                Report incident
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <DataState query={allQ} compact>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <Kpi label="Incidents logged" value={stats.total} />
-          <Kpi
-            label="Open / investigating"
-            value={stats.open}
-            tone="warning"
-            hint={`Critical ${stats.openBySeverity.Critical} · High ${stats.openBySeverity.High} · Medium ${stats.openBySeverity.Medium} · Low ${stats.openBySeverity.Low}`}
+      {allQ.isError ? (
+        <DataState query={allQ} compact>
+          {null}
+        </DataState>
+      ) : (
+        <Headline label="Incident figures">
+          <HeadlineCell label="Incidents logged" loading={loadingAll} value={<CountUp value={stats.total} />} context={`${stats.total - stats.open} closed or mitigated`} />
+          <HeadlineCell
+            label="Open"
+            loading={loadingAll}
+            value={<CountUp value={stats.open} />}
+            context={`${stats.openBySeverity.High} high · ${stats.openBySeverity.Medium} medium · ${stats.openBySeverity.Low} low`}
           />
-          <Kpi label="Open critical" value={stats.openBySeverity.Critical} tone="danger" />
-          <Kpi
+          <HeadlineCell
+            label="Open critical"
+            loading={loadingAll}
+            value={<CountUp value={stats.openBySeverity.Critical} />}
+            tone={stats.openBySeverity.Critical > 0 ? 'text-risk-critical-text' : undefined}
+            context={stats.openBySeverity.Critical > 0 ? 'Needs immediate attention' : 'None open'}
+          />
+          <HeadlineCell
             label="Mean time to close"
-            value={stats.mttc === null ? DASH : `${formatNumber(stats.mttc, 1)} days`}
-            hint={stats.closedCount ? `Reported → closed, ${stats.closedCount} resolved` : 'No resolved incidents with dates'}
+            loading={loadingAll}
+            value={stats.mttc === null ? DASH : formatNumber(stats.mttc, 1)}
+            suffix={stats.mttc === null ? undefined : 'days'}
+            context={stats.closedCount ? `Reported to closed, ${stats.closedCount} resolved` : 'No resolved incidents with dates'}
           />
-          <Kpi
-            label="Total recorded losses"
+          <HeadlineCell
+            label="Recorded losses"
+            loading={loadingAll}
             value={money(stats.losses, { compact: true })}
-            hint={stats.lossCount ? `${stats.lossCount} of ${stats.total} incidents have a loss amount` : 'No loss amounts recorded'}
+            context={stats.lossCount ? `${stats.lossCount} of ${stats.total} incidents have a loss` : 'No loss amounts recorded'}
           />
-        </div>
-      </DataState>
+        </Headline>
+      )}
 
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-        <SearchBox id="incident-search" value={search} onChange={setSearch} placeholder="Search incidents…" />
-        <div className="flex flex-wrap gap-2">
-          <FilterTabs label="Filter by status" options={STATUSES} value={status} onChange={setStatus} />
-          <FilterTabs label="Filter by severity" options={SEVERITIES} value={severity} onChange={setSeverity} />
-        </div>
-      </div>
+      <Toolbar>
+        <SearchField label="Search incidents" placeholder="Title, reference, category…" value={search} onChange={setSearch} />
+        <FilterChip label="Status" value={status === 'All' ? '' : status} onChange={v => setStatus((v || 'All') as Status | 'All')} options={STATUSES.map(t => ({ value: t, label: t }))} />
+        <FilterChip label="Severity" value={severity === 'All' ? '' : severity} onChange={v => setSeverity((v || 'All') as Severity | 'All')} options={SEVERITIES.map(t => ({ value: t, label: t }))} />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setStatus('All')
+              setSeverity('All')
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Toolbar>
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <Panel bodyClassName="p-0" className="overflow-hidden">
         <DataState
           query={pageQ}
           empty={items.length === 0}
           emptyTitle={filtered ? 'No incidents match these filters' : 'No incidents logged'}
-          emptyDescription={filtered ? 'Try a different search or filter.' : 'Report an incident or loss event to start tracking it.'}
+          emptyDescription={filtered ? 'Try a different search or filter.' : 'Report an incident or loss event to start tracking it against your risks.'}
           emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setEditing({ row: null })}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            !filtered && canCreate ? (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
                 Report incident
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[960px]">
               <thead>
                 <tr>
-                  <th>Ref</th>
-                  <th>Incident</th>
-                  <th>Severity</th>
-                  <th>Status</th>
-                  <th>Reported</th>
-                  <th>Closed / age</th>
-                  <th>Assigned to</th>
-                  <th className="text-right">Loss</th>
-                  <th className="text-right">Risks</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col" className="pl-6">Incident</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Reported</th>
+                  <th scope="col">Assigned to</th>
+                  <th scope="col" data-numeric>Loss</th>
+                  <th scope="col">Linked risks</th>
+                  <th scope="col" className="pr-4">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(i => {
                   const resolved = isResolved(i.status)
                   const age = resolved ? daysBetween(i.reported_on, i.closed_on) : daysUntil(i.reported_on)
+                  const linked = (pageLinks.get(Number(i.uuid)) ?? []).map(id => ({ id, risk: riskById.get(id) }))
+                  const worst = linked
+                    .map(l => l.risk)
+                    .filter((r): r is Risk => !!r)
+                    .sort((a, b) => (currentScore(b) ?? -1) - (currentScore(a) ?? -1))[0]
+                  const loss = num(i.loss_amount)
                   return (
                     <tr key={i.uuid}>
-                      <td className="font-mono text-slate-500 text-xs">{str(i.incident_ref) ?? DASH}</td>
-                      <td>
-                        <div className="font-medium text-slate-900">{i.title}</div>
-                        <div className="text-slate-400 text-[11px]">{str(i.category) ?? DASH}</div>
+                      <td className="pl-6">
+                        <NameCell name={i.title ?? DASH} code={str(i.incident_ref)} detail={str(i.category)} maxWidth="max-w-[250px]" />
                       </td>
                       <td>
-                        <StatusBadge status={SEVERITY_BADGE[i.severity] ?? 'pending'} label={i.severity ?? DASH} />
+                        <TierChip value={i.severity} />
                       </td>
                       <td>
-                        <StatusBadge status={STATUS_BADGE[i.status] ?? 'pending'} label={i.status ?? DASH} />
+                        <IncidentStatus status={i.status} />
                       </td>
-                      <td className="text-xs text-slate-600">{formatDate(i.reported_on)}</td>
-                      <td className="text-xs text-slate-600">
-                        {resolved ? (
-                          <>
-                            <div>{formatDate(i.closed_on)}</div>
-                            {age !== null && <div className="text-[11px] text-slate-400">{age}d to close</div>}
-                          </>
-                        ) : age !== null ? (
-                          <span className="text-amber-700">Open {Math.max(0, -age)}d</span>
+                      <td className="whitespace-nowrap">
+                        <div className="py-1.5">
+                          <div className="text-foreground">{formatDate(i.reported_on)}</div>
+                          <div className={resolved || age === null ? 'text-caption text-muted-foreground' : 'text-caption text-status-warning-fg'}>
+                            {resolved
+                              ? age !== null
+                                ? `Closed in ${age} day${age === 1 ? '' : 's'}`
+                                : `Closed ${formatDate(i.closed_on)}`
+                              : age !== null
+                                ? `Open ${Math.max(0, -age)} day${-age === 1 ? '' : 's'}`
+                                : 'No report date'}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <Person name={str(i.assigned_to)} className="max-w-[130px]" />
+                      </td>
+                      <td data-numeric className="tabular-nums">
+                        {loss === null ? <Muted>{DASH}</Muted> : money(loss)}
+                      </td>
+                      <td>
+                        {!linksQ.isSuccess ? (
+                          <Muted>{DASH}</Muted>
+                        ) : linked.length === 0 ? (
+                          <span className="text-caption text-muted-foreground">None linked</span>
                         ) : (
-                          DASH
+                          <span className="inline-flex items-center gap-1.5">
+                            {worst ? (
+                              <Link href={`/risks/${worst.uuid}`} className="rounded-sm focus-ring" title={worst.statement ?? undefined} aria-label={`Open risk ${worst.referenceNumber ?? worst.uuid}`}>
+                                <BandBadge score={currentScore(worst)} />
+                              </Link>
+                            ) : (
+                              <span className="text-caption text-muted-foreground">{pageRisksQ.isLoading ? '…' : `${linked.length} risk${linked.length === 1 ? '' : 's'}`}</span>
+                            )}
+                            {worst && linked.length > 1 && <span className="text-caption text-muted-foreground tabular-nums">+{linked.length - 1}</span>}
+                          </span>
                         )}
                       </td>
-                      <td className="text-xs text-slate-600">{str(i.assigned_to) ?? DASH}</td>
-                      <td className="text-right tabular-nums text-xs">{money(num(i.loss_amount))}</td>
-                      <td className="text-right tabular-nums text-xs">{linksQ.isSuccess ? linkCount.get(Number(i.uuid)) ?? 0 : DASH}</td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {hasPermission('update') && (
-                            <Button variant="ghost" size="icon" onClick={() => setEditing({ row: i })} className="h-7 w-7" aria-label={`Edit ${i.title}`}>
-                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                          {hasPermission('delete') && (
-                            <Button variant="ghost" size="icon" onClick={() => remove(i)} className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label={`Delete ${i.title}`}>
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
+                      <td className="pr-4">
+                        <RowActions
+                          name={i.title}
+                          onEdit={hasPermission('update') ? () => setEditing({ row: i }) : undefined}
+                          onDelete={hasPermission('delete') ? () => remove(i) : undefined}
+                        />
                       </td>
                     </tr>
                   )
@@ -354,11 +412,19 @@ export function IncidentsPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
         </DataState>
-      </div>
+      </Panel>
 
       <IncidentDialog editing={editing} onClose={() => setEditing(null)} />
     </div>
   )
+}
+
+function IncidentStatus({ status }: { status: string | null | undefined }) {
+  if (status === 'Open') return <Chip tone="warning" icon={CircleDot}>Open</Chip>
+  if (status === 'Investigating') return <Chip tone="info" icon={SearchIcon}>Investigating</Chip>
+  if (status === 'Mitigated') return <Chip tone="success" icon={ShieldCheck}>Mitigated</Chip>
+  if (status === 'Closed') return <Chip tone="neutral" icon={Check}>Closed</Chip>
+  return <Muted>{status ?? DASH}</Muted>
 }
 
 function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | null; onClose: () => void }) {
@@ -445,24 +511,24 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
 
   return (
     <Dialog open={!!editing} onOpenChange={o => !o && !saving && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{row ? `Edit ${str(row.incident_ref) ?? 'incident'}` : 'Report incident'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required. The closed date is set when an incident is closed or mitigated and cleared if it is reopened.</DialogDescription>
+          <DialogTitle>{row ? `Edit ${str(row.incident_ref) ?? 'incident'}` : 'Report incident'}</DialogTitle>
+          <DialogDescription>Fields marked * are required. The closed date is set when an incident is closed or mitigated and cleared if it is reopened.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} noValidate className="space-y-3 text-xs">
-          <div className="grid grid-cols-3 gap-3">
+        <form onSubmit={submit} noValidate className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field id="i-incident_ref" label="Reference">
-              <Input id="i-incident_ref" value={form.incident_ref} onChange={e => set('incident_ref', e.target.value)} className="h-8 text-xs font-mono" placeholder="e.g. INC-005" />
+              <Input id="i-incident_ref" value={form.incident_ref} onChange={e => set('incident_ref', e.target.value)} className="font-mono" placeholder="e.g. INC-005" />
             </Field>
-            <Field id="i-title" label="Title" required error={errors.title} className="col-span-2">
-              <Input id="i-title" value={form.title} onChange={e => set('title', e.target.value)} className="h-8 text-xs" aria-invalid={!!errors.title} aria-describedby={describedBy('title')} />
+            <Field id="i-title" label="Title" required error={errors.title} className="sm:col-span-2">
+              <Input id="i-title" value={form.title} onChange={e => set('title', e.target.value)} aria-invalid={!!errors.title} aria-describedby={describedBy('title')} />
             </Field>
           </div>
           <Field id="i-description" label="Description">
             <textarea id="i-description" value={form.description} onChange={e => set('description', e.target.value)} className={textareaClass} />
           </Field>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field id="i-severity" label="Severity" required>
               <select id="i-severity" value={form.severity} onChange={e => set('severity', e.target.value as Severity)} className={selectClass}>
                 {SEVERITIES.map(s => (
@@ -478,13 +544,13 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
               </select>
             </Field>
             <Field id="i-category" label="Category">
-              <Input id="i-category" value={form.category} onChange={e => set('category', e.target.value)} className="h-8 text-xs" />
+              <Input id="i-category" value={form.category} onChange={e => set('category', e.target.value)} />
             </Field>
             <Field id="i-reported_by" label="Reported by">
-              <Input id="i-reported_by" value={form.reported_by} onChange={e => set('reported_by', e.target.value)} className="h-8 text-xs" />
+              <Input id="i-reported_by" value={form.reported_by} onChange={e => set('reported_by', e.target.value)} />
             </Field>
             <Field id="i-assigned_to" label="Assigned to">
-              <Input id="i-assigned_to" value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)} className="h-8 text-xs" />
+              <Input id="i-assigned_to" value={form.assigned_to} onChange={e => set('assigned_to', e.target.value)} />
             </Field>
             <Field id="i-loss_amount" label="Loss amount" error={errors.loss_amount}>
               <Input
@@ -494,7 +560,7 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
                 step="any"
                 value={form.loss_amount}
                 onChange={e => set('loss_amount', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.loss_amount}
                 aria-describedby={describedBy('loss_amount')}
               />
@@ -505,7 +571,7 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
                 type="date"
                 value={form.occurred_on}
                 onChange={e => set('occurred_on', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.occurred_on}
                 aria-describedby={describedBy('occurred_on')}
               />
@@ -516,7 +582,7 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
                 type="date"
                 value={form.reported_on}
                 onChange={e => set('reported_on', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.reported_on}
                 aria-describedby={describedBy('reported_on')}
               />
@@ -528,7 +594,7 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
                 value={form.closed_on}
                 disabled={!resolved}
                 onChange={e => set('closed_on', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.closed_on}
                 aria-describedby={describedBy('closed_on')}
               />
@@ -541,8 +607,9 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
             <textarea id="i-corrective_action" value={form.corrective_action} onChange={e => set('corrective_action', e.target.value)} className={textareaClass} />
           </Field>
 
-          <fieldset className="border-t border-slate-200 pt-3">
-            <legend className="text-xs font-semibold text-slate-900">Linked risks</legend>
+          <fieldset className="space-y-3 border-t pt-4">
+            <legend className="label-caps float-left mb-3 w-full">Linked risks</legend>
+            <div className="clear-both" />
             {row && existingLinksQ.isError ? (
               <ErrorState error={existingLinksQ.error} onRetry={() => existingLinksQ.refetch()} compact />
             ) : !linksReady ? (
@@ -552,11 +619,11 @@ function IncidentDialog({ editing, onClose }: { editing: { row: Row | null } | n
             )}
           </fieldset>
 
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={saving}>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={saving || !linksReady}>
+            <Button type="submit" disabled={saving || !linksReady}>
               {saving ? 'Saving…' : row ? 'Save changes' : 'Report incident'}
             </Button>
           </DialogFooter>
@@ -594,26 +661,23 @@ function RiskLinker({ selected, onChange }: { selected: number[]; onChange: (ids
   const results = (resultsQ.data?.items ?? []).map(toRisk)
 
   return (
-    <div className="space-y-2 mt-2">
+    <div className="space-y-3">
       {selected.length === 0 ? (
-        <p className="text-[11px] text-slate-500">No risks linked yet. Search the risk register below to link one.</p>
+        <p className="text-body-sm text-muted-foreground">No risks linked yet. Search the risk register below to link one.</p>
       ) : (
-        <ul className="space-y-1">
+        <ul className="divide-y overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--border)]">
           {selected.map(id => {
             const r = lookup.get(id)
             return (
-              <li key={id} className="flex items-center justify-between gap-2 rounded border border-slate-200 bg-slate-50 px-2 py-1.5">
+              <li key={id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <div className="min-w-0">
-                  <div className="text-xs font-medium text-slate-900 truncate">
-                    <span className="font-mono text-slate-500 mr-1.5">{r ? riskLabel(r) : `Risk #${id}`}</span>
-                    {r?.statement ?? (selectedQ.isLoading ? 'Loading…' : DASH)}
-                  </div>
-                  {r && <div className="text-[11px] text-slate-400">{[r.category, r.process].filter(Boolean).join(' · ') || DASH}</div>}
+                  <div className="truncate text-body-sm font-medium text-foreground">{r?.statement ?? (selectedQ.isLoading ? 'Loading…' : 'No statement recorded')}</div>
+                  <div className="truncate font-mono text-caption text-muted-foreground">{[r ? riskLabel(r) : `Risk #${id}`, r?.category, r?.process].filter(Boolean).join(' · ')}</div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-2">
                   {r && <BandBadge score={currentScore(r)} />}
-                  <Button type="button" variant="ghost" size="icon" className="h-6 w-6" onClick={() => drop(id)} aria-label={`Unlink ${r ? riskLabel(r) : `risk ${id}`}`}>
-                    <X className="w-3.5 h-3.5" aria-hidden="true" />
+                  <Button type="button" variant="ghost" size="icon" className="size-8" onClick={() => drop(id)} aria-label={`Unlink ${r ? riskLabel(r) : `risk ${id}`}`}>
+                    <X aria-hidden="true" />
                   </Button>
                 </div>
               </li>
@@ -622,35 +686,32 @@ function RiskLinker({ selected, onChange }: { selected: number[]; onChange: (ids
         </ul>
       )}
 
-      <div>
-        <label htmlFor="i-risk-search" className="block text-xs text-slate-700 font-medium mb-1">
+      <div className="space-y-1.5">
+        <label htmlFor="i-risk-search" className="block text-body-sm font-medium text-foreground">
           Find a risk to link
         </label>
-        <Input id="i-risk-search" type="search" value={term} onChange={e => setTerm(e.target.value)} placeholder="Search by statement, process, category, owner or reference…" className="h-8 text-xs" />
+        <Input id="i-risk-search" type="search" value={term} onChange={e => setTerm(e.target.value)} placeholder="Statement, process, category, owner or reference…" />
       </div>
       {debounced.trim() && (
-        <div className="rounded border border-slate-200 max-h-56 overflow-y-auto">
+        <div className="max-h-56 overflow-y-auto rounded-md shadow-[inset_0_0_0_1px_var(--border)]">
           {resultsQ.isError ? (
             <ErrorState error={resultsQ.error} onRetry={() => resultsQ.refetch()} compact />
           ) : resultsQ.isLoading ? (
             <LoadingState compact label="Searching risks…" />
           ) : results.length === 0 ? (
-            <p className="px-3 py-3 text-[11px] text-slate-500">No risks match “{debounced}”.</p>
+            <p className="px-4 py-3 text-body-sm text-muted-foreground">No risks match “{debounced}”.</p>
           ) : (
-            <ul>
+            <ul className="divide-y">
               {results.map(r => {
                 const linked = selected.includes(r.uuid)
                 return (
-                  <li key={r.uuid} className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-slate-100 last:border-b-0">
+                  <li key={r.uuid} className="flex items-center justify-between gap-3 px-4 py-2.5">
                     <div className="min-w-0">
-                      <div className="text-xs text-slate-900 truncate">
-                        <span className="font-mono text-slate-500 mr-1.5">{riskLabel(r)}</span>
-                        {r.statement ?? DASH}
-                      </div>
-                      <div className="text-[11px] text-slate-400">{[r.category, r.process].filter(Boolean).join(' · ') || DASH}</div>
+                      <div className="truncate text-body-sm text-foreground">{r.statement ?? 'No statement recorded'}</div>
+                      <div className="truncate font-mono text-caption text-muted-foreground">{[riskLabel(r), r.category, r.process].filter(Boolean).join(' · ')}</div>
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs shrink-0" disabled={linked} onClick={() => add(r)}>
-                      <Link2 className="w-3 h-3 mr-1" aria-hidden="true" />
+                    <Button type="button" variant={linked ? 'ghost' : 'secondary'} size="sm" className="shrink-0" disabled={linked} onClick={() => add(r)}>
+                      {linked ? <Check aria-hidden="true" /> : <Link2 aria-hidden="true" />}
                       {linked ? 'Linked' : 'Link'}
                     </Button>
                   </li>
@@ -659,8 +720,8 @@ function RiskLinker({ selected, onChange }: { selected: number[]; onChange: (ids
             </ul>
           )}
           {resultsQ.data && resultsQ.data.total > results.length && (
-            <p className="px-3 py-1.5 text-[11px] text-slate-400 border-t border-slate-100">
-              Showing {results.length} of {resultsQ.data.total} matches — refine the search to narrow it down.
+            <p className="border-t px-4 py-2 text-caption text-muted-foreground">
+              Showing {results.length} of {resultsQ.data.total} matches. Refine the search to narrow it down.
             </p>
           )}
         </div>

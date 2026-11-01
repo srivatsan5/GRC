@@ -1,12 +1,16 @@
 'use client'
 
 import React, { useState } from 'react'
-import { AlertCircle, Loader2, Shield } from 'lucide-react'
+import { Loader2, Lock, OctagonAlert, TriangleAlert } from 'lucide-react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
+/**
+ * Sign-in: a quiet brand moment on the stone ground — the "P" mark and serif wordmark,
+ * one ivory panel with a serif heading, labelled fields and the single primary action.
+ */
 export function LoginPage({ notice }: { notice?: string | null }) {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
@@ -28,66 +32,76 @@ export function LoginPage({ notice }: { notice?: string | null }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-blue-900 text-white mb-3">
-            <Shield className="w-5 h-5" aria-hidden="true" />
-          </div>
-          <h1 className="text-xl font-bold text-slate-900">Pericope ERM</h1>
-          <p className="text-xs text-slate-500 mt-1">Enterprise Risk Management</p>
+    <main className="flex min-h-dvh flex-col bg-background px-5 py-10 text-foreground">
+      <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center">
+        <div className="mb-8 flex items-center justify-center gap-3" aria-label="Pericope">
+          <span aria-hidden="true" className="inline-flex size-10 items-center justify-center rounded-md bg-primary font-display text-[26px] leading-none text-primary-foreground italic shadow-button">
+            P
+          </span>
+          <span className="font-display text-[30px] leading-none tracking-[-0.015em] text-foreground">Pericope</span>
         </div>
-      </div>
 
-      <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">
-        <div className="bg-white py-8 px-6 shadow-sm rounded-lg border border-slate-200 sm:px-8">
+        <section aria-labelledby="signin-title" className="surface-raised px-6 py-8 sm:px-9 sm:py-10">
+          <p className="label-caps">Enterprise risk management</p>
+          <h1 id="signin-title" className="mt-2 font-display text-title text-foreground">
+            Sign in
+          </h1>
+          <p className="mt-2 text-body text-muted-foreground">Use the email address and password your administrator set up for you.</p>
+
           {(error || notice) && (
             <div
               role="alert"
-              className={`mb-4 flex items-start gap-2 rounded border px-3 py-2 text-xs ${error ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-900'}`}
+              className={
+                error
+                  ? 'mt-6 flex items-start gap-2.5 rounded-md bg-status-danger-bg px-3.5 py-3 text-body-sm text-status-danger-fg'
+                  : 'mt-6 flex items-start gap-2.5 rounded-md bg-status-warning-bg px-3.5 py-3 text-body-sm text-status-warning-fg'
+              }
             >
-              <AlertCircle className="w-4 h-4 shrink-0 mt-px" aria-hidden="true" />
+              {error ? <OctagonAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" /> : <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />}
               <span>{error ?? notice}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div>
-              <label htmlFor="login-email" className="block text-xs font-medium text-slate-700">Email address</label>
+          <form onSubmit={handleSubmit} className="mt-7 space-y-5" noValidate>
+            <div className="space-y-1.5">
+              <label htmlFor="login-email" className="block text-body-sm font-medium text-foreground">
+                Email address
+              </label>
               <Input
                 id="login-email"
                 type="email"
                 autoComplete="username"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="mt-1 h-9 text-sm"
+                className="h-10"
                 placeholder="name@company.com"
+                aria-invalid={!!error}
                 required
                 autoFocus
               />
             </div>
 
-            <div>
-              <label htmlFor="login-password" className="block text-xs font-medium text-slate-700">Password</label>
+            <div className="space-y-1.5">
+              <label htmlFor="login-password" className="block text-body-sm font-medium text-foreground">
+                Password
+              </label>
               <Input
                 id="login-password"
                 type="password"
                 autoComplete="current-password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="mt-1 h-9 text-sm"
+                className="h-10"
+                aria-invalid={!!error}
                 required
               />
             </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading || !email || !password}
-              className="w-full h-9 text-sm font-medium bg-blue-900 hover:bg-blue-800 text-white rounded"
-            >
+            <Button type="submit" size="lg" disabled={isLoading || !email || !password} className="w-full">
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" aria-hidden="true" /> Signing in…
+                  <Loader2 className="animate-spin" aria-hidden="true" />
+                  Signing in…
                 </>
               ) : (
                 'Sign in'
@@ -95,15 +109,14 @@ export function LoginPage({ notice }: { notice?: string | null }) {
             </Button>
           </form>
 
-          <p className="mt-5 text-[11px] leading-relaxed text-slate-500">
-            Forgotten your password? Ask a Pericope administrator to reset it.
-          </p>
-        </div>
+          <p className="mt-6 border-t pt-5 text-body-sm text-muted-foreground">Forgotten your password? Ask a Pericope administrator to reset it.</p>
+        </section>
 
-        <p className="mt-6 text-center text-xs text-slate-400">
-          Pericope Enterprise Risk Management &middot; All sign-ins are logged
+        <p className="mt-6 flex items-center justify-center gap-1.5 text-caption text-muted-foreground">
+          <Lock className="size-3.5" aria-hidden="true" />
+          Every sign-in is recorded in the audit trail
         </p>
       </div>
-    </div>
+    </main>
   )
 }

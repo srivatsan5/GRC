@@ -7,8 +7,10 @@
  * links are found defensively and anything not found is shown as "—".
  */
 import React, { useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { ChevronRight, ChevronsDownUp, ChevronsUpDown, CornerDownRight } from 'lucide-react'
+import { CountUp, PageHeader, Panel, SearchField } from '@/components/charter/primitives'
+import { Headline, HeadlineCell, Muted, NameCell, Toolbar } from '@/components/controls/charter-bits'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { DataState } from '@/components/data-state'
 import { useRows, type Row } from '@/lib/data'
@@ -139,12 +141,18 @@ export function AssetLibraryPage() {
       return next
     })
 
+  const subCount = processes.reduce((n, p) => n + p.subs.length, 0) + orphanSubs.length
+  const withRisks = processes.filter(p => p.risks > 0).length
+  const loading = processesQ.isLoading || subsQ.isLoading || risksQ.isLoading
+  const allOpen = shownProcesses.length > 0 && shownProcesses.every(p => p.subs.length === 0 || expanded.has(p.key))
+
   return (
     <div className="space-y-6">
-      <div className="pb-3 border-b border-slate-200">
-        <h1 className="text-lg font-semibold text-slate-900">Business process library</h1>
-        <p className="text-xs text-slate-500">Business processes and sub-processes from reference data, with the number of risks recorded against each.</p>
-      </div>
+      <PageHeader
+        eyebrow="Reference data"
+        title="Business processes"
+        description="Business processes and sub-processes from reference data, with the number of risk-register entries recorded against each."
+      />
 
       <DataState
         query={[processesQ, subsQ, risksQ]}
@@ -152,103 +160,124 @@ export function AssetLibraryPage() {
         emptyTitle="No business processes in reference data"
         emptyDescription="Business processes are maintained in the reference tables in the database."
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative w-full sm:w-72">
-            <label htmlFor="bp-search" className="sr-only">
-              Search processes
-            </label>
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-            <Input id="bp-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search processes…" className="h-8 pl-8 text-xs" />
-          </div>
-          <p className="text-xs text-slate-600">
-            <span className="font-semibold tabular-nums text-slate-900">{processes.length}</span> processes ·{' '}
-            <span className="font-semibold tabular-nums text-slate-900">{processes.reduce((n, p) => n + p.subs.length, 0) + orphanSubs.length}</span> sub-processes
-          </p>
-        </div>
+        <Headline label="Process figures">
+          <HeadlineCell label="Processes" loading={loading} value={<CountUp value={processes.length} />} context="Top-level business processes" />
+          <HeadlineCell label="Sub-processes" loading={loading} value={<CountUp value={subCount} />} context={orphanSubs.length ? `${orphanSubs.length} without a linked process` : 'All linked to a process'} />
+          <HeadlineCell label="Processes with risks" loading={loading} value={<CountUp value={withRisks} />} context={`of ${processes.length} have at least one risk recorded`} />
+        </Headline>
 
-        <div className="bg-white rounded border border-slate-200 overflow-x-auto">
-          <table className="enterprise-table w-full text-xs">
-            <thead>
-              <tr>
-                <th scope="col" className="w-8">
-                  <span className="sr-only">Expand</span>
-                </th>
-                <th scope="col">Process</th>
-                <th scope="col">Code</th>
-                <th scope="col">Description</th>
-                <th scope="col" className="text-right">
-                  Sub-processes
-                </th>
-                <th scope="col" className="text-right">
-                  Risks
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {shownProcesses.length === 0 && (
+        <Toolbar
+          end={
+            <Button
+              variant="ghost"
+              onClick={() => setExpanded(allOpen ? new Set() : new Set(processes.filter(p => p.subs.length).map(p => p.key)))}
+              disabled={!processes.some(p => p.subs.length)}
+            >
+              {allOpen ? <ChevronsDownUp aria-hidden="true" /> : <ChevronsUpDown aria-hidden="true" />}
+              {allOpen ? 'Collapse all' : 'Expand all'}
+            </Button>
+          }
+        >
+          <SearchField label="Search processes" placeholder="Process, code, description…" value={search} onChange={setSearch} />
+        </Toolbar>
+
+        <Panel bodyClassName="p-0" className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="enterprise-table min-w-[720px]">
+              <thead>
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-slate-500">
-                    No processes match “{search}”.
-                  </td>
+                  <th scope="col" className="pl-6">Process</th>
+                  <th scope="col">Description</th>
+                  <th scope="col" data-numeric>
+                    Sub-processes
+                  </th>
+                  <th scope="col" data-numeric className="pr-6">
+                    Risks
+                  </th>
                 </tr>
-              )}
-              {shownProcesses.map(p => {
-                const open = expanded.has(p.key) || (!!q && p.subs.some(matches))
-                const subs = q ? p.subs.filter(matches) : p.subs
-                return (
-                  <React.Fragment key={p.key}>
-                    <tr>
-                      <td>
-                        {p.subs.length > 0 && (
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6"
-                            onClick={() => toggle(p.key)}
-                            aria-expanded={open}
-                            aria-label={`${open ? 'Hide' : 'Show'} sub-processes of ${p.name ?? 'this process'}`}
-                          >
-                            {open ? <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />}
-                          </Button>
-                        )}
-                      </td>
-                      <td className="font-medium text-slate-900">{p.name ?? (p.id != null ? `Process #${p.id}` : DASH)}</td>
-                      <td className="font-mono text-slate-600">{p.code ?? DASH}</td>
-                      <td className="text-slate-600">{p.description ?? DASH}</td>
-                      <td className="text-right tabular-nums">{p.subs.length}</td>
-                      <td className="text-right tabular-nums">{p.risks}</td>
-                    </tr>
-                    {open &&
-                      subs.map(s => (
-                        <tr key={s.key} className="bg-slate-50/60">
-                          <td />
-                          <td className="pl-6 text-slate-800">{s.name ?? (s.id != null ? `Sub-process #${s.id}` : DASH)}</td>
-                          <td className="font-mono text-slate-600">{s.code ?? DASH}</td>
-                          <td className="text-slate-600">{s.description ?? DASH}</td>
-                          <td />
-                          <td className="text-right tabular-nums">{s.risks}</td>
-                        </tr>
-                      ))}
-                  </React.Fragment>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {shownProcesses.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-muted-foreground">
+                      No processes match “{search}”.
+                    </td>
+                  </tr>
+                )}
+                {shownProcesses.map(p => {
+                  const open = expanded.has(p.key) || (!!q && p.subs.some(matches))
+                  const subs = q ? p.subs.filter(matches) : p.subs
+                  return (
+                    <React.Fragment key={p.key}>
+                      <tr>
+                        <td className="pl-3">
+                          <div className="flex items-center gap-1">
+                            {p.subs.length > 0 ? (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="size-7"
+                                onClick={() => toggle(p.key)}
+                                aria-expanded={open}
+                                aria-label={`${open ? 'Hide' : 'Show'} sub-processes of ${p.name ?? 'this process'}`}
+                              >
+                                <ChevronRight className={cn('transition-transform duration-(--duration-fast) ease-out', open && 'rotate-90')} aria-hidden="true" />
+                              </Button>
+                            ) : (
+                              <span className="size-7 shrink-0" aria-hidden="true" />
+                            )}
+                            <NameCell name={p.name ?? (p.id != null ? `Process #${p.id}` : DASH)} code={p.code} maxWidth="max-w-[320px]" />
+                          </div>
+                        </td>
+                        <td>
+                          <span className="line-clamp-2 max-w-[420px] text-foreground-secondary" title={p.description ?? undefined}>
+                            {p.description ?? <Muted>{DASH}</Muted>}
+                          </span>
+                        </td>
+                        <td data-numeric className="tabular-nums">
+                          {p.subs.length || <Muted>0</Muted>}
+                        </td>
+                        <td data-numeric className="pr-6 tabular-nums">
+                          {p.risks ? <span className="font-medium text-foreground">{p.risks}</span> : <Muted>0</Muted>}
+                        </td>
+                      </tr>
+                      {open &&
+                        subs.map(s => (
+                          <tr key={s.key} className="bg-surface-sunken/50">
+                            <td className="pl-3">
+                              <div className="flex items-center gap-1 pl-8">
+                                <CornerDownRight className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                                <NameCell name={<span className="font-normal">{s.name ?? (s.id != null ? `Sub-process #${s.id}` : DASH)}</span>} code={s.code} maxWidth="max-w-[300px]" />
+                              </div>
+                            </td>
+                            <td>
+                              <span className="line-clamp-2 max-w-[420px] text-foreground-secondary">{s.description ?? <Muted>{DASH}</Muted>}</span>
+                            </td>
+                            <td />
+                            <td data-numeric className="pr-6 tabular-nums">
+                              {s.risks ? <span className="font-medium text-foreground">{s.risks}</span> : <Muted>0</Muted>}
+                            </td>
+                          </tr>
+                        ))}
+                    </React.Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
 
         {orphanSubs.length > 0 && (
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-slate-900">Sub-processes without a linked process</h2>
-            <p className="text-[11px] text-slate-500">These sub-process rows have no recognisable link to a process in the reference data.</p>
-            <div className="bg-white rounded border border-slate-200 overflow-x-auto">
-              <table className="enterprise-table w-full text-xs">
+          <Panel title="Sub-processes without a linked process" meta={`${orphanSubs.length} in reference data`} bodyClassName="p-0" className="overflow-hidden">
+            <p className="px-6 pb-3 text-body-sm text-muted-foreground">These sub-process rows have no recognisable link to a process in the reference data.</p>
+            <div className="overflow-x-auto">
+              <table className="enterprise-table min-w-[600px]">
                 <thead>
                   <tr>
-                    <th scope="col">Sub-process</th>
-                    <th scope="col">Code</th>
+                    <th scope="col" className="pl-6">Sub-process</th>
                     <th scope="col">Description</th>
-                    <th scope="col" className="text-right">
+                    <th scope="col" data-numeric className="pr-6">
                       Risks
                     </th>
                   </tr>
@@ -256,23 +285,28 @@ export function AssetLibraryPage() {
                 <tbody>
                   {shownOrphans.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-slate-500">
+                      <td colSpan={3} className="py-8 text-center text-muted-foreground">
                         No sub-processes match “{search}”.
                       </td>
                     </tr>
                   )}
                   {shownOrphans.map(s => (
                     <tr key={s.key}>
-                      <td className="font-medium text-slate-900">{s.name ?? (s.id != null ? `Sub-process #${s.id}` : DASH)}</td>
-                      <td className="font-mono text-slate-600">{s.code ?? DASH}</td>
-                      <td className="text-slate-600">{s.description ?? DASH}</td>
-                      <td className="text-right tabular-nums">{s.risks}</td>
+                      <td className="pl-6">
+                        <NameCell name={s.name ?? (s.id != null ? `Sub-process #${s.id}` : DASH)} code={s.code} />
+                      </td>
+                      <td>
+                        <span className="line-clamp-2 max-w-[480px] text-foreground-secondary">{s.description ?? <Muted>{DASH}</Muted>}</span>
+                      </td>
+                      <td data-numeric className="pr-6 tabular-nums">
+                        {s.risks ? <span className="font-medium text-foreground">{s.risks}</span> : <Muted>0</Muted>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </Panel>
         )}
       </DataState>
     </div>

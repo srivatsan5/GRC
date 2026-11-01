@@ -2,10 +2,8 @@
 
 /** Small building blocks shared by the resilience pages (vendors, incidents, BCP, scenarios). */
 import React from 'react'
-import { Download, Search } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
+import { DueChip as CharterDueChip } from '@/components/charter/primitives'
+import { HatchChip, nativeSelectClass, nativeTextareaClass } from '@/components/controls/charter-bits'
 import { daysUntil } from '@/lib/format'
 import { recordAudit } from '@/lib/auditLog'
 import type { Row } from '@/lib/data'
@@ -47,88 +45,18 @@ export function dueState(date: string | null | undefined, soonDays = 30): { stat
   return { state: 'scheduled', days }
 }
 
-export function DueChip({ date, soonDays = 30, overdueLabel = 'Overdue', none = 'Not scheduled' }: { date: string | null | undefined; soonDays?: number; overdueLabel?: string; none?: string }) {
-  const { state, days } = dueState(date, soonDays)
-  if (state === 'none') return <span className="text-[11px] text-slate-400">{none}</span>
-  if (state === 'overdue')
-    return (
-      <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-1.5 py-0.5 text-[11px] font-medium text-red-700">
-        {overdueLabel} · {Math.abs(days!)}d
-      </span>
-    )
-  if (state === 'due-soon')
-    return (
-      <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
-        Due {days === 0 ? 'today' : `in ${days}d`}
-      </span>
-    )
-  return <span className="text-[11px] text-slate-500">In {days}d</span>
+/**
+ * Review / test date as a Charter chip: "12 days overdue" (danger), "Due in 9 days" (warning),
+ * "Due 15 Oct 2026" (neutral) or a hatched "Not scheduled".
+ */
+export function DueChip({ date, soonDays = 30, none = 'Not scheduled' }: { date: string | null | undefined; soonDays?: number; overdueLabel?: string; none?: string }) {
+  if (daysUntil(date) === null) return <HatchChip>{none}</HatchChip>
+  return <CharterDueChip date={date} soonDays={soonDays} />
 }
 
-export function Kpi({ label, value, hint, tone = 'default' }: { label: string; value: React.ReactNode; hint?: string; tone?: 'default' | 'danger' | 'warning' | 'success' }) {
-  const labelTone = { default: 'text-slate-500', danger: 'text-rose-600', warning: 'text-amber-600', success: 'text-emerald-600' }[tone]
-  const valueTone = { default: 'text-slate-900', danger: 'text-rose-700', warning: 'text-amber-700', success: 'text-emerald-700' }[tone]
-  return (
-    <div className="p-3 bg-white rounded border border-slate-200">
-      <div className={cn('text-xs', labelTone)}>{label}</div>
-      <div className={cn('text-xl font-semibold mt-0.5 tabular-nums', valueTone)}>{value}</div>
-      {hint && <div className="text-[11px] text-slate-400 mt-0.5">{hint}</div>}
-    </div>
-  )
-}
-
-export function SearchBox({ id, value, onChange, placeholder }: { id: string; value: string; onChange: (v: string) => void; placeholder: string }) {
-  return (
-    <div className="relative w-full sm:w-72">
-      <label htmlFor={id} className="sr-only">
-        {placeholder}
-      </label>
-      <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-      <Input id={id} type="search" placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} className="pl-8 h-8 text-xs bg-white" />
-    </div>
-  )
-}
-
-/** A segmented "All | A | B" filter made of real buttons. */
-export function FilterTabs<T extends string>({ label, options, value, onChange }: { label: string; options: readonly T[]; value: T | 'All'; onChange: (v: T | 'All') => void }) {
-  return (
-    <div role="group" aria-label={label} className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 text-xs">
-      {(['All', ...options] as (T | 'All')[]).map(t => (
-        <button
-          key={t}
-          type="button"
-          aria-pressed={value === t}
-          onClick={() => onChange(t)}
-          className={cn('px-2.5 py-1 rounded text-xs transition-colors', value === t ? 'bg-white font-medium text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900')}
-        >
-          {t}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-/** Label + control + inline error. */
-export function Field({ id, label, required, error, hint, children, className }: { id: string; label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={className}>
-      <label htmlFor={id} className="block text-xs text-slate-700 font-medium mb-1">
-        {label}
-        {required && <span className="text-red-600"> *</span>}
-      </label>
-      {children}
-      {hint && !error && <p className="mt-1 text-[11px] text-slate-400">{hint}</p>}
-      {error && (
-        <p id={`${id}-error`} role="alert" className="mt-1 text-[11px] text-red-600">
-          {error}
-        </p>
-      )}
-    </div>
-  )
-}
-
-export const selectClass = 'w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white'
-export const textareaClass = 'w-full min-h-[64px] px-2 py-1.5 border border-slate-200 rounded text-xs bg-white'
+export { FormField as Field } from '@/components/controls/charter-bits'
+export const selectClass = nativeSelectClass
+export const textareaClass = nativeTextareaClass
 
 function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v)
@@ -152,14 +80,7 @@ export function exportCsv(filename: string, columns: { key: string; label: strin
   recordAudit({ action: 'EXPORT', entity, description: `Exported ${rows.length} ${entity.toLowerCase()} record(s) to CSV`, result: 'SUCCESS' })
 }
 
-export function ExportButton({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
-  return (
-    <Button variant="outline" size="sm" onClick={onClick} disabled={disabled}>
-      <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-      Export CSV
-    </Button>
-  )
-}
+export { ExportCsvButton as ExportButton } from '@/components/controls/charter-bits'
 
 /** The value, updated only after it stops changing for `ms` (for search boxes that hit the server). */
 export function useDebounced<T>(value: T, ms = 300): T {

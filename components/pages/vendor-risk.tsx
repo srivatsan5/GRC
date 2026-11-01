@@ -1,28 +1,25 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Plus, Trash2, Pencil } from 'lucide-react'
+import { Archive, CircleCheck, LogIn, LogOut, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { Chip, CountUp, FilterChip, Meter, PageHeader, Panel, SearchField } from '@/components/charter/primitives'
+import { HatchChip, Headline, HeadlineCell, Muted, NameCell, RowActions, ScoreMeter, TierChip, Toolbar, useQueryParamSearch } from '@/components/controls/charter-bits'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
-import { cn } from '@/lib/utils'
 import { useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
-import { DASH, formatDate, formatNumber, toDateInput } from '@/lib/format'
+import { DASH, formatNumber, toDateInput } from '@/lib/format'
 import { useOrgSettings } from '@/lib/settings'
 import { apiErrorMessage } from '@/lib/apiClient'
 import {
   DueChip,
   ExportButton,
   Field,
-  FilterTabs,
-  Kpi,
-  SearchBox,
   dueState,
   exportCsv,
   hasErrors,
@@ -43,7 +40,6 @@ type Status = (typeof STATUSES)[number]
 /** Reviews due within this many days are flagged as "due soon". */
 const DUE_SOON_DAYS = 30
 
-const TIER_BADGE: Record<string, string> = { Critical: 'critical', High: 'high', Medium: 'warning', Low: 'low' }
 
 interface Form {
   vendor_name: string
@@ -118,6 +114,7 @@ export function VendorRiskPage() {
   const [status, setStatus] = useState<Status | 'All'>('All')
   const [editing, setEditing] = useState<{ row: Row | null } | null>(null)
   const debounced = useDebounced(search)
+  useQueryParamSearch(setSearch)
 
   useEffect(() => setPage(1), [debounced, tier, status])
 
@@ -190,132 +187,151 @@ export function VendorRiskPage() {
 
   const items = pageQ.data?.items ?? []
   const filtered = !!debounced.trim() || tier !== 'All' || status !== 'All'
+  const canCreate = hasPermission('create')
+  const loadingAll = allQ.isLoading
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Third-Party Risk Management (TPRM)</h1>
-          <p className="text-xs text-slate-500">Tiered vendor risk assessment, contract tracking, and review cadence</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportButton onClick={doExport} disabled={all.length === 0} />
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing({ row: null })} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              Onboard vendor
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Enterprise risk"
+        title="Vendors"
+        description="Third parties by risk tier, with contract value, assessed risk score and review cadence."
+        actions={
+          <>
+            <ExportButton onClick={doExport} disabled={all.length === 0} />
+            {canCreate && (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
+                Onboard vendor
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <DataState query={allQ} compact>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <Kpi label="Vendors" value={stats.total} hint={`Critical ${stats.byTier.Critical} · High ${stats.byTier.High} · Medium ${stats.byTier.Medium} · Low ${stats.byTier.Low}`} />
-          <Kpi label="Critical-tier vendors" value={stats.byTier.Critical} tone="danger" />
-          <Kpi label="Reviews overdue" value={stats.overdue} tone="warning" hint={`${stats.dueSoon} due in the next ${DUE_SOON_DAYS} days`} />
-          <Kpi
-            label="Total contract value"
+      {allQ.isError ? (
+        <DataState query={allQ} compact>
+          {null}
+        </DataState>
+      ) : (
+        <Headline label="Vendor figures">
+          <HeadlineCell
+            label="Vendors"
+            loading={loadingAll}
+            value={<CountUp value={stats.total} />}
+            context={`${stats.byTier.High} high · ${stats.byTier.Medium} medium · ${stats.byTier.Low} low`}
+          />
+          <HeadlineCell
+            label="Critical tier"
+            loading={loadingAll}
+            value={<CountUp value={stats.byTier.Critical} />}
+            tone={stats.byTier.Critical > 0 ? 'text-risk-critical-text' : undefined}
+            context={stats.total ? `of ${stats.total} vendors` : 'No vendors yet'}
+          />
+          <HeadlineCell
+            label="Reviews overdue"
+            loading={loadingAll}
+            value={<CountUp value={stats.overdue} />}
+            tone={stats.overdue > 0 ? 'text-status-danger-fg' : undefined}
+            context={`${stats.dueSoon} due in the next ${DUE_SOON_DAYS} days`}
+          />
+          <HeadlineCell
+            label="Contract value"
+            loading={loadingAll}
             value={money(stats.contractTotal, { compact: true })}
-            hint={stats.valuesCount < stats.total ? `${stats.valuesCount} of ${stats.total} vendors have a value` : undefined}
+            context={stats.valuesCount < stats.total ? `${stats.valuesCount} of ${stats.total} vendors have a value` : 'Across all vendors'}
           />
-          <Kpi
+          <HeadlineCell
             label="Average risk score"
-            value={stats.avgScore === null ? DASH : `${formatNumber(stats.avgScore, 1)}/100`}
-            hint={stats.scoresCount < stats.total ? `${stats.scoresCount} of ${stats.total} vendors scored` : undefined}
-          />
-        </div>
-      </DataState>
+            loading={loadingAll}
+            value={stats.avgScore === null ? DASH : formatNumber(stats.avgScore, 0)}
+            suffix={stats.avgScore === null ? undefined : '/100'}
+            context={stats.scoresCount < stats.total ? `${stats.scoresCount} of ${stats.total} vendors scored` : `All ${stats.total} vendors scored`}
+          >
+            <Meter value={stats.avgScore} tone={scoreTone(stats.avgScore ?? 0)} label="Average vendor risk score" className="max-w-[160px]" />
+          </HeadlineCell>
+        </Headline>
+      )}
 
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-        <SearchBox id="vendor-search" value={search} onChange={setSearch} placeholder="Search vendors…" />
-        <div className="flex flex-wrap gap-2">
-          <FilterTabs label="Filter by tier" options={TIERS} value={tier} onChange={setTier} />
-          <FilterTabs label="Filter by status" options={STATUSES} value={status} onChange={setStatus} />
-        </div>
-      </div>
+      <Toolbar>
+        <SearchField label="Search vendors" placeholder="Vendor, category, contact…" value={search} onChange={setSearch} />
+        <FilterChip label="Tier" value={tier === 'All' ? '' : tier} onChange={v => setTier((v || 'All') as Tier | 'All')} options={TIERS.map(t => ({ value: t, label: t }))} />
+        <FilterChip label="Status" value={status === 'All' ? '' : status} onChange={v => setStatus((v || 'All') as Status | 'All')} options={STATUSES.map(t => ({ value: t, label: t }))} />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setTier('All')
+              setStatus('All')
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Toolbar>
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <Panel bodyClassName="p-0" className="overflow-hidden">
         <DataState
           query={pageQ}
           empty={items.length === 0}
           emptyTitle={filtered ? 'No vendors match these filters' : 'No vendors yet'}
-          emptyDescription={filtered ? 'Try a different search or filter.' : 'Onboard your first third party to start tracking it.'}
+          emptyDescription={filtered ? 'Try a different search or filter.' : 'Onboard your first third party to start tracking its tier, score and reviews.'}
           emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setEditing({ row: null })}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            !filtered && canCreate ? (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
                 Onboard vendor
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[900px]">
               <thead>
                 <tr>
-                  <th>Vendor</th>
-                  <th>Tier</th>
-                  <th>Status</th>
-                  <th>Country</th>
-                  <th className="text-right">Contract value</th>
-                  <th>Risk score</th>
-                  <th>Next review</th>
-                  <th className="text-right">Findings</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col" className="pl-6">Vendor</th>
+                  <th scope="col">Tier</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" data-numeric>Contract value</th>
+                  <th scope="col">Risk score</th>
+                  <th scope="col">Next review</th>
+                  <th scope="col" data-numeric>Findings</th>
+                  <th scope="col" className="pr-4">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(v => {
                   const score = num(v.risk_score)
+                  const findings = num(v.open_findings)
                   return (
                     <tr key={v.uuid}>
-                      <td>
-                        <div className="font-medium text-slate-900">{v.vendor_name}</div>
-                        <div className="text-slate-400 text-[11px]">{[str(v.category), str(v.contact_email)].filter(Boolean).join(' · ') || DASH}</div>
+                      <td className="pl-6">
+                        <NameCell name={v.vendor_name ?? DASH} code={str(v.country_code)} detail={[str(v.category), str(v.contact_email)].filter(Boolean).join(' · ') || null} maxWidth="max-w-[250px]" />
                       </td>
                       <td>
-                        <StatusBadge status={TIER_BADGE[v.tier] ?? 'pending'} label={v.tier ?? DASH} />
-                      </td>
-                      <td className="text-xs text-slate-600">{v.status ?? DASH}</td>
-                      <td className="text-slate-600 font-mono text-xs">{str(v.country_code) ?? DASH}</td>
-                      <td className="text-right font-medium tabular-nums text-slate-900">{money(num(v.contract_value))}</td>
-                      <td>
-                        {score === null ? (
-                          <span className="text-[11px] text-slate-500">Not scored</span>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 bg-slate-100 rounded overflow-hidden" aria-hidden="true">
-                              <div className={cn('h-full rounded', score > 70 ? 'bg-red-600' : score > 50 ? 'bg-amber-500' : 'bg-emerald-600')} style={{ width: `${score}%` }} />
-                            </div>
-                            <span className="font-medium tabular-nums text-xs">{score}/100</span>
-                          </div>
-                        )}
+                        <TierChip value={v.tier} />
                       </td>
                       <td>
-                        <div className="text-xs text-slate-700">{formatDate(v.next_review_on)}</div>
-                        {v.status !== 'Exited' && <DueChip date={v.next_review_on} soonDays={DUE_SOON_DAYS} />}
+                        <VendorStatus status={v.status} />
                       </td>
-                      <td className="text-right tabular-nums text-xs">{formatNumber(num(v.open_findings))}</td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {hasPermission('update') && (
-                            <Button variant="ghost" size="icon" onClick={() => setEditing({ row: v })} className="h-7 w-7" aria-label={`Edit ${v.vendor_name}`}>
-                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                          {hasPermission('delete') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => remove(v)}
-                              className="h-7 w-7 text-red-600 hover:bg-red-50"
-                              aria-label={`Remove ${v.vendor_name}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
+                      <td data-numeric className="tabular-nums">
+                        {num(v.contract_value) === null ? <Muted>{DASH}</Muted> : money(num(v.contract_value))}
+                      </td>
+                      <td>{score === null ? <HatchChip>Not scored</HatchChip> : <ScoreMeter value={score} tone={scoreTone(score)} label={`${v.vendor_name} risk score`} />}</td>
+                      <td>{v.status === 'Exited' ? <Muted>{DASH}</Muted> : <DueChip date={v.next_review_on} soonDays={DUE_SOON_DAYS} />}</td>
+                      <td data-numeric className="tabular-nums">
+                        {findings === null ? <Muted>{DASH}</Muted> : findings > 0 ? <span className="font-medium text-status-warning-fg">{formatNumber(findings)}</span> : <Muted>0</Muted>}
+                      </td>
+                      <td className="pr-4">
+                        <RowActions
+                          name={v.vendor_name}
+                          onEdit={hasPermission('update') ? () => setEditing({ row: v }) : undefined}
+                          onDelete={hasPermission('delete') ? () => remove(v) : undefined}
+                          deleteLabel="Remove"
+                        />
                       </td>
                     </tr>
                   )
@@ -325,11 +341,24 @@ export function VendorRiskPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
         </DataState>
-      </div>
+      </Panel>
 
       <VendorDialog editing={editing} onClose={() => setEditing(null)} />
     </div>
   )
+}
+
+/** Risk score 1–100 on the risk scale: ≤ 50 low, ≤ 70 moderate, above 70 critical (number always shown). */
+function scoreTone(score: number) {
+  return score > 70 ? 'bg-risk-critical' : score > 50 ? 'bg-risk-moderate' : 'bg-risk-low'
+}
+
+function VendorStatus({ status }: { status: string | null | undefined }) {
+  if (status === 'Active') return <Chip tone="success" icon={CircleCheck}>Active</Chip>
+  if (status === 'Onboarding') return <Chip tone="info" icon={LogIn}>Onboarding</Chip>
+  if (status === 'Offboarding') return <Chip tone="warning" icon={LogOut}>Offboarding</Chip>
+  if (status === 'Exited') return <Chip tone="neutral" icon={Archive}>Exited</Chip>
+  return <Muted>{status ?? DASH}</Muted>
 }
 
 function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | null; onClose: () => void }) {
@@ -372,18 +401,18 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
 
   return (
     <Dialog open={!!editing} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{row ? `Edit ${row.vendor_name}` : 'Onboard vendor'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required.</DialogDescription>
+          <DialogTitle>{row ? `Edit ${row.vendor_name}` : 'Onboard vendor'}</DialogTitle>
+          <DialogDescription>Fields marked * are required.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} noValidate className="space-y-3 text-xs">
+        <form onSubmit={submit} noValidate className="space-y-5">
           <Field id="v-vendor_name" label="Vendor name" required error={errors.vendor_name}>
-            <Input id="v-vendor_name" value={form.vendor_name} onChange={e => set('vendor_name', e.target.value)} className="h-8 text-xs" aria-invalid={!!errors.vendor_name} aria-describedby={describedBy('vendor_name')} />
+            <Input id="v-vendor_name" value={form.vendor_name} onChange={e => set('vendor_name', e.target.value)} aria-invalid={!!errors.vendor_name} aria-describedby={describedBy('vendor_name')} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="v-category" label="Category">
-              <Input id="v-category" value={form.category} onChange={e => set('category', e.target.value)} className="h-8 text-xs" />
+              <Input id="v-category" value={form.category} onChange={e => set('category', e.target.value)} />
             </Field>
             <Field id="v-country_code" label="Country (2-letter)" error={errors.country_code}>
               <Input
@@ -391,7 +420,7 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
                 value={form.country_code}
                 maxLength={2}
                 onChange={e => set('country_code', e.target.value.toUpperCase())}
-                className="h-8 text-xs font-mono"
+                className="font-mono"
                 aria-invalid={!!errors.country_code}
                 aria-describedby={describedBy('country_code')}
               />
@@ -418,7 +447,7 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
                 step="any"
                 value={form.contract_value}
                 onChange={e => set('contract_value', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.contract_value}
                 aria-describedby={describedBy('contract_value')}
               />
@@ -432,13 +461,13 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
                 step={1}
                 value={form.risk_score}
                 onChange={e => set('risk_score', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.risk_score}
                 aria-describedby={describedBy('risk_score')}
               />
             </Field>
             <Field id="v-last_assessment_on" label="Last assessment">
-              <Input id="v-last_assessment_on" type="date" value={form.last_assessment_on} onChange={e => set('last_assessment_on', e.target.value)} className="h-8 text-xs" />
+              <Input id="v-last_assessment_on" type="date" value={form.last_assessment_on} onChange={e => set('last_assessment_on', e.target.value)} />
             </Field>
             <Field id="v-next_review_on" label="Next review" error={errors.next_review_on}>
               <Input
@@ -446,7 +475,7 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
                 type="date"
                 value={form.next_review_on}
                 onChange={e => set('next_review_on', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.next_review_on}
                 aria-describedby={describedBy('next_review_on')}
               />
@@ -457,7 +486,7 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
                 type="email"
                 value={form.contact_email}
                 onChange={e => set('contact_email', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.contact_email}
                 aria-describedby={describedBy('contact_email')}
               />
@@ -470,17 +499,17 @@ function VendorDialog({ editing, onClose }: { editing: { row: Row | null } | nul
                 step={1}
                 value={form.open_findings}
                 onChange={e => set('open_findings', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.open_findings}
                 aria-describedby={describedBy('open_findings')}
               />
             </Field>
           </div>
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy ? 'Saving…' : row ? 'Save changes' : 'Onboard vendor'}
             </Button>
           </DialogFooter>

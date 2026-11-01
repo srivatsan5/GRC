@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useDeferredValue, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Search, Link2, Download } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { Chip, CountUp, FilterChip, PageHeader, Panel, Person, SearchField } from '@/components/charter/primitives'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
@@ -15,7 +15,22 @@ import { Pager } from '@/components/pager'
 import { fetchAllRows, useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { DASH, formatDate, formatNumber, daysUntil, toDateInput } from '@/lib/format'
-import { Field, Stat, exportCsv, selectClass, textOrNull } from '@/components/controls/form-bits'
+import { Field, exportCsv, selectClass, textOrNull } from '@/components/controls/form-bits'
+import {
+  CountButton,
+  ExportCsvButton,
+  FormSection,
+  HatchChip,
+  Headline,
+  HeadlineCell,
+  LifecycleChip,
+  Muted,
+  NameCell,
+  RatingDots,
+  RowActions,
+  Toolbar,
+  useQueryParamSearch,
+} from '@/components/controls/charter-bits'
 import { ControlRisksDialog } from '@/components/controls/control-risks-dialog'
 
 const TABLE = 'erm_mst_control'
@@ -26,6 +41,7 @@ export const CONTROL_TYPES = ['Preventive', 'Detective', 'Corrective', 'Compensa
 export const CONTROL_NATURES = ['Manual', 'Automated', 'Hybrid'] as const
 export const CONTROL_FREQUENCIES = ['Continuous', 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Event-driven'] as const
 export const CONTROL_STATUSES = ['Draft', 'Active', 'Retired'] as const
+const EFFECTIVENESS_LABELS = ['Ineffective', 'Weak', 'Adequate', 'Strong', 'Fully effective'] as const
 
 const str = (v: unknown) => (v == null ? '' : String(v))
 const rating = (v: unknown): number | null => {
@@ -44,15 +60,16 @@ export function ControlLibraryPage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
-  const [typeFilter, setTypeFilter] = useState<string>('All')
-  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [typeFilter, setTypeFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
   const [editing, setEditing] = useState<Row | 'new' | null>(null)
   const [linking, setLinking] = useState<Row | null>(null)
+  useQueryParamSearch(setSearch)
 
   const filter = useMemo(() => {
     const f: Record<string, string> = {}
-    if (typeFilter !== 'All') f.control_type = typeFilter
-    if (statusFilter !== 'All') f.status = statusFilter
+    if (typeFilter) f.control_type = typeFilter
+    if (statusFilter) f.status = statusFilter
     return f
   }, [typeFilter, statusFilter])
 
@@ -69,14 +86,22 @@ export function ControlLibraryPage() {
 
   const stats = useMemo(() => {
     const all = allQ.data ?? []
-    const effs = all.flatMap(c => [rating(c.design_effectiveness), rating(c.operating_effectiveness)]).filter((n): n is number => n != null)
+    const avg = (ns: (number | null)[]) => {
+      const v = ns.filter((n): n is number => n != null)
+      return { value: v.length ? v.reduce((s, n) => s + n, 0) / v.length : null, rated: v.length }
+    }
     return {
       total: all.length,
       active: all.filter(c => c.status === 'Active').length,
-      preventive: all.filter(c => c.control_type === 'Preventive').length,
-      avgEff: effs.length ? effs.reduce((s, n) => s + n, 0) / effs.length : null,
+      draft: all.filter(c => c.status === 'Draft').length,
+      retired: all.filter(c => c.status === 'Retired').length,
+      design: avg(all.map(c => rating(c.design_effectiveness))),
+      operating: avg(all.map(c => rating(c.operating_effectiveness))),
+      neverTested: all.filter(c => c.status !== 'Retired' && !c.last_tested_on).length,
+      live: all.filter(c => c.status !== 'Retired').length,
+      linked: all.filter(c => (linkCount.get(Number(c.uuid)) ?? 0) > 0).length,
     }
-  }, [allQ.data])
+  }, [allQ.data, linkCount])
 
   const handleDelete = async (c: Row) => {
     // A control that is applied to risks can't be deleted (the applications would point at nothing).
@@ -119,210 +144,211 @@ export function ControlLibraryPage() {
   }
 
   const items = pageQ.data?.items ?? []
-  const filtered = Boolean(deferredSearch.trim()) || typeFilter !== 'All' || statusFilter !== 'All'
+  const filtered = Boolean(deferredSearch.trim()) || !!typeFilter || !!statusFilter
+  const canCreate = hasPermission('create')
+  const loadingAll = allQ.isLoading
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Control Library</h1>
-          <p className="text-xs text-slate-500">Central register of internal controls, effectiveness ratings and the risks they mitigate</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={!allQ.data?.length}>
-            <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-            Export CSV
-          </Button>
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing('new')} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              New control
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Controls & policy"
+        title="Control library"
+        description="Every internal control, how well it is designed and operating, when it was last tested, and the risks it mitigates."
+        actions={
+          <>
+            <ExportCsvButton onClick={handleExport} disabled={!allQ.data?.length} />
+            {canCreate && (
+              <Button onClick={() => setEditing('new')}>
+                <Plus aria-hidden="true" />
+                New control
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <DataState query={allQ} compact>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat label="Total controls" value={stats.total} />
-          <Stat label="Active controls" value={stats.active} tone="green" />
-          <Stat label="Preventive controls" value={stats.preventive} tone="blue" />
-          <Stat
-            label="Average effectiveness"
-            value={
-              stats.avgEff == null ? (
-                DASH
-              ) : (
-                <>
-                  {formatNumber(stats.avgEff, 1)} <span className="text-xs text-slate-400 font-normal">/ 5</span>
-                </>
-              )
-            }
+      {allQ.isError ? (
+        <DataState query={allQ} compact>
+          {null}
+        </DataState>
+      ) : (
+        <Headline label="Control library figures">
+          <HeadlineCell
+            label="Controls"
+            loading={loadingAll}
+            value={<CountUp value={stats.total} />}
+            context={stats.total ? `${stats.linked} linked to at least one risk` : 'None recorded yet'}
           />
-        </div>
-      </DataState>
+          <HeadlineCell
+            label="Active"
+            loading={loadingAll}
+            value={<CountUp value={stats.active} />}
+            context={`${stats.draft} draft · ${stats.retired} retired`}
+          />
+          <HeadlineCell
+            label="Design"
+            loading={loadingAll}
+            value={stats.design.value == null ? DASH : formatNumber(stats.design.value, 1)}
+            suffix={stats.design.value == null ? undefined : '/5'}
+            context={stats.design.rated ? `Average design effectiveness, ${stats.design.rated} rated` : 'No control is rated yet'}
+          >
+            <AvgPips value={stats.design.value} label="Average design effectiveness" />
+          </HeadlineCell>
+          <HeadlineCell
+            label="Operating"
+            loading={loadingAll}
+            value={stats.operating.value == null ? DASH : formatNumber(stats.operating.value, 1)}
+            suffix={stats.operating.value == null ? undefined : '/5'}
+            context={stats.operating.rated ? `Average operating effectiveness, ${stats.operating.rated} rated` : 'No control is rated yet'}
+          >
+            <AvgPips value={stats.operating.value} label="Average operating effectiveness" />
+          </HeadlineCell>
+          <HeadlineCell
+            label="Never tested"
+            loading={loadingAll}
+            value={
+              <span className={stats.neverTested > 0 ? 'text-status-warning-fg' : undefined}>
+                <CountUp value={stats.neverTested} />
+              </span>
+            }
+            context={stats.live ? `of ${stats.live} draft and active controls` : 'No live controls'}
+          />
+        </Headline>
+      )}
 
-      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-end justify-between">
-        <div className="relative w-full lg:w-72">
-          <label htmlFor="control-search" className="sr-only">
-            Search controls
-          </label>
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-          <Input
-            id="control-search"
-            placeholder="Search code, name, owner, framework…"
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value)
+      <Toolbar end={null}>
+        <SearchField
+          label="Search controls"
+          placeholder="Code, name, owner, framework…"
+          value={search}
+          onChange={v => {
+            setSearch(v)
+            setPage(1)
+          }}
+        />
+        <FilterChip
+          label="Type"
+          value={typeFilter}
+          onChange={v => {
+            setTypeFilter(v)
+            setPage(1)
+          }}
+          options={CONTROL_TYPES.map(t => ({ value: t, label: t }))}
+        />
+        <FilterChip
+          label="Status"
+          value={statusFilter}
+          onChange={v => {
+            setStatusFilter(v)
+            setPage(1)
+          }}
+          options={CONTROL_STATUSES.map(t => ({ value: t, label: t }))}
+        />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setTypeFilter('')
+              setStatusFilter('')
               setPage(1)
             }}
-            className="pl-8 h-8 text-xs bg-white"
-          />
-        </div>
-        <div className="flex gap-3">
-          <div>
-            <label htmlFor="control-type-filter" className="block text-[11px] text-slate-500 mb-0.5">
-              Type
-            </label>
-            <select
-              id="control-type-filter"
-              className={`${selectClass} w-40`}
-              value={typeFilter}
-              onChange={e => {
-                setTypeFilter(e.target.value)
-                setPage(1)
-              }}
-            >
-              <option value="All">All types</option>
-              {CONTROL_TYPES.map(t => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="control-status-filter" className="block text-[11px] text-slate-500 mb-0.5">
-              Status
-            </label>
-            <select
-              id="control-status-filter"
-              className={`${selectClass} w-36`}
-              value={statusFilter}
-              onChange={e => {
-                setStatusFilter(e.target.value)
-                setPage(1)
-              }}
-            >
-              <option value="All">All statuses</option>
-              {CONTROL_STATUSES.map(t => (
-                <option key={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
+          >
+            Clear
+          </Button>
+        )}
+      </Toolbar>
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <Panel bodyClassName="p-0" className="overflow-hidden">
         <DataState
           query={pageQ}
           empty={items.length === 0}
           emptyTitle={filtered ? 'No controls match these filters' : 'No controls in the library yet'}
-          emptyDescription={filtered ? 'Try a different search or filter.' : 'Add the internal controls your organisation relies on.'}
+          emptyDescription={filtered ? 'Try a different search or filter.' : 'Add the internal controls your organisation relies on, then link them to the risks they mitigate.'}
           emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setEditing('new')}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            !filtered && canCreate ? (
+              <Button onClick={() => setEditing('new')}>
+                <Plus aria-hidden="true" />
                 New control
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[940px]">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th className="w-[28%]">Control name &amp; description</th>
-                  <th>Type</th>
-                  <th>Owner</th>
-                  <th>Frequency</th>
-                  <th>Effectiveness</th>
-                  <th>Last tested</th>
-                  <th>Status</th>
-                  <th>Risks</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col" className="pl-6">Control</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Effectiveness</th>
+                  <th scope="col">Last tested</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Risks</th>
+                  <th scope="col" className="pr-6 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(c => {
                   const n = linkCount.get(Number(c.uuid)) ?? 0
                   const testedDays = daysUntil(c.last_tested_on)
+                  const code = str(c.control_code)
+                  const fw = frameworksOf(c).join(', ')
                   return (
                     <tr key={c.uuid}>
-                      <td className="font-mono text-slate-500">{str(c.control_code)}</td>
+                      <td className="pl-6">
+                        <NameCell name={str(c.control_name) || DASH} code={code} detail={fw || null} maxWidth="max-w-[230px]" />
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <div className="py-1.5">
+                          <div className="text-foreground">{str(c.control_type) || DASH}</div>
+                          <div className="text-caption text-muted-foreground">
+                            {str(c.control_nature) || 'Nature not set'} · {str(c.frequency) || 'No frequency'}
+                          </div>
+                        </div>
+                      </td>
                       <td>
-                        <div className="font-medium text-slate-900">{str(c.control_name)}</div>
-                        {c.description && <div className="text-slate-500 text-[11px] line-clamp-1">{str(c.description)}</div>}
-                        {frameworksOf(c).length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {frameworksOf(c).map(f => (
-                              <span key={f} className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded border border-slate-200">
-                                {f}
-                              </span>
-                            ))}
+                        <Person name={str(c.owner_name) || null} className="max-w-[130px]" />
+                      </td>
+                      <td>
+                        <div className="flex flex-col gap-0.5 py-1.5 text-caption">
+                          <span className="flex items-center gap-2">
+                            <span className="w-3 text-muted-foreground" title="Design effectiveness">D</span>
+                            <RatingDots value={rating(c.design_effectiveness)} label="Design effectiveness" />
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <span className="w-3 text-muted-foreground" title="Operating effectiveness">O</span>
+                            <RatingDots value={rating(c.operating_effectiveness)} label="Operating effectiveness" />
+                          </span>
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap">
+                        {!c.last_tested_on ? (
+                          <HatchChip>Never tested</HatchChip>
+                        ) : testedDays != null && testedDays > 0 ? (
+                          <Chip tone="warning">Future date · {formatDate(c.last_tested_on)}</Chip>
+                        ) : (
+                          <div className="py-1.5">
+                            <div className="text-foreground">{formatDate(c.last_tested_on)}</div>
+                            {testedDays != null && <div className="text-caption text-muted-foreground">{testedDays === 0 ? 'Today' : `${-testedDays} day${testedDays === -1 ? '' : 's'} ago`}</div>}
                           </div>
                         )}
                       </td>
                       <td>
-                        {c.control_type ? (
-                          <StatusBadge
-                            status={c.control_type === 'Preventive' ? 'info' : c.control_type === 'Detective' ? 'warning' : c.control_type === 'Corrective' ? 'critical' : 'pending'}
-                            label={str(c.control_type)}
-                          />
-                        ) : (
-                          DASH
-                        )}
-                        {c.control_nature && <div className="text-[11px] text-slate-500 mt-0.5">{str(c.control_nature)}</div>}
-                      </td>
-                      <td className="text-slate-600">{str(c.owner_name) || DASH}</td>
-                      <td className="text-slate-600">{str(c.frequency) || DASH}</td>
-                      <td>
-                        <span className="font-medium text-slate-900 tabular-nums whitespace-nowrap">
-                          D: {rating(c.design_effectiveness) ?? DASH}/5 · O: {rating(c.operating_effectiveness) ?? DASH}/5
-                        </span>
-                      </td>
-                      <td className="text-slate-600 whitespace-nowrap">
-                        {formatDate(c.last_tested_on)}
-                        {testedDays != null && testedDays > 0 && <div className="text-[11px] text-amber-700">Date is in the future</div>}
+                        <LifecycleChip status={str(c.status) || null} />
                       </td>
                       <td>
-                        <StatusBadge status={c.status === 'Active' ? 'success' : c.status === 'Retired' ? 'pending' : 'open'} label={str(c.status) || DASH} />
+                        <CountButton count={n} noun={['risk', 'risks']} loading={linksQ.isLoading} onClick={() => setLinking(c)} label={`Linked risks for ${code}: ${n}. Open`} />
                       </td>
-                      <td>
-                        <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setLinking(c)} aria-label={`Linked risks for ${str(c.control_code)}: ${n}`}>
-                          <Link2 className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                          {linksQ.isLoading ? '…' : n}
-                        </Button>
-                      </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {hasPermission('update') && (
-                            <Button variant="ghost" size="icon" onClick={() => setEditing(c)} className="h-7 w-7" aria-label={`Edit ${str(c.control_code)}`}>
-                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                          {hasPermission('delete') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(c)}
-                              className="h-7 w-7 text-red-600 hover:bg-red-50"
-                              aria-label={`Delete ${str(c.control_code)}`}
-                              disabled={del.isPending}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
+                      <td className="pr-6">
+                        <RowActions
+                          name={code}
+                          onEdit={hasPermission('update') ? () => setEditing(c) : undefined}
+                          onDelete={hasPermission('delete') ? () => handleDelete(c) : undefined}
+                          busy={del.isPending}
+                        />
                       </td>
                     </tr>
                   )
@@ -332,11 +358,28 @@ export function ControlLibraryPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
         </DataState>
-      </div>
+      </Panel>
 
       {editing && <ControlDialog initial={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {linking && <ControlRisksDialog control={linking} canEdit={hasPermission('update')} onClose={() => setLinking(null)} />}
     </div>
+  )
+}
+
+/** Five segments filled to an average 1–5 rating (e.g. 3.4 → three full, one 40 %). */
+function AvgPips({ value, label }: { value: number | null; label: string }) {
+  if (value == null) return <span className="hatch block h-1.5 w-[136px] rounded-full bg-risk-unrated-bg shadow-[inset_0_0_0_1px_var(--risk-unrated-border)]" aria-hidden="true" />
+  return (
+    <span role="meter" aria-label={label} aria-valuemin={1} aria-valuemax={5} aria-valuenow={Number(value.toFixed(1))} className="flex gap-1">
+      {[0, 1, 2, 3, 4].map(i => {
+        const fill = Math.max(0, Math.min(1, value - i))
+        return (
+          <span key={i} className="relative h-1.5 w-6 overflow-hidden rounded-full bg-muted shadow-[inset_0_0_0_1px_var(--border)]">
+            <span className="absolute inset-y-0 left-0 rounded-full bg-foreground-secondary" style={{ width: `${fill * 100}%` }} />
+          </span>
+        )
+      })}
+    </span>
   )
 }
 
@@ -432,95 +475,106 @@ function ControlDialog({ initial, onClose }: { initial: Row | null; onClose: () 
 
   const err = (k: keyof Draft) => (errors[k] ? { 'aria-invalid': true, 'aria-describedby': `ctl-${k}-error` } : {})
 
+  const ratingOptions = (
+    <>
+      <option value="">Not rated</option>
+      {[1, 2, 3, 4, 5].map(n => (
+        <option key={n} value={n}>
+          {n} · {EFFECTIVENESS_LABELS[n - 1]}
+        </option>
+      ))}
+    </>
+  )
+
   return (
     <Dialog open onOpenChange={o => !o && !busy && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{initial ? `Edit ${str(initial.control_code)}` : 'New control'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required.</DialogDescription>
+          {initial && <p className="font-mono text-caption text-muted-foreground">{str(initial.control_code)}</p>}
+          <DialogTitle>{initial ? str(initial.control_name) || 'Edit control' : 'New control'}</DialogTitle>
+          <DialogDescription>Fields marked * are required. Ratings run from 1 (ineffective) to 5 (fully effective).</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-3 text-xs" noValidate>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onSubmit={submit} className="space-y-5" noValidate>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_2fr]">
             <Field id="ctl-control_code" label="Control code" required error={errors.control_code}>
-              <Input id="ctl-control_code" value={draft.control_code} onChange={set('control_code')} placeholder="e.g. CTL-IT-001" className="h-8 text-xs" {...err('control_code')} />
+              <Input id="ctl-control_code" value={draft.control_code} onChange={set('control_code')} placeholder="CTL-IT-001" className="font-mono" {...err('control_code')} />
             </Field>
-            <Field id="ctl-owner_name" label="Owner">
-              <Input id="ctl-owner_name" value={draft.owner_name} onChange={set('owner_name')} placeholder="e.g. CISO" className="h-8 text-xs" />
+            <Field id="ctl-control_name" label="Control name" required error={errors.control_name}>
+              <Input id="ctl-control_name" value={draft.control_name} onChange={set('control_name')} {...err('control_name')} />
             </Field>
           </div>
-          <Field id="ctl-control_name" label="Control name" required error={errors.control_name}>
-            <Input id="ctl-control_name" value={draft.control_name} onChange={set('control_name')} className="h-8 text-xs" {...err('control_name')} />
-          </Field>
           <Field id="ctl-description" label="Description">
-            <Textarea id="ctl-description" value={draft.description} onChange={set('description')} rows={2} className="text-xs" />
+            <Textarea id="ctl-description" value={draft.description} onChange={set('description')} rows={2} />
           </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-            <Field id="ctl-control_type" label="Type">
-              <select id="ctl-control_type" className={selectClass} value={draft.control_type} onChange={set('control_type')}>
-                <option value="">Not set</option>
-                {CONTROL_TYPES.map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field id="ctl-owner_name" label="Owner">
+              <Input id="ctl-owner_name" value={draft.owner_name} onChange={set('owner_name')} placeholder="e.g. CISO" />
             </Field>
-            <Field id="ctl-control_nature" label="Nature">
-              <select id="ctl-control_nature" className={selectClass} value={draft.control_nature} onChange={set('control_nature')}>
-                <option value="">Not set</option>
-                {CONTROL_NATURES.map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </Field>
-            <Field id="ctl-frequency" label="Frequency">
-              <select id="ctl-frequency" className={selectClass} value={draft.frequency} onChange={set('frequency')}>
-                <option value="">Not set</option>
-                {CONTROL_FREQUENCIES.map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </Field>
-            <Field id="ctl-status" label="Status">
-              <select id="ctl-status" className={selectClass} value={draft.status} onChange={set('status')}>
-                {CONTROL_STATUSES.map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
+            <Field id="ctl-frameworks" label="Frameworks" hint="Comma-separated, e.g. ISO 27001, SOX">
+              <Input id="ctl-frameworks" value={draft.frameworks} onChange={set('frameworks')} />
             </Field>
           </div>
-          <Field id="ctl-frameworks" label="Frameworks" hint="Comma-separated, e.g. ISO 27001, SOX">
-            <Input id="ctl-frameworks" value={draft.frameworks} onChange={set('frameworks')} className="h-8 text-xs" />
-          </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Field id="ctl-design_effectiveness" label="Design effectiveness (1–5)" error={errors.design_effectiveness}>
-              <select id="ctl-design_effectiveness" className={selectClass} value={draft.design_effectiveness} onChange={set('design_effectiveness')}>
-                <option value="">Not rated</option>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field id="ctl-operating_effectiveness" label="Operating effectiveness (1–5)" error={errors.operating_effectiveness}>
-              <select id="ctl-operating_effectiveness" className={selectClass} value={draft.operating_effectiveness} onChange={set('operating_effectiveness')}>
-                <option value="">Not rated</option>
-                {[1, 2, 3, 4, 5].map(n => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field id="ctl-last_tested_on" label="Last tested on" error={errors.last_tested_on}>
-              <Input id="ctl-last_tested_on" type="date" value={draft.last_tested_on} onChange={set('last_tested_on')} className="h-8 text-xs" {...err('last_tested_on')} />
-            </Field>
-          </div>
-          <DialogFooter className="pt-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>
+
+          <FormSection title="Classification">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+              <Field id="ctl-control_type" label="Type">
+                <select id="ctl-control_type" className={selectClass} value={draft.control_type} onChange={set('control_type')}>
+                  <option value="">Not set</option>
+                  {CONTROL_TYPES.map(t => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field id="ctl-control_nature" label="Nature">
+                <select id="ctl-control_nature" className={selectClass} value={draft.control_nature} onChange={set('control_nature')}>
+                  <option value="">Not set</option>
+                  {CONTROL_NATURES.map(t => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field id="ctl-frequency" label="Frequency">
+                <select id="ctl-frequency" className={selectClass} value={draft.frequency} onChange={set('frequency')}>
+                  <option value="">Not set</option>
+                  {CONTROL_FREQUENCIES.map(t => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field id="ctl-status" label="Status">
+                <select id="ctl-status" className={selectClass} value={draft.status} onChange={set('status')}>
+                  {CONTROL_STATUSES.map(t => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </FormSection>
+
+          <FormSection title="Effectiveness and testing">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Field id="ctl-design_effectiveness" label="Design effectiveness" error={errors.design_effectiveness}>
+                <select id="ctl-design_effectiveness" className={selectClass} value={draft.design_effectiveness} onChange={set('design_effectiveness')}>
+                  {ratingOptions}
+                </select>
+              </Field>
+              <Field id="ctl-operating_effectiveness" label="Operating effectiveness" error={errors.operating_effectiveness}>
+                <select id="ctl-operating_effectiveness" className={selectClass} value={draft.operating_effectiveness} onChange={set('operating_effectiveness')}>
+                  {ratingOptions}
+                </select>
+              </Field>
+              <Field id="ctl-last_tested_on" label="Last tested on" error={errors.last_tested_on} hint="Leave empty if never tested">
+                <Input id="ctl-last_tested_on" type="date" value={draft.last_tested_on} onChange={set('last_tested_on')} {...err('last_tested_on')} />
+              </Field>
+            </div>
+          </FormSection>
+
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
-              {busy ? 'Saving…' : 'Save control'}
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Saving…' : initial ? 'Save changes' : 'Create control'}
             </Button>
           </DialogFooter>
         </form>

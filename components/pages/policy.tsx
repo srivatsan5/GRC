@@ -1,21 +1,35 @@
 'use client'
 
 import React, { useDeferredValue, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, Search, Link2, Download } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { CountUp, DueChip, FilterChip, Meter, PageHeader, Panel, Person, SearchField } from '@/components/charter/primitives'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
-import { cn } from '@/lib/utils'
 import { useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
-import { DASH, daysUntil, formatDate, formatPct, toDateInput } from '@/lib/format'
-import { Field, Stat, exportCsv, selectClass, textOrNull } from '@/components/controls/form-bits'
+import { DASH, daysUntil, formatDate, formatNumber, toDateInput } from '@/lib/format'
+import { Field, exportCsv, selectClass, textOrNull } from '@/components/controls/form-bits'
+import {
+  CountButton,
+  ExportCsvButton,
+  FormSection,
+  HatchChip,
+  Headline,
+  HeadlineCell,
+  LifecycleChip,
+  Muted,
+  NameCell,
+  RowActions,
+  ScoreMeter,
+  Toolbar,
+  useQueryParamSearch,
+} from '@/components/controls/charter-bits'
 import { PolicyControlsDialog } from '@/components/controls/policy-controls-dialog'
 
 const TABLE = 'erm_mst_policy'
@@ -28,25 +42,18 @@ const DUE_SOON_DAYS = 30
 const str = (v: unknown) => (v == null ? '' : String(v))
 const pct = (v: unknown): number | null => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v))
 
-function ReviewStatus({ date }: { date: unknown }) {
-  const d = daysUntil(date as string | null)
-  if (d == null) return <span className="text-slate-400">No review date</span>
-  if (d < 0) return <span className="text-red-700 font-medium">Review overdue by {-d} day{d === -1 ? '' : 's'}</span>
-  if (d === 0) return <span className="text-amber-700 font-medium">Review due today</span>
-  return <span className={d <= DUE_SOON_DAYS ? 'text-amber-700 font-medium' : 'text-slate-500'}>Due in {d} day{d === 1 ? '' : 's'}</span>
-}
-
 export function PolicyPage() {
   const confirm = useConfirm()
   const { hasPermission } = useAuth()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
-  const [statusFilter, setStatusFilter] = useState('All')
+  const [statusFilter, setStatusFilter] = useState('')
   const [editing, setEditing] = useState<Row | 'new' | null>(null)
   const [linking, setLinking] = useState<Row | null>(null)
+  useQueryParamSearch(setSearch)
 
-  const filter = useMemo(() => (statusFilter === 'All' ? undefined : { status: statusFilter }), [statusFilter])
+  const filter = useMemo(() => (statusFilter ? { status: statusFilter } : undefined), [statusFilter])
   const pageQ = useRowPage(TABLE, { page, pageSize: PAGE_SIZE, search: deferredSearch, sort: 'policy_code', order: 'asc', filter })
   const allQ = useRows(TABLE)
   const linksQ = useRows(LINKS)
@@ -61,13 +68,23 @@ export function PolicyPage() {
   const stats = useMemo(() => {
     const all = allQ.data ?? []
     const acks = all.map(p => pct(p.acknowledged_pct)).filter((n): n is number => n != null)
+    const live = all.filter(p => p.status !== 'Retired')
     return {
       total: all.length,
       active: all.filter(p => p.status === 'Active').length,
+      draft: all.filter(p => p.status === 'Draft').length,
+      retired: all.filter(p => p.status === 'Retired').length,
       avgAck: acks.length ? acks.reduce((s, n) => s + n, 0) / acks.length : null,
-      overdue: all.filter(p => p.status !== 'Retired' && (daysUntil(p.next_review_date) ?? 0) < 0).length,
+      ackCount: acks.length,
+      overdue: live.filter(p => (daysUntil(p.next_review_date) ?? 0) < 0).length,
+      dueSoon: live.filter(p => {
+        const d = daysUntil(p.next_review_date)
+        return d != null && d >= 0 && d <= DUE_SOON_DAYS
+      }).length,
+      noDate: live.filter(p => !p.next_review_date).length,
+      linked: all.filter(p => (linkCount.get(Number(p.uuid)) ?? 0) > 0).length,
     }
-  }, [allQ.data])
+  }, [allQ.data, linkCount])
 
   const remove = async (p: Row) => {
     const ok = await confirm({
@@ -99,171 +116,172 @@ export function PolicyPage() {
   }
 
   const items = pageQ.data?.items ?? []
-  const filtered = Boolean(deferredSearch.trim()) || statusFilter !== 'All'
+  const filtered = Boolean(deferredSearch.trim()) || !!statusFilter
+  const canCreate = hasPermission('create')
+  const loadingAll = allQ.isLoading
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Policy Management</h1>
-          <p className="text-xs text-slate-500">Governance policies, versions, review dates, acknowledgment and linked controls</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={!allQ.data?.length}>
-            <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-            Export CSV
-          </Button>
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing('new')} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              New policy
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Controls & policy"
+        title="Policies"
+        description="Governance policies with their version, review cycle, staff acknowledgment and the controls that implement them."
+        actions={
+          <>
+            <ExportCsvButton onClick={handleExport} disabled={!allQ.data?.length} />
+            {canCreate && (
+              <Button onClick={() => setEditing('new')}>
+                <Plus aria-hidden="true" />
+                New policy
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <DataState query={allQ} compact>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Stat label="Total policies" value={stats.total} />
-          <Stat label="Active policies" value={stats.active} tone="green" />
-          <Stat label="Average acknowledgment" value={formatPct(stats.avgAck)} />
-          <Stat label="Reviews overdue" value={stats.overdue} tone={stats.overdue > 0 ? 'red' : undefined} />
-        </div>
-      </DataState>
-
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end justify-between">
-        <div className="relative w-full sm:w-72">
-          <label htmlFor="policy-search" className="sr-only">
-            Search policies
-          </label>
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-          <Input
-            id="policy-search"
-            placeholder="Search code, title, category, owner…"
-            value={search}
-            onChange={e => {
-              setSearch(e.target.value)
-              setPage(1)
-            }}
-            className="pl-8 h-8 text-xs bg-white"
+      {allQ.isError ? (
+        <DataState query={allQ} compact>
+          {null}
+        </DataState>
+      ) : (
+        <Headline label="Policy figures">
+          <HeadlineCell
+            label="Policies"
+            loading={loadingAll}
+            value={<CountUp value={stats.total} />}
+            context={stats.total ? `${stats.active} active · ${stats.draft} draft · ${stats.retired} retired` : 'None recorded yet'}
           />
-        </div>
-        <div>
-          <label htmlFor="policy-status-filter" className="block text-[11px] text-slate-500 mb-0.5">
-            Status
-          </label>
-          <select
-            id="policy-status-filter"
-            className={`${selectClass} w-36`}
-            value={statusFilter}
-            onChange={e => {
-              setStatusFilter(e.target.value)
+          <HeadlineCell
+            label="Acknowledgment"
+            loading={loadingAll}
+            value={stats.avgAck == null ? DASH : formatNumber(stats.avgAck, 0)}
+            suffix={stats.avgAck == null ? undefined : '%'}
+            context={stats.ackCount ? `Average across ${stats.ackCount} polic${stats.ackCount === 1 ? 'y' : 'ies'} with a figure` : 'No acknowledgment recorded'}
+          >
+            <Meter value={stats.avgAck} tone="bg-foreground-secondary" label="Average acknowledgment" className="max-w-[180px]" />
+          </HeadlineCell>
+          <HeadlineCell
+            label="Reviews overdue"
+            loading={loadingAll}
+            value={<CountUp value={stats.overdue} />}
+            tone={stats.overdue > 0 ? 'text-status-danger-fg' : undefined}
+            context={`${stats.dueSoon} due in the next ${DUE_SOON_DAYS} days${stats.noDate ? ` · ${stats.noDate} unscheduled` : ''}`}
+          />
+          <HeadlineCell
+            label="Linked to controls"
+            loading={loadingAll}
+            value={<CountUp value={stats.linked} />}
+            context={stats.total ? `of ${stats.total} policies have at least one control` : 'No policies yet'}
+          />
+        </Headline>
+      )}
+
+      <Toolbar>
+        <SearchField
+          label="Search policies"
+          placeholder="Code, title, category, owner…"
+          value={search}
+          onChange={v => {
+            setSearch(v)
+            setPage(1)
+          }}
+        />
+        <FilterChip
+          label="Status"
+          value={statusFilter}
+          onChange={v => {
+            setStatusFilter(v)
+            setPage(1)
+          }}
+          options={STATUSES.map(s => ({ value: s, label: s }))}
+        />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setStatusFilter('')
               setPage(1)
             }}
           >
-            <option value="All">All statuses</option>
-            {STATUSES.map(s => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+            Clear
+          </Button>
+        )}
+      </Toolbar>
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <Panel bodyClassName="p-0" className="overflow-hidden">
         <DataState
           query={pageQ}
           empty={items.length === 0}
           emptyTitle={filtered ? 'No policies match these filters' : 'No policies yet'}
-          emptyDescription={filtered ? 'Try a different search or status.' : 'Record your governance policies and their review cycle.'}
+          emptyDescription={filtered ? 'Try a different search or status.' : 'Record your governance policies and their review cycle, then link the controls that implement them.'}
           emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setEditing('new')}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            !filtered && canCreate ? (
+              <Button onClick={() => setEditing('new')}>
+                <Plus aria-hidden="true" />
                 New policy
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[900px]">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th className="w-[24%]">Policy title</th>
-                  <th>Category</th>
-                  <th>Version</th>
-                  <th>Owner</th>
-                  <th>Effective</th>
-                  <th>Next review</th>
-                  <th>Acknowledgment</th>
-                  <th>Status</th>
-                  <th>Controls</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col" className="pl-6">Policy</th>
+                  <th scope="col">Version</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Next review</th>
+                  <th scope="col">Acknowledged</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Controls</th>
+                  <th scope="col" className="pr-4">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(p => {
                   const ack = pct(p.acknowledged_pct)
                   const n = linkCount.get(Number(p.uuid)) ?? 0
+                  const code = str(p.policy_code)
                   return (
                     <tr key={p.uuid}>
-                      <td className="font-mono text-slate-500">{str(p.policy_code)}</td>
-                      <td className="font-medium text-slate-900">{str(p.title)}</td>
-                      <td>
-                        {p.category ? (
-                          <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 rounded border border-slate-200">{str(p.category)}</span>
-                        ) : (
-                          DASH
-                        )}
+                      <td className="pl-6">
+                        <NameCell name={str(p.title) || DASH} code={code} detail={str(p.category) || null} maxWidth="max-w-[190px]" />
                       </td>
-                      <td className="font-mono text-xs text-slate-600">{p.version_label ? `v${str(p.version_label)}` : DASH}</td>
-                      <td className="text-slate-600">{str(p.owner_name) || DASH}</td>
-                      <td className="text-slate-600 whitespace-nowrap">{formatDate(p.effective_date)}</td>
                       <td className="whitespace-nowrap">
-                        <div className="text-slate-600">{formatDate(p.next_review_date)}</div>
-                        <div className="text-[11px]">{p.status === 'Retired' ? <span className="text-slate-400">Retired</span> : <ReviewStatus date={p.next_review_date} />}</div>
+                        <div className="py-1.5">
+                          <div className="font-mono text-caption text-foreground">{p.version_label ? `v${str(p.version_label)}` : DASH}</div>
+                          <div className="text-caption text-muted-foreground">{p.effective_date ? `From ${formatDate(p.effective_date)}` : 'No effective date'}</div>
+                        </div>
+                      </td>
+                      <td>
+                        <Person name={str(p.owner_name) || null} className="max-w-[120px]" />
+                      </td>
+                      <td>
+                        {p.status === 'Retired' ? <Muted>{DASH}</Muted> : <DueChip date={p.next_review_date} soonDays={DUE_SOON_DAYS} noDateLabel="No review date" />}
                       </td>
                       <td>
                         {ack == null ? (
-                          DASH
+                          <HatchChip>Not recorded</HatchChip>
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-1.5 bg-slate-100 rounded overflow-hidden" aria-hidden="true">
-                              <div className={cn('h-full rounded', ack >= 90 ? 'bg-emerald-600' : 'bg-amber-500')} style={{ width: `${Math.min(100, Math.max(0, ack))}%` }} />
-                            </div>
-                            <span className="text-xs font-medium tabular-nums">{formatPct(ack)}</span>
-                          </div>
+                          <ScoreMeter value={Math.round(ack)} suffix="%" tone="bg-foreground-secondary" label={`${str(p.title)} acknowledged`} />
                         )}
                       </td>
                       <td>
-                        <StatusBadge status={p.status === 'Active' ? 'success' : p.status === 'Retired' ? 'pending' : 'open'} label={str(p.status) || DASH} />
+                        <LifecycleChip status={str(p.status) || null} />
                       </td>
                       <td>
-                        <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setLinking(p)} aria-label={`Linked controls for ${str(p.policy_code)}: ${n}`}>
-                          <Link2 className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                          {linksQ.isLoading ? '…' : n}
-                        </Button>
+                        <CountButton count={n} noun={['control', 'controls']} loading={linksQ.isLoading} onClick={() => setLinking(p)} label={`Linked controls for ${code}: ${n}. Open`} />
                       </td>
-                      <td className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {hasPermission('update') && (
-                            <Button variant="ghost" size="icon" onClick={() => setEditing(p)} className="h-7 w-7" aria-label={`Edit ${str(p.policy_code)}`}>
-                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                          {hasPermission('delete') && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => remove(p)}
-                              className="h-7 w-7 text-red-600 hover:bg-red-50"
-                              aria-label={`Delete ${str(p.policy_code)}`}
-                              disabled={del.isPending}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                            </Button>
-                          )}
-                        </div>
+                      <td className="pr-4">
+                        <RowActions
+                          name={code}
+                          onEdit={hasPermission('update') ? () => setEditing(p) : undefined}
+                          onDelete={hasPermission('delete') ? () => remove(p) : undefined}
+                          busy={del.isPending}
+                        />
                       </td>
                     </tr>
                   )
@@ -273,7 +291,7 @@ export function PolicyPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
         </DataState>
-      </div>
+      </Panel>
 
       {editing && <PolicyDialog initial={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {linking && <PolicyControlsDialog policy={linking} canEdit={hasPermission('update')} onClose={() => setLinking(null)} />}
@@ -362,67 +380,58 @@ function PolicyDialog({ initial, onClose }: { initial: Row | null; onClose: () =
 
   return (
     <Dialog open onOpenChange={o => !o && !busy && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{initial ? `Edit ${str(initial.policy_code)}` : 'New policy'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required.</DialogDescription>
+          {initial && <p className="font-mono text-caption text-muted-foreground">{str(initial.policy_code)}</p>}
+          <DialogTitle>{initial ? str(initial.title) || 'Edit policy' : 'New policy'}</DialogTitle>
+          <DialogDescription>Fields marked * are required.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-3 text-xs" noValidate>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onSubmit={submit} className="space-y-5" noValidate>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="pol-policy_code" label="Policy code" required error={errors.policy_code}>
-              <Input id="pol-policy_code" value={draft.policy_code} onChange={set('policy_code')} placeholder="e.g. POL-IT-001" className="h-8 text-xs" {...err('policy_code')} />
+              <Input id="pol-policy_code" value={draft.policy_code} onChange={set('policy_code')} placeholder="POL-IT-001" className="font-mono" {...err('policy_code')} />
             </Field>
             <Field id="pol-version_label" label="Version" error={errors.version_label}>
-              <Input id="pol-version_label" value={draft.version_label} onChange={set('version_label')} placeholder="e.g. 1.0" className="h-8 text-xs" {...err('version_label')} />
+              <Input id="pol-version_label" value={draft.version_label} onChange={set('version_label')} placeholder="1.0" {...err('version_label')} />
             </Field>
           </div>
           <Field id="pol-title" label="Title" required error={errors.title}>
-            <Input id="pol-title" value={draft.title} onChange={set('title')} className="h-8 text-xs" {...err('title')} />
+            <Input id="pol-title" value={draft.title} onChange={set('title')} {...err('title')} />
           </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="pol-owner_name" label="Owner">
-              <Input id="pol-owner_name" value={draft.owner_name} onChange={set('owner_name')} className="h-8 text-xs" />
+              <Input id="pol-owner_name" value={draft.owner_name} onChange={set('owner_name')} />
             </Field>
             <Field id="pol-category" label="Category">
-              <Input id="pol-category" value={draft.category} onChange={set('category')} className="h-8 text-xs" />
+              <Input id="pol-category" value={draft.category} onChange={set('category')} />
             </Field>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field id="pol-effective_date" label="Effective date">
-              <Input id="pol-effective_date" type="date" value={draft.effective_date} onChange={set('effective_date')} className="h-8 text-xs" />
-            </Field>
-            <Field id="pol-next_review_date" label="Next review date" error={errors.next_review_date}>
-              <Input id="pol-next_review_date" type="date" value={draft.next_review_date} onChange={set('next_review_date')} className="h-8 text-xs" {...err('next_review_date')} />
-            </Field>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field id="pol-acknowledged_pct" label="Acknowledged (%)" error={errors.acknowledged_pct} hint="Share of staff who have acknowledged this policy">
-              <Input
-                id="pol-acknowledged_pct"
-                type="number"
-                min={0}
-                max={100}
-                step="0.01"
-                value={draft.acknowledged_pct}
-                onChange={set('acknowledged_pct')}
-                className="h-8 text-xs"
-                {...err('acknowledged_pct')}
-              />
-            </Field>
-            <Field id="pol-status" label="Status">
-              <select id="pol-status" className={selectClass} value={draft.status} onChange={set('status')}>
-                {STATUSES.map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </Field>
-          </div>
-          <DialogFooter className="pt-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>
+          <FormSection title="Review cycle">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field id="pol-effective_date" label="Effective date">
+                <Input id="pol-effective_date" type="date" value={draft.effective_date} onChange={set('effective_date')} />
+              </Field>
+              <Field id="pol-next_review_date" label="Next review date" error={errors.next_review_date}>
+                <Input id="pol-next_review_date" type="date" value={draft.next_review_date} onChange={set('next_review_date')} {...err('next_review_date')} />
+              </Field>
+              <Field id="pol-acknowledged_pct" label="Acknowledged (%)" error={errors.acknowledged_pct} hint="Share of staff who have acknowledged this policy">
+                <Input id="pol-acknowledged_pct" type="number" min={0} max={100} step="0.01" value={draft.acknowledged_pct} onChange={set('acknowledged_pct')} {...err('acknowledged_pct')} />
+              </Field>
+              <Field id="pol-status" label="Status">
+                <select id="pol-status" className={selectClass} value={draft.status} onChange={set('status')}>
+                  {STATUSES.map(s => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          </FormSection>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
-              {busy ? 'Saving…' : 'Save policy'}
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Saving…' : initial ? 'Save changes' : 'Create policy'}
             </Button>
           </DialogFooter>
         </form>

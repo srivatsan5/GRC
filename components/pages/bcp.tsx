@@ -1,11 +1,12 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Plus, Pencil, Trash2, ClipboardCheck } from 'lucide-react'
+import { ClipboardCheck, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { StatusBadge } from '@/components/ui/status-badge'
+import { CountUp, FilterChip, PageHeader, Panel, Person, SearchField } from '@/components/charter/primitives'
+import { HatchChip, Headline, HeadlineCell, LifecycleChip, Muted, NameCell, RowActions, Toolbar } from '@/components/controls/charter-bits'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
@@ -18,9 +19,6 @@ import {
   DueChip,
   ExportButton,
   Field,
-  FilterTabs,
-  Kpi,
-  SearchBox,
   dueState,
   exportCsv,
   hasErrors,
@@ -40,7 +38,6 @@ const STATUSES = ['Draft', 'Active', 'Retired'] as const
 type Status = (typeof STATUSES)[number]
 /** Tests due within this many days are flagged as "due soon". */
 const DUE_SOON_DAYS = 30
-const STATUS_BADGE: Record<string, string> = { Draft: 'pending', Active: 'success', Retired: 'open' }
 
 interface Form {
   plan_name: string
@@ -95,7 +92,7 @@ function toValues(f: Form): Row {
 
 const hours = (v: unknown) => {
   const n = num(v)
-  return n === null ? DASH : `${formatNumber(n, 1)}h`
+  return n === null ? DASH : `${formatNumber(n, 1)} h`
 }
 
 export function BcpPage() {
@@ -160,106 +157,135 @@ export function BcpPage() {
 
   const items = pageQ.data?.items ?? []
   const filtered = !!debounced.trim() || status !== 'All'
+  const canCreate = hasPermission('create')
+  const loadingAll = allQ.isLoading
 
   return (
-    <div className="space-y-6 font-sans">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Business Continuity Planning (BCP)</h1>
-          <p className="text-xs text-slate-500">Recovery Time Objective (RTO) and Recovery Point Objective (RPO) plans</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <ExportButton onClick={doExport} disabled={all.length === 0} />
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing({ row: null })} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              New plan
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Enterprise risk"
+        title="Business continuity"
+        description="Continuity plans with their recovery time (RTO) and recovery point (RPO) objectives and test cadence."
+        actions={
+          <>
+            <ExportButton onClick={doExport} disabled={all.length === 0} />
+            {canCreate && (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
+                New plan
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <DataState query={allQ} compact>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <Kpi label="Continuity plans" value={stats.total} />
-          <Kpi label="Active plans" value={stats.active} tone="success" />
-          <Kpi label="Tests overdue" value={stats.overdue} tone="danger" hint={`${stats.dueSoon} due in the next ${DUE_SOON_DAYS} days`} />
-          <Kpi label="Never tested" value={stats.neverTested} tone="warning" hint={stats.unscheduled ? `${stats.unscheduled} with no test scheduled` : undefined} />
-          <Kpi label="Average RTO" value={stats.avgRto === null ? DASH : `${formatNumber(stats.avgRto, 1)} h`} />
-        </div>
-      </DataState>
+      {allQ.isError ? (
+        <DataState query={allQ} compact>
+          {null}
+        </DataState>
+      ) : (
+        <Headline label="Continuity figures">
+          <HeadlineCell label="Continuity plans" loading={loadingAll} value={<CountUp value={stats.total} />} context={`${stats.active} active`} />
+          <HeadlineCell
+            label="Tests overdue"
+            loading={loadingAll}
+            value={<CountUp value={stats.overdue} />}
+            tone={stats.overdue > 0 ? 'text-status-danger-fg' : undefined}
+            context={`${stats.dueSoon} due in the next ${DUE_SOON_DAYS} days`}
+          />
+          <HeadlineCell
+            label="Never tested"
+            loading={loadingAll}
+            value={<CountUp value={stats.neverTested} />}
+            tone={stats.neverTested > 0 ? 'text-status-warning-fg' : undefined}
+            context={stats.unscheduled ? `${stats.unscheduled} with no test scheduled` : 'Every live plan has a test date'}
+          />
+          <HeadlineCell
+            label="Average RTO"
+            loading={loadingAll}
+            value={stats.avgRto === null ? DASH : formatNumber(stats.avgRto, 1)}
+            suffix={stats.avgRto === null ? undefined : 'hours'}
+            context="Recovery time objective across plans"
+          />
+        </Headline>
+      )}
 
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <SearchBox id="bcp-search" value={search} onChange={setSearch} placeholder="Search plans…" />
-        <FilterTabs label="Filter by status" options={STATUSES} value={status} onChange={setStatus} />
-      </div>
+      <Toolbar>
+        <SearchField label="Search plans" placeholder="Plan, scope, owner…" value={search} onChange={setSearch} />
+        <FilterChip label="Status" value={status === 'All' ? '' : status} onChange={v => setStatus((v || 'All') as Status | 'All')} options={STATUSES.map(t => ({ value: t, label: t }))} />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setStatus('All')
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Toolbar>
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <Panel bodyClassName="p-0" className="overflow-hidden">
         <DataState
           query={pageQ}
           empty={items.length === 0}
           emptyTitle={filtered ? 'No plans match these filters' : 'No continuity plans yet'}
           emptyDescription={filtered ? 'Try a different search or filter.' : 'Create a plan to record its recovery objectives and test cadence.'}
           emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setEditing({ row: null })}>
-                <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            !filtered && canCreate ? (
+              <Button onClick={() => setEditing({ row: null })}>
+                <Plus aria-hidden="true" />
                 New plan
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[940px]">
               <thead>
                 <tr>
-                  <th>Plan</th>
-                  <th>Owner</th>
-                  <th className="text-right">RTO</th>
-                  <th className="text-right">RPO</th>
-                  <th>Last tested</th>
-                  <th>Next test</th>
-                  <th>Status</th>
-                  <th className="text-right">Actions</th>
+                  <th scope="col" className="pl-6">Plan</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col" data-numeric>RTO</th>
+                  <th scope="col" data-numeric>RPO</th>
+                  <th scope="col">Last tested</th>
+                  <th scope="col">Next test</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" className="pr-4">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {items.map(p => (
                   <tr key={p.uuid}>
-                    <td>
-                      <div className="font-medium text-slate-900">{p.plan_name}</div>
-                      <div className="text-slate-400 text-[11px]">{str(p.scope) ?? DASH}</div>
-                    </td>
-                    <td className="text-xs text-slate-600">{str(p.owner_name) ?? DASH}</td>
-                    <td className="text-right tabular-nums text-xs">{hours(p.rto_hours)}</td>
-                    <td className="text-right tabular-nums text-xs">{hours(p.rpo_hours)}</td>
-                    <td className="text-xs text-slate-600">{p.last_tested_on ? formatDate(p.last_tested_on) : <span className="text-amber-700">Never tested</span>}</td>
-                    <td>
-                      <div className="text-xs text-slate-700">{formatDate(p.next_test_on)}</div>
-                      {p.status !== 'Retired' && <DueChip date={p.next_test_on} soonDays={DUE_SOON_DAYS} overdueLabel="Test overdue" />}
+                    <td className="pl-6">
+                      <NameCell name={p.plan_name ?? DASH} detail={str(p.scope)} maxWidth="max-w-[300px]" />
                     </td>
                     <td>
-                      <StatusBadge status={STATUS_BADGE[p.status] ?? 'pending'} label={p.status ?? DASH} />
+                      <Person name={str(p.owner_name)} className="max-w-[150px]" />
                     </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-1">
+                    <td data-numeric className="tabular-nums">{hours(p.rto_hours)}</td>
+                    <td data-numeric className="tabular-nums">{hours(p.rpo_hours)}</td>
+                    <td className="whitespace-nowrap">{p.last_tested_on ? <Muted>{formatDate(p.last_tested_on)}</Muted> : <HatchChip>Never tested</HatchChip>}</td>
+                    <td>{p.status === 'Retired' ? <Muted>{DASH}</Muted> : <DueChip date={p.next_test_on} soonDays={DUE_SOON_DAYS} />}</td>
+                    <td>
+                      <LifecycleChip status={p.status} />
+                    </td>
+                    <td className="pr-4">
+                      <RowActions
+                        name={p.plan_name}
+                        onEdit={hasPermission('update') ? () => setEditing({ row: p }) : undefined}
+                        onDelete={hasPermission('delete') ? () => remove(p) : undefined}
+                      >
                         {hasPermission('update') && p.status !== 'Retired' && (
-                          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setTesting(p)}>
-                            <ClipboardCheck className="w-3 h-3 mr-1" aria-hidden="true" />
+                          <Button variant="secondary" size="sm" onClick={() => setTesting(p)} aria-label={`Record test for ${p.plan_name}`}>
+                            <ClipboardCheck aria-hidden="true" />
                             Record test
                           </Button>
                         )}
-                        {hasPermission('update') && (
-                          <Button variant="ghost" size="icon" onClick={() => setEditing({ row: p })} className="h-7 w-7" aria-label={`Edit ${p.plan_name}`}>
-                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                          </Button>
-                        )}
-                        {hasPermission('delete') && (
-                          <Button variant="ghost" size="icon" onClick={() => remove(p)} className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label={`Delete ${p.plan_name}`}>
-                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                          </Button>
-                        )}
-                      </div>
+                      </RowActions>
                     </td>
                   </tr>
                 ))}
@@ -268,7 +294,7 @@ export function BcpPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
         </DataState>
-      </div>
+      </Panel>
 
       <PlanDialog editing={editing} onClose={() => setEditing(null)} />
       <RecordTestDialog plan={testing} onClose={() => setTesting(null)} />
@@ -315,19 +341,19 @@ function PlanDialog({ editing, onClose }: { editing: { row: Row | null } | null;
 
   return (
     <Dialog open={!!editing} onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{row ? `Edit ${row.plan_name}` : 'New continuity plan'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required. RPO must not exceed RTO.</DialogDescription>
+          <DialogTitle>{row ? `Edit ${row.plan_name}` : 'New continuity plan'}</DialogTitle>
+          <DialogDescription>Fields marked * are required. RPO must not exceed RTO.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} noValidate className="space-y-3 text-xs">
+        <form onSubmit={submit} noValidate className="space-y-5">
           <Field id="b-plan_name" label="Plan name" required error={errors.plan_name}>
-            <Input id="b-plan_name" value={form.plan_name} onChange={e => set('plan_name', e.target.value)} className="h-8 text-xs" aria-invalid={!!errors.plan_name} aria-describedby={describedBy('plan_name')} />
+            <Input id="b-plan_name" value={form.plan_name} onChange={e => set('plan_name', e.target.value)} aria-invalid={!!errors.plan_name} aria-describedby={describedBy('plan_name')} />
           </Field>
           <Field id="b-scope" label="Scope">
             <textarea id="b-scope" value={form.scope} onChange={e => set('scope', e.target.value)} className={textareaClass} />
           </Field>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="b-rto_hours" label="RTO (hours)" required error={errors.rto_hours}>
               <Input
                 id="b-rto_hours"
@@ -336,7 +362,7 @@ function PlanDialog({ editing, onClose }: { editing: { row: Row | null } | null;
                 step="0.5"
                 value={form.rto_hours}
                 onChange={e => set('rto_hours', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.rto_hours}
                 aria-describedby={describedBy('rto_hours')}
               />
@@ -349,13 +375,13 @@ function PlanDialog({ editing, onClose }: { editing: { row: Row | null } | null;
                 step="0.5"
                 value={form.rpo_hours}
                 onChange={e => set('rpo_hours', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.rpo_hours}
                 aria-describedby={describedBy('rpo_hours')}
               />
             </Field>
             <Field id="b-owner_name" label="Owner">
-              <Input id="b-owner_name" value={form.owner_name} onChange={e => set('owner_name', e.target.value)} className="h-8 text-xs" />
+              <Input id="b-owner_name" value={form.owner_name} onChange={e => set('owner_name', e.target.value)} />
             </Field>
             <Field id="b-status" label="Status">
               <select id="b-status" value={form.status} onChange={e => set('status', e.target.value as Status)} className={selectClass}>
@@ -365,7 +391,7 @@ function PlanDialog({ editing, onClose }: { editing: { row: Row | null } | null;
               </select>
             </Field>
             <Field id="b-last_tested_on" label="Last tested">
-              <Input id="b-last_tested_on" type="date" value={form.last_tested_on} onChange={e => set('last_tested_on', e.target.value)} className="h-8 text-xs" />
+              <Input id="b-last_tested_on" type="date" value={form.last_tested_on} onChange={e => set('last_tested_on', e.target.value)} />
             </Field>
             <Field id="b-next_test_on" label="Next test" error={errors.next_test_on}>
               <Input
@@ -373,17 +399,17 @@ function PlanDialog({ editing, onClose }: { editing: { row: Row | null } | null;
                 type="date"
                 value={form.next_test_on}
                 onChange={e => set('next_test_on', e.target.value)}
-                className="h-8 text-xs"
+               
                 aria-invalid={!!errors.next_test_on}
                 aria-describedby={describedBy('next_test_on')}
               />
             </Field>
           </div>
-          <DialogFooter className="pt-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy ? 'Saving…' : row ? 'Save changes' : 'Create plan'}
             </Button>
           </DialogFooter>
@@ -425,12 +451,12 @@ function RecordTestDialog({ plan, onClose }: { plan: Row | null; onClose: () => 
     <Dialog open={!!plan} onOpenChange={o => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm">Record test{plan ? `: ${plan.plan_name}` : ''}</DialogTitle>
-          <DialogDescription className="text-xs">
-            Sets the last tested date to today ({formatDate(today)}). Previously tested: {formatDate(plan?.last_tested_on)}.
+          <DialogTitle>Record a test</DialogTitle>
+          <DialogDescription>
+            {plan?.plan_name}: sets the last tested date to today ({formatDate(today)}). Previously tested: {plan?.last_tested_on ? formatDate(plan.last_tested_on) : 'never'}.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} noValidate className="space-y-3 text-xs">
+        <form onSubmit={submit} noValidate className="space-y-5">
           <Field id="bt-next" label="Next test due" required error={error}>
             <Input
               id="bt-next"
@@ -441,16 +467,16 @@ function RecordTestDialog({ plan, onClose }: { plan: Row | null; onClose: () => 
                 setNext(e.target.value)
                 setError(undefined)
               }}
-              className="h-8 text-xs"
+             
               aria-invalid={!!error}
               aria-describedby={error ? 'bt-next-error' : undefined}
             />
           </Field>
-          <DialogFooter>
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={update.isPending}>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={update.isPending}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={update.isPending}>
+            <Button type="submit" disabled={update.isPending}>
               {update.isPending ? 'Saving…' : 'Record test'}
             </Button>
           </DialogFooter>

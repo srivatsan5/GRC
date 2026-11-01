@@ -2,10 +2,11 @@
 
 /** Link / unlink library controls to a policy (ERM_LNK_POLICY_CONTROL). */
 import React, { useDeferredValue, useMemo, useState } from 'react'
-import { Search, Link2, Unlink } from 'lucide-react'
+import { Check, Link2, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/charter/primitives'
+import { LifecycleChip } from '@/components/controls/charter-bits'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
@@ -22,12 +23,11 @@ const str = (v: unknown) => (v == null ? '' : String(v))
 function ControlLine({ c }: { c: Row }) {
   return (
     <div className="min-w-0">
-      <div className="text-slate-900">
-        <span className="font-mono text-slate-500 mr-1.5">{str(c.control_code)}</span>
-        {str(c.control_name)}
+      <div className="truncate text-body-sm font-medium text-foreground" title={str(c.control_name)}>
+        {str(c.control_name) || DASH}
       </div>
-      <div className="text-[11px] text-slate-500 mt-0.5">
-        {str(c.control_type) || DASH} · {str(c.owner_name) || DASH} · {str(c.status) || DASH}
+      <div className="truncate text-caption text-muted-foreground">
+        <span className="font-mono">{str(c.control_code)}</span> · {str(c.control_type) || 'Type not set'} · {str(c.owner_name) || 'No owner'}
       </div>
     </div>
   )
@@ -70,30 +70,34 @@ export function PolicyControlsDialog({ policy, canEdit, onClose }: { policy: Row
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">Controls implementing {str(policy.policy_code)}</DialogTitle>
-          <DialogDescription className="text-xs">{str(policy.title)}</DialogDescription>
+          <p className="font-mono text-caption text-muted-foreground">{str(policy.policy_code)}</p>
+          <DialogTitle>Controls implementing this policy</DialogTitle>
+          <DialogDescription>{str(policy.title)}</DialogDescription>
         </DialogHeader>
 
         <section aria-labelledby="linked-controls-heading" className="space-y-2">
-          <h3 id="linked-controls-heading" className="text-xs font-semibold text-slate-900">
-            Linked controls ({links.length})
+          <h3 id="linked-controls-heading" className="label-caps">
+            Linked controls <span className="tabular-nums">{links.length}</span>
           </h3>
-          <div className="border border-slate-200 rounded">
+          <div className="overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--border)]">
             <DataState query={linkedIds.length ? [linksQ, linkedControlsQ] : linksQ} empty={links.length === 0} emptyTitle="No controls linked yet" compact>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y">
                 {links.map(l => {
                   const c = controlById.get(Number(l.control_uuid))
                   return (
-                    <li key={l.uuid} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                      {c ? <ControlLine c={c} /> : <span className="text-slate-500">Control #{str(l.control_uuid)} (no longer in the library)</span>}
-                      {canEdit && (
-                        <Button variant="outline" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={() => doUnlink(l)} disabled={busy}>
-                          <Unlink className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                          Unlink
-                        </Button>
-                      )}
+                    <li key={l.uuid} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      {c ? <ControlLine c={c} /> : <span className="text-body-sm text-muted-foreground">Control #{str(l.control_uuid)} (no longer in the library)</span>}
+                      <div className="flex shrink-0 items-center gap-2">
+                        {c && <LifecycleChip status={str(c.status) || null} />}
+                        {canEdit && (
+                          <Button variant="ghost" size="sm" onClick={() => doUnlink(l)} disabled={busy} aria-label={`Unlink ${c ? str(c.control_code) : 'control'}`}>
+                            <Unlink aria-hidden="true" />
+                            Unlink
+                          </Button>
+                        )}
+                      </div>
                     </li>
                   )
                 })}
@@ -104,35 +108,29 @@ export function PolicyControlsDialog({ policy, canEdit, onClose }: { policy: Row
 
         {canEdit && (
           <section aria-labelledby="pick-control-heading" className="space-y-2">
-            <h3 id="pick-control-heading" className="text-xs font-semibold text-slate-900">
+            <h3 id="pick-control-heading" className="label-caps">
               Link a control from the library
             </h3>
-            <div className="relative">
-              <label htmlFor="control-picker-search" className="sr-only">
-                Search controls
-              </label>
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-              <Input
-                id="control-picker-search"
-                placeholder="Search code, name, owner, framework…"
-                value={search}
-                onChange={e => {
-                  setSearch(e.target.value)
-                  setPage(1)
-                }}
-                className="pl-8 h-8 text-xs"
-              />
-            </div>
-            <div className="border border-slate-200 rounded">
+            <SearchField
+              label="Search controls"
+              className="sm:w-full"
+              placeholder="Code, name, owner, framework…"
+              value={search}
+              onChange={v => {
+                setSearch(v)
+                setPage(1)
+              }}
+            />
+            <div className="overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--border)]">
               <DataState query={pickQ} empty={(pickQ.data?.items.length ?? 0) === 0} emptyTitle={deferred ? 'No controls match this search' : 'The control library is empty'} compact>
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y">
                   {(pickQ.data?.items ?? []).map(c => {
                     const already = linkedIds.includes(Number(c.uuid))
                     return (
-                      <li key={c.uuid} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                      <li key={c.uuid} className="flex items-center justify-between gap-3 px-4 py-2.5">
                         <ControlLine c={c} />
-                        <Button size="sm" variant={already ? 'outline' : 'default'} className="h-7 px-2 text-xs shrink-0" onClick={() => doLink(c)} disabled={already || busy}>
-                          <Link2 className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                        <Button size="sm" variant={already ? 'ghost' : 'secondary'} className="shrink-0" onClick={() => doLink(c)} disabled={already || busy} aria-label={`${already ? 'Already linked' : 'Link'} ${str(c.control_code)}`}>
+                          {already ? <Check aria-hidden="true" /> : <Link2 aria-hidden="true" />}
                           {already ? 'Linked' : 'Link'}
                         </Button>
                       </li>

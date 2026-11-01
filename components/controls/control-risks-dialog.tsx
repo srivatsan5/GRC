@@ -2,10 +2,11 @@
 
 /** Link / unlink risk-register risks to a library control (ERM_LNK_CONTROL_RISK). */
 import React, { useDeferredValue, useMemo, useState } from 'react'
-import { Search, Link2, Unlink } from 'lucide-react'
+import Link from 'next/link'
+import { Check, Link2, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { SearchField } from '@/components/charter/primitives'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
@@ -61,36 +62,30 @@ export function ControlRisksDialog({ control, canEdit, onClose }: { control: Row
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">Risks mitigated by {String(control.control_code ?? '')}</DialogTitle>
-          <DialogDescription className="text-xs">{String(control.control_name ?? '')}</DialogDescription>
+          <p className="font-mono text-caption text-muted-foreground">{String(control.control_code ?? '')}</p>
+          <DialogTitle>Risks this control mitigates</DialogTitle>
+          <DialogDescription>{String(control.control_name ?? '')}</DialogDescription>
         </DialogHeader>
 
         <section aria-labelledby="linked-risks-heading" className="space-y-2">
-          <h3 id="linked-risks-heading" className="text-xs font-semibold text-slate-900">
-            Linked risks ({links.length})
+          <h3 id="linked-risks-heading" className="label-caps">
+            Linked risks <span className="tabular-nums">{links.length}</span>
           </h3>
-          <div className="border border-slate-200 rounded">
+          <div className="overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--border)]">
             <DataState query={linkedIds.length ? [linksQ, linkedRisksQ] : linksQ} empty={links.length === 0} emptyTitle="No risks linked yet" compact>
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y">
                 {links.map(l => {
                   const r = riskById.get(Number(l.risk_uuid))
                   return (
-                    <li key={l.uuid} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                      <div className="min-w-0">
-                        <div className="text-slate-900 line-clamp-2">{r ? riskLabel(r) : `Risk #${l.risk_uuid} (no longer in the register)`}</div>
-                        {r && (
-                          <div className="text-[11px] text-slate-500 mt-0.5">
-                            {r.category ?? DASH} · {r.process ?? DASH}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                    <li key={l.uuid} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      {r ? <RiskLine r={r} /> : <span className="text-body-sm text-muted-foreground">Risk #{String(l.risk_uuid)} (no longer in the register)</span>}
+                      <div className="flex shrink-0 items-center gap-2">
                         {r && <BandBadge score={currentScore(r)} />}
                         {canEdit && (
-                          <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => doUnlink(l)} disabled={busy}>
-                            <Unlink className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                          <Button variant="ghost" size="sm" onClick={() => doUnlink(l)} disabled={busy} aria-label={`Unlink ${r ? riskLabel(r) : 'risk'}`}>
+                            <Unlink aria-hidden="true" />
                             Unlink
                           </Button>
                         )}
@@ -105,43 +100,32 @@ export function ControlRisksDialog({ control, canEdit, onClose }: { control: Row
 
         {canEdit && (
           <section aria-labelledby="pick-risk-heading" className="space-y-2">
-            <h3 id="pick-risk-heading" className="text-xs font-semibold text-slate-900">
+            <h3 id="pick-risk-heading" className="label-caps">
               Link a risk from the register
             </h3>
-            <div className="relative">
-              <label htmlFor="risk-picker-search" className="sr-only">
-                Search risks
-              </label>
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-              <Input
-                id="risk-picker-search"
-                placeholder="Search risk statement, process, owner…"
-                value={search}
-                onChange={e => {
-                  setSearch(e.target.value)
-                  setPage(1)
-                }}
-                className="pl-8 h-8 text-xs"
-              />
-            </div>
-            <div className="border border-slate-200 rounded">
+            <SearchField
+              label="Search risks"
+              className="sm:w-full"
+              placeholder="Risk statement, process, owner…"
+              value={search}
+              onChange={v => {
+                setSearch(v)
+                setPage(1)
+              }}
+            />
+            <div className="overflow-hidden rounded-md shadow-[inset_0_0_0_1px_var(--border)]">
               <DataState query={pickQ} empty={(pickQ.data?.items.length ?? 0) === 0} emptyTitle={deferred ? 'No risks match this search' : 'The risk register is empty'} compact>
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y">
                   {(pickQ.data?.items ?? []).map(row => {
                     const r = toRisk(row)
                     const already = linkedIds.includes(r.uuid)
                     return (
-                      <li key={r.uuid} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                        <div className="min-w-0">
-                          <div className="text-slate-900 line-clamp-2">{riskLabel(r)}</div>
-                          <div className="text-[11px] text-slate-500 mt-0.5">
-                            {r.category ?? DASH} · {r.process ?? DASH}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                      <li key={r.uuid} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                        <RiskLine r={r} />
+                        <div className="flex shrink-0 items-center gap-2">
                           <BandBadge score={currentScore(r)} />
-                          <Button size="sm" variant={already ? 'outline' : 'default'} className="h-7 px-2 text-xs" onClick={() => doLink(r)} disabled={already || busy}>
-                            <Link2 className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                          <Button size="sm" variant={already ? 'ghost' : 'secondary'} onClick={() => doLink(r)} disabled={already || busy} aria-label={`${already ? 'Already linked' : 'Link'} ${riskLabel(r)}`}>
+                            {already ? <Check aria-hidden="true" /> : <Link2 aria-hidden="true" />}
                             {already ? 'Linked' : 'Link'}
                           </Button>
                         </div>
@@ -156,5 +140,17 @@ export function ControlRisksDialog({ control, canEdit, onClose }: { control: Row
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+
+function RiskLine({ r }: { r: Risk }) {
+  const meta = [r.referenceNumber, r.category, r.process].filter(Boolean).join(' · ')
+  return (
+    <div className="min-w-0">
+      <Link href={`/risks/${r.uuid}`} className="block truncate text-body-sm font-medium text-foreground hover:text-primary hover:underline focus-ring" title={r.statement ?? undefined}>
+        {r.statement ?? 'No statement recorded'}
+      </Link>
+      <div className="truncate font-mono text-caption text-muted-foreground">{meta || DASH}</div>
+    </div>
   )
 }

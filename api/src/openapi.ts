@@ -1,6 +1,7 @@
-import { TABLES, isWritable, APPROVAL_STATUSES, type ColumnType } from './tables/registry.js'
+import { TABLES, isWritable, APPROVAL_STATUSES, type ColumnSpec, type ColumnType } from './tables/registry.js'
 import { ROLES } from './auth/permissions.js'
 import { AUDIT_ACTIONS } from './audit/log.js'
+import { CURRENCIES } from './settings/routes.js'
 
 const columnSchema: Record<ColumnType, object> = {
   id: { type: 'integer', minimum: 1 },
@@ -12,6 +13,14 @@ const columnSchema: Record<ColumnType, object> = {
   text: { type: 'string', maxLength: 4000 },
   approval: { type: 'string', enum: [...APPROVAL_STATUSES] },
   scalar: { oneOf: [{ type: 'string' }, { type: 'number' }] },
+  rating: { type: 'integer', minimum: 1, maximum: 5 },
+  email: { type: 'string', format: 'email' },
+}
+
+const specSchema = (spec: ColumnSpec): object => {
+  if (typeof spec === 'string') return columnSchema[spec]
+  if ('range' in spec) return { type: 'integer', minimum: spec.range[0], maximum: spec.range[1] }
+  return { type: 'string', enum: [...spec.enum] }
 }
 
 const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` })
@@ -81,6 +90,75 @@ export function buildOpenApi(): Record<string, unknown> {
         changes: { type: ['object', 'null'] },
         prev_hash: { type: 'string' },
         hash: { type: 'string' },
+      },
+    },
+    WorkflowStep: {
+      type: 'object',
+      required: ['uuid', 'step_no', 'approver_role', 'decision', 'decided_by', 'decided_name', 'decided_on', 'comments'],
+      properties: {
+        uuid: { type: 'integer' },
+        step_no: { type: 'integer' },
+        approver_role: { type: 'string', enum: ['Risk Manager', 'Administrator'] },
+        decision: { type: ['string', 'null'], enum: ['Approved', 'Rejected', null] },
+        decided_by: { type: ['string', 'null'] },
+        decided_name: { type: ['string', 'null'] },
+        decided_on: { type: ['string', 'null'] },
+        comments: { type: ['string', 'null'] },
+      },
+    },
+    WorkflowItem: {
+      type: 'object',
+      additionalProperties: true,
+      required: ['uuid', 'status', 'submitted_by', 'steps', 'next_step', 'can_decide', 'blocked_reason'],
+      properties: {
+        uuid: { type: 'integer' },
+        title: { type: 'string' },
+        request_type: { type: 'string', enum: ['Risk Assessment', 'Mitigation Plan', 'Control Change', 'Policy Update', 'Risk Acceptance'] },
+        business_unit: { type: ['string', 'null'] },
+        amount: { type: ['number', 'null'] },
+        details: { type: ['string', 'null'] },
+        status: { type: 'string', enum: ['Pending', 'In Review', 'Approved', 'Rejected', 'Withdrawn'] },
+        submitted_by: { type: 'string' },
+        submitted_name: { type: ['string', 'null'] },
+        submitted_on: { type: ['string', 'null'] },
+        closed_on: { type: ['string', 'null'] },
+        steps: { type: 'array', items: ref('WorkflowStep') },
+        next_step: { type: ['integer', 'null'] },
+        can_decide: { type: 'boolean' },
+        blocked_reason: { type: ['string', 'null'] },
+      },
+    },
+    OrgSettings: {
+      type: 'object',
+      required: ['orgName', 'industry', 'currency', 'idleTimeoutMinutes', 'riskBands'],
+      properties: {
+        orgName: { type: 'string', maxLength: 120 },
+        industry: { type: 'string', maxLength: 80 },
+        currency: { type: 'string', enum: [...CURRENCIES] },
+        idleTimeoutMinutes: { type: 'integer', minimum: 5, maximum: 480 },
+        riskBands: {
+          type: 'object',
+          required: ['moderate', 'high', 'critical'],
+          properties: { moderate: { type: 'integer' }, high: { type: 'integer' }, critical: { type: 'integer' } },
+          description: 'A likelihood × impact score at or above a threshold falls in that band.',
+        },
+      },
+    },
+    SettingsResponse: {
+      type: 'object',
+      required: ['settings', 'stored'],
+      properties: { settings: ref('OrgSettings'), stored: { type: 'boolean' }, reason: { type: 'string', enum: ['not_provisioned', 'unavailable'] } },
+    },
+    RowPage: {
+      type: 'object',
+      required: ['items', 'total', 'page', 'pageSize', 'pageCount', 'truncated'],
+      properties: {
+        items: { type: 'array', items: ref('Row') },
+        total: { type: 'integer' },
+        page: { type: 'integer' },
+        pageSize: { type: 'integer' },
+        pageCount: { type: 'integer' },
+        truncated: { type: 'boolean', description: 'True when the table exceeded the listing cap.' },
       },
     },
     Row: { type: 'object', additionalProperties: true, description: 'A database row; keys are lower-case column names.' },
@@ -160,6 +238,49 @@ export function buildOpenApi(): Record<string, unknown> {
         responses: { '201': { description: 'Recorded', ...json(ref('AuditEntry')) } },
       },
     },
+    '/api/workflow': {
+      get: {
+        tags: ['Workflow'],
+        summary: 'Approval requests with their steps',
+        parameters: [
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['Pending', 'In Review', 'Approved', 'Rejected', 'Withdrawn'] } },
+          { name: 'mine', in: 'query', schema: { type: 'string', enum: ['submitted', 'to-decide'] } },
+        ],
+        responses: { '200': { description: 'OK', ...json({ type: 'object', required: ['items', 'total'], properties: { items: { type: 'array', items: ref('WorkflowItem') }, total: { type: 'integer' } } }) } },
+      },
+      post: {
+        tags: ['Workflow'],
+        summary: 'Submit a request for approval (submitter = signed-in user)',
+        requestBody: json({
+          type: 'object',
+          required: ['title', 'request_type'],
+          properties: {
+            title: { type: 'string' },
+            request_type: { type: 'string', enum: ['Risk Assessment', 'Mitigation Plan', 'Control Change', 'Policy Update', 'Risk Acceptance'] },
+            business_unit: { type: 'string' },
+            amount: { type: 'number' },
+            details: { type: 'string' },
+            approver_roles: { type: 'array', items: { type: 'string', enum: ['Risk Manager', 'Administrator'] }, minItems: 1, maxItems: 3 },
+          },
+        }),
+        responses: { '201': { description: 'Submitted', ...json(ref('WorkflowItem')) }, ...errorResponses },
+      },
+    },
+    '/api/workflow/{id}': { get: { tags: ['Workflow'], summary: 'One request', parameters: [idParam], responses: { '200': { description: 'OK', ...json(ref('WorkflowItem')) } } } },
+    '/api/workflow/{id}/decision': {
+      post: {
+        tags: ['Workflow'],
+        summary: 'Approve or reject the next step (segregation-of-duties rules apply)',
+        parameters: [idParam],
+        requestBody: json({ type: 'object', required: ['decision'], properties: { decision: { type: 'string', enum: ['Approved', 'Rejected'] }, comment: { type: 'string' } } }),
+        responses: { '200': { description: 'Decided', ...json(ref('WorkflowItem')) }, '403': errorResponses['403'], '409': { description: 'Already decided by someone else', ...json(ref('Error')) } },
+      },
+    },
+    '/api/workflow/{id}/withdraw': { post: { tags: ['Workflow'], summary: 'Withdraw your own open request', parameters: [idParam], responses: { '200': { description: 'Withdrawn', ...json(ref('WorkflowItem')) } } } },
+    '/api/settings': {
+      get: { tags: ['Settings'], summary: 'Organisation settings (defaults if not stored yet)', responses: { '200': { description: 'OK', ...json(ref('SettingsResponse')) } } },
+      put: { tags: ['Settings'], summary: 'Save organisation settings (Administrator)', requestBody: json(ref('OrgSettings')), responses: { '200': { description: 'Saved', ...json(ref('SettingsResponse')) }, ...errorResponses } },
+    },
     '/api/audit/verify': {
       get: { tags: ['Audit'], summary: 'Verify the hash chain', responses: { '200': { description: 'Result', ...json({ type: 'object', required: ['valid', 'entries'], properties: { valid: { type: 'boolean' }, entries: { type: 'integer' }, brokenAt: { type: 'integer' }, reason: { type: 'string' } } }) } } },
     },
@@ -174,8 +295,14 @@ export function buildOpenApi(): Record<string, unknown> {
         { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 10000, default: 1000 } },
         { name: 'offset', in: 'query', schema: { type: 'integer', minimum: 0, default: 0 } },
         { name: 'q', in: 'query', schema: { type: 'string' }, description: 'ORDS filter JSON, e.g. {"status":"Y"}' },
+        { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1 }, description: 'Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals' },
+        { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 500, default: 50 } },
+        { name: 'sort', in: 'query', schema: { type: 'string' }, description: 'Column name' },
+        { name: 'order', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'] } },
+        { name: 'search', in: 'query', schema: { type: 'string' }, description: 'Case-insensitive text search over the table\'s search columns' },
+        { name: 'filter', in: 'query', schema: { type: 'string' }, description: 'JSON object of column → value or list of values' },
       ],
-      responses: { '200': { description: 'OK', ...json(ref('RowList')) }, ...errorResponses },
+      responses: { '200': { description: 'OK', ...json({ oneOf: [ref('RowList'), ref('RowPage')] }) }, ...errorResponses },
     }
     const getOp = { tags: [tag], summary: `Get one ${def.label}`, parameters: [idParam], responses: { '200': { description: 'OK', ...json(ref('Row')) }, '404': { description: 'Not found' }, ...errorResponses } }
 
@@ -189,7 +316,7 @@ export function buildOpenApi(): Record<string, unknown> {
     schemas[`${name}Input`] = {
       type: 'object',
       description: `Writable columns of ${table}. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header.`,
-      properties: Object.fromEntries(Object.entries(def.columns).map(([col, type]) => [col.toLowerCase(), columnSchema[type]])),
+      properties: Object.fromEntries(Object.entries(def.columns).map(([col, spec]) => [col.toLowerCase(), specSchema(spec)])),
       required: (def.required ?? []).map(c => c.toLowerCase()),
     }
     const body = json(ref(`${name}Input`))

@@ -16,13 +16,29 @@ export type ColumnType =
   | 'text' //    string, max 4000
   | 'approval' // approval workflow status
   | 'scalar' //  string or number (legacy columns whose Oracle type is not pinned down yet)
+  | 'rating' //  whole number 1..5
+  | 'email' //   e-mail address
+
+/** A text column restricted to fixed values (matching the Oracle CHECK constraint). */
+export interface EnumColumn {
+  enum: readonly string[]
+}
+/** A whole number within [min, max]. */
+export interface RangeColumn {
+  range: readonly [number, number]
+}
+export type ColumnSpec = ColumnType | EnumColumn | RangeColumn
 
 export type ServerField = 'created_on' | 'created_by' | 'updated_on' | 'updated_by' | 'approved_on'
 
 export interface WritableTable {
   access: 'write'
   label: string
-  columns: Record<string, ColumnType>
+  columns: Record<string, ColumnSpec>
+  /** Columns searched by `?search=` (defaults to every text column). */
+  search?: string[]
+  /** Permission needed to create/update/delete (default: create / update / delete). */
+  writePermission?: 'approve' | 'users:manage'
   required?: string[]
   /** Applied on create only, and only when the client did not send the column. */
   defaults?: Record<string, string | number>
@@ -33,6 +49,7 @@ export interface WritableTable {
 export interface ReadOnlyTable {
   access: 'read' | 'restricted'
   label: string
+  search?: string[]
   /** Alternative upstream names to try when the first one does not exist (legacy spelling). */
   upstreamCandidates?: string[]
 }
@@ -41,7 +58,7 @@ export type TableDef = WritableTable | ReadOnlyTable
 
 // APPROVED_ON is stamped by the server; APPROVED_BY is preserved but never client-writable
 // (its Oracle type is not confirmed, the approver is recorded in the audit log).
-const APPROVAL_TRACKING: Record<string, ColumnType> = {
+const APPROVAL_TRACKING: Record<string, ColumnSpec> = {
   APPROVAL_STATUS: 'approval',
   APPROVER_COMMENTS: 'text',
 }
@@ -54,6 +71,8 @@ export const WORKING_STATUSES = new Set(['DRAFT', 'SUBMITTED', 'IN_REVIEW', 'PEN
 export const APPROVAL_STATUSES = ['DRAFT', 'SUBMITTED', 'IN_REVIEW', 'PENDING', 'APPROVED', 'REJECTED'] as const
 /** Setting one of these requires the `approve` permission. */
 export const DECISION_STATUSES = new Set(['APPROVED', 'REJECTED'])
+
+const AUDIT_COLUMNS = { created_by: 'CREATED_BY', created_on: 'CREATED_ON', updated_by: 'UPDATED_BY', updated_on: 'UPDATED_ON' } as const
 
 export const TABLES: Record<string, TableDef> = {
   // ---------------------------------------------------------------- RCSA core
@@ -87,8 +106,13 @@ export const TABLES: Record<string, TableDef> = {
       RISK_OWNER: 'text',
       RISK_CHAMPION: 'text',
       RISK_APPETITE: 'scalar',
+      INHERENT_LIKELIHOOD: 'rating',
+      INHERENT_IMPACT: 'rating',
+      RESIDUAL_LIKELIHOOD: 'rating',
+      RESIDUAL_IMPACT: 'rating',
       ...APPROVAL_TRACKING,
     },
+    search: ['RISK_STATEMENT', 'PROCESS_NAME', 'SUB_PROCESS_NAME', 'RISK_TYPE', 'RISK_OWNER', 'ASSESSMENT_REFERENCE_NUMBER'],
     defaults: { APPROVAL_STATUS: 'DRAFT', IS_STAGE_COMPLTED: 'N', STATUS: 'Y' },
     serverColumns: { created_on: 'CREATED_ON', approved_on: 'APPROVED_ON' },
   },
@@ -242,6 +266,8 @@ export const TABLES: Record<string, TableDef> = {
       UNIT_OF_MEASURE: 'text',
       MEASUREMENT_FREQUENCY: 'text',
       IS_ACTIVE: 'flag',
+      OWNER_NAME: 'text',
+      DIRECTION: { enum: ['HIGHER_WORSE', 'LOWER_WORSE'] },
     },
     required: ['KRI_CODE', 'KRI_NAME'],
     serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
@@ -268,7 +294,7 @@ export const TABLES: Record<string, TableDef> = {
       KRI_UUID: 'id',
       READING_DATE: 'date',
       READING_VALUE: 'number',
-      TRAFFIC_LIGHT: 'text',
+      TRAFFIC_LIGHT: { enum: ['GREEN', 'AMBER', 'RED'] },
       IS_BREACH: 'flag',
       BREACH_NOTES: 'text',
       ORG_HIERARCHY_UUID: 'id',
@@ -276,6 +302,173 @@ export const TABLES: Record<string, TableDef> = {
     required: ['KRI_UUID', 'READING_VALUE'],
     serverColumns: { created_by: 'RECORDED_BY', created_on: 'CREATED_ON' },
   },
+
+  // ------------------------------------------------- ERM modules (migration V3)
+  erm_mst_control: {
+    access: 'write',
+    label: 'Control',
+    columns: {
+      CONTROL_CODE: 'text',
+      CONTROL_NAME: 'text',
+      DESCRIPTION: 'text',
+      CONTROL_TYPE: { enum: ['Preventive', 'Detective', 'Corrective', 'Compensating'] },
+      CONTROL_NATURE: { enum: ['Manual', 'Automated', 'Hybrid'] },
+      FREQUENCY: { enum: ['Continuous', 'Daily', 'Weekly', 'Monthly', 'Quarterly', 'Annual', 'Event-driven'] },
+      OWNER_NAME: 'text',
+      FRAMEWORKS: 'text',
+      DESIGN_EFFECTIVENESS: 'rating',
+      OPERATING_EFFECTIVENESS: 'rating',
+      LAST_TESTED_ON: 'date',
+      STATUS: { enum: ['Draft', 'Active', 'Retired'] },
+    },
+    required: ['CONTROL_CODE', 'CONTROL_NAME'],
+    defaults: { STATUS: 'Active' },
+    search: ['CONTROL_CODE', 'CONTROL_NAME', 'DESCRIPTION', 'OWNER_NAME', 'FRAMEWORKS'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  erm_lnk_control_risk: {
+    access: 'write',
+    label: 'Control–risk link',
+    columns: { CONTROL_UUID: 'id', RISK_UUID: 'id' },
+    required: ['CONTROL_UUID', 'RISK_UUID'],
+    serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
+  },
+  erm_mst_policy: {
+    access: 'write',
+    label: 'Policy',
+    columns: {
+      POLICY_CODE: 'text',
+      TITLE: 'text',
+      CATEGORY: 'text',
+      VERSION_LABEL: 'text',
+      OWNER_NAME: 'text',
+      EFFECTIVE_DATE: 'date',
+      NEXT_REVIEW_DATE: 'date',
+      ACKNOWLEDGED_PCT: 'percent',
+      STATUS: { enum: ['Draft', 'Active', 'Retired'] },
+    },
+    required: ['POLICY_CODE', 'TITLE'],
+    defaults: { STATUS: 'Draft' },
+    search: ['POLICY_CODE', 'TITLE', 'CATEGORY', 'OWNER_NAME'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  erm_lnk_policy_control: {
+    access: 'write',
+    label: 'Policy–control link',
+    columns: { POLICY_UUID: 'id', CONTROL_UUID: 'id' },
+    required: ['POLICY_UUID', 'CONTROL_UUID'],
+    serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
+  },
+  erm_trn_incident: {
+    access: 'write',
+    label: 'Incident',
+    columns: {
+      INCIDENT_REF: 'text',
+      TITLE: 'text',
+      DESCRIPTION: 'text',
+      SEVERITY: { enum: ['Low', 'Medium', 'High', 'Critical'] },
+      STATUS: { enum: ['Open', 'Investigating', 'Mitigated', 'Closed'] },
+      CATEGORY: 'text',
+      REPORTED_BY: 'text',
+      ASSIGNED_TO: 'text',
+      OCCURRED_ON: 'date',
+      REPORTED_ON: 'date',
+      CLOSED_ON: 'date',
+      ROOT_CAUSE: 'text',
+      CORRECTIVE_ACTION: 'text',
+      LOSS_AMOUNT: 'number',
+    },
+    required: ['TITLE', 'SEVERITY'],
+    defaults: { STATUS: 'Open' },
+    search: ['INCIDENT_REF', 'TITLE', 'DESCRIPTION', 'CATEGORY', 'ASSIGNED_TO'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  erm_lnk_incident_risk: {
+    access: 'write',
+    label: 'Incident–risk link',
+    columns: { INCIDENT_UUID: 'id', RISK_UUID: 'id' },
+    required: ['INCIDENT_UUID', 'RISK_UUID'],
+    serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
+  },
+  erm_mst_vendor: {
+    access: 'write',
+    label: 'Vendor',
+    columns: {
+      VENDOR_NAME: 'text',
+      CATEGORY: 'text',
+      TIER: { enum: ['Critical', 'High', 'Medium', 'Low'] },
+      COUNTRY_CODE: 'text',
+      CONTRACT_VALUE: 'number',
+      RISK_SCORE: { range: [1, 100] },
+      LAST_ASSESSMENT_ON: 'date',
+      NEXT_REVIEW_ON: 'date',
+      CONTACT_EMAIL: 'email',
+      OPEN_FINDINGS: 'int',
+      STATUS: { enum: ['Onboarding', 'Active', 'Offboarding', 'Exited'] },
+    },
+    required: ['VENDOR_NAME', 'TIER'],
+    defaults: { STATUS: 'Active', OPEN_FINDINGS: 0 },
+    search: ['VENDOR_NAME', 'CATEGORY', 'CONTACT_EMAIL'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  erm_mst_bcp_plan: {
+    access: 'write',
+    label: 'Continuity plan',
+    columns: {
+      PLAN_NAME: 'text',
+      SCOPE: 'text',
+      RTO_HOURS: 'number',
+      RPO_HOURS: 'number',
+      OWNER_NAME: 'text',
+      LAST_TESTED_ON: 'date',
+      NEXT_TEST_ON: 'date',
+      STATUS: { enum: ['Draft', 'Active', 'Retired'] },
+    },
+    required: ['PLAN_NAME', 'RTO_HOURS', 'RPO_HOURS'],
+    defaults: { STATUS: 'Draft' },
+    search: ['PLAN_NAME', 'SCOPE', 'OWNER_NAME'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  erm_mst_scenario: {
+    access: 'write',
+    label: 'Scenario',
+    columns: {
+      SCENARIO_NAME: 'text',
+      DESCRIPTION: 'text',
+      SCENARIO_TYPE: { enum: ['Stress Test', 'What-if', 'Reverse Stress', 'Tail Risk'] },
+      CATEGORY: 'text',
+      SHOCK_PCT: 'number',
+      BASELINE_LOSS: 'number',
+      STRESSED_LOSS: 'number',
+      PROBABILITY_PCT: 'percent',
+      OWNER_NAME: 'text',
+      LAST_RUN_ON: 'date',
+    },
+    required: ['SCENARIO_NAME'],
+    search: ['SCENARIO_NAME', 'DESCRIPTION', 'CATEGORY', 'OWNER_NAME'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  erm_mst_risk_appetite: {
+    access: 'write',
+    label: 'Risk appetite statement',
+    // Appetite is set by the board / risk committee: only approvers may change it.
+    writePermission: 'approve',
+    columns: {
+      CATEGORY: 'text',
+      STATEMENT: 'text',
+      POSTURE: { enum: ['Averse', 'Cautious', 'Open', 'Hungry'] },
+      TOLERANCE_SCORE: { range: [1, 25] },
+      APPROVED_BY: 'text',
+      APPROVED_ON: 'date',
+      REVIEW_FREQUENCY: { enum: ['Quarterly', 'Semi-annual', 'Annual'] },
+    },
+    required: ['CATEGORY', 'STATEMENT', 'POSTURE', 'TOLERANCE_SCORE'],
+    search: ['CATEGORY', 'STATEMENT'],
+    serverColumns: AUDIT_COLUMNS,
+  },
+  // Approval requests are written only through /api/workflow (segregation-of-duties rules).
+  erm_trn_approval_request: { access: 'read', label: 'Approval request', search: ['TITLE', 'BUSINESS_UNIT', 'SUBMITTED_NAME'] },
+  erm_trn_approval_step: { access: 'read', label: 'Approval step' },
 
   // ------------------------------------------------- reference data (read-only)
   per_mst_business_process: { access: 'read', label: 'Business process' },

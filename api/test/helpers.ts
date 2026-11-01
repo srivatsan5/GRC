@@ -67,7 +67,16 @@ export class FakeOrds {
 
     if (method === 'GET' && !idStr) {
       const limit = Number(url.searchParams.get('limit') ?? 25)
-      return Response.json({ items: [...t.values()].slice(0, limit).map(lower), hasMore: false })
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      let rows = [...t.values()]
+      const q = url.searchParams.get('q')
+      if (q) {
+        // Simple equality filters, e.g. {"request_uuid": 5} (enough for the API's own use).
+        const where = JSON.parse(q) as Record<string, unknown>
+        rows = rows.filter(r => Object.entries(where).every(([k, v]) => typeof v === 'object' && v !== null ? true : r[k.toUpperCase()] === v))
+      }
+      const page = rows.slice(offset, offset + limit)
+      return Response.json({ items: page.map(lower), hasMore: offset + limit < rows.length })
     }
     const id = Number(idStr)
     if (method === 'GET') {

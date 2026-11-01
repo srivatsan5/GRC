@@ -16,7 +16,26 @@ import { TABLES } from '../src/tables/registry.js'
 
 const PORT = Number(process.env.FAKE_ORDS_PORT ?? 8181)
 const fake = new FakeOrds()
-for (const name of [...Object.keys(TABLES), 'erm_trn_audit_log']) fake.ensure(name)
+for (const name of [...Object.keys(TABLES), 'erm_trn_audit_log', 'erm_mst_app_setting']) fake.ensure(name)
+
+// Demo content for the modules (same rows as db/seed/demo_data.sql); parent references resolved by natural key.
+// @ts-expect-error plain ESM helper without type declarations
+const { demoRows } = (await import('../../db/seed/demo-rows.mjs')) as { demoRows: () => Record<string, Record<string, unknown>[]> }
+for (const [table, rows] of Object.entries(demoRows())) {
+  const resolved = rows.map(r =>
+    Object.fromEntries(
+      Object.entries(r).map(([k, v]) => {
+        if (v && typeof v === 'object' && '$ref' in v) {
+          const [refTable, keyCol, keyVal] = (v as { $ref: [string, string, string] }).$ref
+          const parent = [...fake.ensure(refTable.toLowerCase()).values()].find(p => p[keyCol] === keyVal)
+          return [k, parent?.UUID ?? null]
+        }
+        return [k, v]
+      }),
+    ),
+  )
+  fake.seed(table.toLowerCase(), resolved)
+}
 
 // Seed the risk register with the real row shapes captured in probe_risks.json (if present).
 const probe = new URL('../../probe_risks.json', import.meta.url)

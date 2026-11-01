@@ -6,7 +6,11 @@ import { can } from '../auth/permissions.js'
 import { forbidden, HttpError, notFound } from '../http/errors.js'
 import { OrdsError, type OrdsRow } from '../ords/client.js'
 import { APPROVER_ONLY_COLUMNS, DECISION_STATUSES, isWritable, TABLES, type TableDef, type WritableTable } from './registry.js'
-import { idParam, listQuery, normalizePayload } from './validate.js'
+import { idParam, isTextSpec, listQuery, normalizePayload } from './validate.js'
+
+/** Hard cap on rows loaded for a managed (searched/sorted/paged) listing. */
+export const MANAGED_LIST_CAP = 20_000
+const ORDS_PAGE = 1000
 
 /** Translate a database failure into a safe API error. Never pretends the write succeeded. */
 export function toHttpError(err: unknown): unknown {
@@ -40,6 +44,39 @@ function resolveTable(name: string): TableDef {
 function requireRead(req: Request, def: TableDef) {
   const perm = def.access === 'restricted' ? 'reference:read-restricted' : 'read'
   if (!can(req.user!.role, perm)) throw forbidden()
+}
+
+/** A 404 for a whole table means its migration has not been run (or it isn't REST-enabled). */
+function notProvisionedOr(err: unknown, def: TableDef): unknown {
+  if (err instanceof OrdsError && err.kind === 'not_found') {
+    return new HttpError(503, 'NOT_PROVISIONED', `${def.label} is not set up in the database yet. Run the migrations in db/migrations.`)
+  }
+  return toHttpError(err)
+}
+
+/** Search columns: declared ones, else every text column of a writable table. */
+function searchColumns(def: TableDef): string[] {
+  if (def.search) return def.search.map(c => c.toLowerCase())
+  if (isWritable(def)) return Object.entries(def.columns).filter(([, spec]) => isTextSpec(spec)).map(([c]) => c.toLowerCase())
+  return []
+}
+
+function compareValues(a: unknown, b: unknown): number {
+  if (a == null && b == null) return 0
+  if (a == null) return 1 // nulls last
+  if (b == null) return -1
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' })
+}
+
+function matchesFilter(row: OrdsRow, filter: Record<string, unknown>): boolean {
+  return Object.entries(filter).every(([col, wanted]) => {
+    const actual = row[col.toLowerCase()]
+    const options = Array.isArray(wanted) ? wanted : [wanted]
+    return options.some(w =>
+      w === null ? actual == null : typeof w === 'string' && typeof actual === 'string' ? actual.toLowerCase() === w.toLowerCase() : actual === w || String(actual) === String(w),
+    )
+  })
 }
 
 function requireWritable(def: TableDef): WritableTable {
@@ -87,14 +124,61 @@ export function tableRoutes(ctx: AppContext): Router {
     })
 
   router.get('/:table', async (req, res) => {
-    const def = resolveTable(req.params.table!)
+    const table = String(req.params.table)
+    const def = resolveTable(table)
     requireRead(req, def)
     const query = listQuery.parse(req.query)
+    const managed = query.page !== undefined || query.pageSize !== undefined || query.sort || query.search || query.filter
     try {
-      const result = await withUpstream(req.params.table!, def, up => ctx.ords.list(up, query))
-      res.json({ items: result.items, count: result.items.length, hasMore: result.hasMore, limit: query.limit, offset: query.offset })
+      if (!managed) {
+        const result = await withUpstream(table, def, up => ctx.ords.list(up, query))
+        res.json({ items: result.items, count: result.items.length, hasMore: result.hasMore, limit: query.limit, offset: query.offset })
+        return
+      }
+
+      // Load the table through ORDS paging (capped), then filter / search / sort / page here.
+      const rows: OrdsRow[] = []
+      let truncated = false
+      for (let offset = 0; ; offset += ORDS_PAGE) {
+        const chunk = await withUpstream(table, def, up => ctx.ords.list(up, { limit: ORDS_PAGE, offset, q: query.q }))
+        rows.push(...chunk.items)
+        if (!chunk.hasMore || chunk.items.length === 0) break
+        if (rows.length >= MANAGED_LIST_CAP) {
+          truncated = true
+          break
+        }
+      }
+
+      let items = query.filter ? rows.filter(r => matchesFilter(r, query.filter!)) : rows
+      if (query.search) {
+        const term = query.search.toLowerCase()
+        const cols = searchColumns(def)
+        items = items.filter(r => cols.some(c => r[c] != null && String(r[c]).toLowerCase().includes(term)))
+      }
+      if (query.sort) {
+        const key = query.sort.toLowerCase()
+        const dir = query.order === 'desc' ? -1 : 1
+        // Empty values always sort last, whichever the direction.
+        items = [...items].sort((x, y) => {
+          const a = x[key]
+          const b = y[key]
+          if (a == null || b == null) return a == null && b == null ? 0 : a == null ? 1 : -1
+          return dir * compareValues(a, b)
+        })
+      }
+      const pageSize = query.pageSize ?? 50
+      const page = query.page ?? 1
+      const total = items.length
+      res.json({
+        items: items.slice((page - 1) * pageSize, page * pageSize),
+        total,
+        page,
+        pageSize,
+        pageCount: Math.max(1, Math.ceil(total / pageSize)),
+        truncated,
+      })
     } catch (err) {
-      throw toHttpError(err)
+      throw notProvisionedOr(err, def)
     }
   })
 
@@ -113,7 +197,7 @@ export function tableRoutes(ctx: AppContext): Router {
     const table = String(req.params.table)
     const def = requireWritable(resolveTable(table))
     const role = req.user!.role
-    if (!can(role, 'create')) throw forbidden()
+    if (!can(role, def.writePermission ?? 'create')) throw forbidden()
     const { row, ignoredFields } = normalizePayload(def, req.body, 'create')
     const decision = isDecision(row.APPROVAL_STATUS)
     const approverFields = Object.keys(row).filter(k => APPROVER_ONLY_COLUMNS.has(k) && row[k] != null)
@@ -131,7 +215,7 @@ export function tableRoutes(ctx: AppContext): Router {
       res.status(201).json(created)
     } catch (err) {
       await audit(req, 'CREATE', table, def, null, false, `Failed to create ${def.label.toLowerCase()}: ${(err as Error).message}`)
-      throw toHttpError(err)
+      throw notProvisionedOr(err, def)
     }
   })
 
@@ -139,7 +223,7 @@ export function tableRoutes(ctx: AppContext): Router {
     const table = String(req.params.table)
     const def = requireWritable(resolveTable(table))
     const role = req.user!.role
-    if (!can(role, 'update')) throw forbidden()
+    if (!can(role, def.writePermission ?? 'update')) throw forbidden()
     const id = idParam.parse(String(req.params.id))
     const { row, ignoredFields } = normalizePayload(def, req.body, 'update')
     const isApprover = can(role, 'approve')
@@ -193,7 +277,7 @@ export function tableRoutes(ctx: AppContext): Router {
   router.delete('/:table/:id', async (req, res) => {
     const table = String(req.params.table)
     const def = requireWritable(resolveTable(table))
-    if (!can(req.user!.role, 'delete')) throw forbidden()
+    if (!can(req.user!.role, def.writePermission ?? 'delete')) throw forbidden()
     const id = idParam.parse(String(req.params.id))
     try {
       await ctx.ords.remove(table, id)

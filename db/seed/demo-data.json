@@ -1,0 +1,820 @@
+{
+  "controls": [
+    {
+      "id": "CTL-001",
+      "code": "CTL-IT-AUTH-01",
+      "name": "MFA on all production systems",
+      "description": "Multi-factor authentication enforced for all administrative access to production environments.",
+      "type": "Preventive",
+      "nature": "Automated",
+      "frequency": "Continuous",
+      "owner": "CISO",
+      "framework": [
+        "ISO 27001",
+        "SOX"
+      ],
+      "designEffectiveness": 5,
+      "operatingEffectiveness": 5,
+      "linkedRisks": [
+        "R-001",
+        "R-014"
+      ],
+      "lastTested": "2026-04-15",
+      "status": "Active"
+    },
+    {
+      "id": "CTL-002",
+      "code": "CTL-FIN-REC-02",
+      "name": "Daily bank reconciliation",
+      "description": "Treasury team reconciles bank statements daily against ERP entries.",
+      "type": "Detective",
+      "nature": "Manual",
+      "frequency": "Daily",
+      "owner": "CFO",
+      "framework": [
+        "SOX"
+      ],
+      "designEffectiveness": 4,
+      "operatingEffectiveness": 4,
+      "linkedRisks": [
+        "R-003"
+      ],
+      "lastTested": "2026-05-01",
+      "status": "Active"
+    },
+    {
+      "id": "CTL-003",
+      "code": "CTL-OPS-INC-03",
+      "name": "Incident response playbook",
+      "description": "Documented IR procedures with named owners and 1-hour activation SLA.",
+      "type": "Corrective",
+      "nature": "Hybrid",
+      "frequency": "Event-driven",
+      "owner": "COO",
+      "framework": [
+        "ISO 27001"
+      ],
+      "designEffectiveness": 4,
+      "operatingEffectiveness": 3,
+      "linkedRisks": [
+        "R-007",
+        "R-012"
+      ],
+      "lastTested": "2026-03-22",
+      "status": "Active"
+    },
+    {
+      "id": "CTL-004",
+      "code": "CTL-COMP-TRN-04",
+      "name": "Annual GDPR training",
+      "description": "All employees complete mandatory GDPR awareness training annually.",
+      "type": "Preventive",
+      "nature": "Automated",
+      "frequency": "Annual",
+      "owner": "Chief Compliance Officer",
+      "framework": [
+        "GDPR"
+      ],
+      "designEffectiveness": 5,
+      "operatingEffectiveness": 4,
+      "linkedRisks": [
+        "R-005"
+      ],
+      "lastTested": "2026-01-10",
+      "status": "Active"
+    },
+    {
+      "id": "CTL-005",
+      "code": "CTL-IT-BCK-05",
+      "name": "Encrypted off-site backup",
+      "description": "Nightly encrypted backups stored in geo-redundant storage with 30-day retention.",
+      "type": "Preventive",
+      "nature": "Automated",
+      "frequency": "Daily",
+      "owner": "CIO",
+      "framework": [
+        "ISO 27001",
+        "SOX"
+      ],
+      "designEffectiveness": 5,
+      "operatingEffectiveness": 5,
+      "linkedRisks": [
+        "R-009"
+      ],
+      "lastTested": "2026-04-30",
+      "status": "Active"
+    },
+    {
+      "id": "CTL-006",
+      "code": "CTL-VEN-DUE-06",
+      "name": "Vendor due-diligence questionnaire",
+      "description": "Risk-based DDQ executed prior to onboarding any new vendor handling sensitive data.",
+      "type": "Preventive",
+      "nature": "Manual",
+      "frequency": "Event-driven",
+      "owner": "Head of Procurement",
+      "framework": [
+        "ISO 27001"
+      ],
+      "designEffectiveness": 3,
+      "operatingEffectiveness": 3,
+      "linkedRisks": [
+        "R-018"
+      ],
+      "status": "Active"
+    },
+    {
+      "id": "CTL-007",
+      "code": "CTL-FIN-SOD-07",
+      "name": "Segregation of duties — payments",
+      "description": "Maker–checker control: no single user can both initiate and approve payments > $10K.",
+      "type": "Preventive",
+      "nature": "Automated",
+      "frequency": "Continuous",
+      "owner": "CFO",
+      "framework": [
+        "SOX"
+      ],
+      "designEffectiveness": 5,
+      "operatingEffectiveness": 5,
+      "linkedRisks": [
+        "R-004"
+      ],
+      "lastTested": "2026-05-12",
+      "status": "Active"
+    },
+    {
+      "id": "CTL-008",
+      "code": "CTL-COMP-MON-08",
+      "name": "Regulatory horizon scanning",
+      "description": "Quarterly review of regulatory changes affecting in-scope jurisdictions.",
+      "type": "Detective",
+      "nature": "Manual",
+      "frequency": "Quarterly",
+      "owner": "Chief Compliance Officer",
+      "framework": [
+        "GDPR",
+        "SOX"
+      ],
+      "designEffectiveness": 3,
+      "operatingEffectiveness": 2,
+      "linkedRisks": [
+        "R-010"
+      ],
+      "status": "Active"
+    }
+  ],
+  "kris": [
+    {
+      "id": "KRI-001",
+      "code": "KRI-IT-001",
+      "name": "Unplanned IT Outage Hours",
+      "category": "IT & Cyber",
+      "owner": "CIO",
+      "unit": "hrs/month",
+      "greenThreshold": 4,
+      "amberThreshold": 8,
+      "redThreshold": 12,
+      "currentValue": 7.2,
+      "direction": "higher-worse",
+      "history": [
+        {
+          "date": "2025-12-31",
+          "value": 2.1
+        },
+        {
+          "date": "2026-01-31",
+          "value": 3.4
+        },
+        {
+          "date": "2026-02-28",
+          "value": 4.8
+        },
+        {
+          "date": "2026-03-31",
+          "value": 5.2
+        },
+        {
+          "date": "2026-04-30",
+          "value": 6.9
+        },
+        {
+          "date": "2026-05-31",
+          "value": 7.2
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "KRI-002",
+      "code": "KRI-OPS-002",
+      "name": "Critical Customer Support Escalations",
+      "category": "Operations",
+      "owner": "COO",
+      "unit": "count/week",
+      "greenThreshold": 10,
+      "amberThreshold": 25,
+      "redThreshold": 40,
+      "currentValue": 22,
+      "direction": "higher-worse",
+      "history": [
+        {
+          "date": "2025-12-31",
+          "value": 8
+        },
+        {
+          "date": "2026-01-31",
+          "value": 12
+        },
+        {
+          "date": "2026-02-28",
+          "value": 15
+        },
+        {
+          "date": "2026-03-31",
+          "value": 19
+        },
+        {
+          "date": "2026-04-30",
+          "value": 24
+        },
+        {
+          "date": "2026-05-31",
+          "value": 22
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "KRI-003",
+      "code": "KRI-FIN-003",
+      "name": "Operating Cash Buffer",
+      "category": "Financial",
+      "owner": "CFO",
+      "unit": "days",
+      "greenThreshold": 45,
+      "amberThreshold": 30,
+      "redThreshold": 15,
+      "currentValue": 38,
+      "direction": "lower-worse",
+      "history": [
+        {
+          "date": "2025-12-31",
+          "value": 50
+        },
+        {
+          "date": "2026-01-31",
+          "value": 48
+        },
+        {
+          "date": "2026-02-28",
+          "value": 44
+        },
+        {
+          "date": "2026-03-31",
+          "value": 40
+        },
+        {
+          "date": "2026-04-30",
+          "value": 39
+        },
+        {
+          "date": "2026-05-31",
+          "value": 38
+        }
+      ],
+      "active": true
+    },
+    {
+      "id": "KRI-004",
+      "code": "KRI-COMP-004",
+      "name": "Overdue Audit Remediation Items",
+      "category": "Compliance",
+      "owner": "Compliance Officer",
+      "unit": "count",
+      "greenThreshold": 3,
+      "amberThreshold": 8,
+      "redThreshold": 15,
+      "currentValue": 6,
+      "direction": "higher-worse",
+      "history": [
+        {
+          "date": "2025-12-31",
+          "value": 2
+        },
+        {
+          "date": "2026-01-31",
+          "value": 3
+        },
+        {
+          "date": "2026-02-28",
+          "value": 4
+        },
+        {
+          "date": "2026-03-31",
+          "value": 5
+        },
+        {
+          "date": "2026-04-30",
+          "value": 5
+        },
+        {
+          "date": "2026-05-31",
+          "value": 6
+        }
+      ],
+      "active": true
+    }
+  ],
+  "appetite": [
+    {
+      "id": "APP-STR",
+      "category": "Strategic",
+      "description": "Pursue new market entry where ROI ≥ 18% within 24 months.",
+      "posture": "Open",
+      "tolerance": 16,
+      "currentExposure": 12,
+      "unit": "Score (1-25)",
+      "approvedBy": "Board of Directors",
+      "approvedOn": "2026-01-15",
+      "review": "Annual"
+    },
+    {
+      "id": "APP-FIN",
+      "category": "Financial",
+      "description": "Net loss in any single quarter not to exceed 2% of revenue.",
+      "posture": "Cautious",
+      "tolerance": 12,
+      "currentExposure": 9,
+      "unit": "Score (1-25)",
+      "approvedBy": "Audit Committee",
+      "approvedOn": "2026-01-15",
+      "review": "Quarterly"
+    },
+    {
+      "id": "APP-OPS",
+      "category": "Operational",
+      "description": "Tolerate up to 4 hours of unplanned outage per critical system per month.",
+      "posture": "Cautious",
+      "tolerance": 10,
+      "currentExposure": 14,
+      "unit": "Score (1-25)",
+      "approvedBy": "COO",
+      "approvedOn": "2026-02-01",
+      "review": "Quarterly"
+    },
+    {
+      "id": "APP-COMP",
+      "category": "Compliance",
+      "description": "Zero tolerance for regulatory breaches that trigger personal liability.",
+      "posture": "Averse",
+      "tolerance": 4,
+      "currentExposure": 2,
+      "unit": "Score (1-25)",
+      "approvedBy": "Chief Compliance Officer",
+      "approvedOn": "2026-01-20",
+      "review": "Continuous"
+    },
+    {
+      "id": "APP-IT",
+      "category": "IT & Cyber",
+      "description": "Accept residual risk only up to amber band for non-customer-facing systems.",
+      "posture": "Cautious",
+      "tolerance": 12,
+      "currentExposure": 13,
+      "unit": "Score (1-25)",
+      "approvedBy": "CIO",
+      "approvedOn": "2026-02-10",
+      "review": "Semi-annual"
+    },
+    {
+      "id": "APP-PPL",
+      "category": "People",
+      "description": "Voluntary attrition no greater than 12% annually across critical roles.",
+      "posture": "Open",
+      "tolerance": 14,
+      "currentExposure": 11,
+      "unit": "Score (1-25)",
+      "approvedBy": "CHRO",
+      "approvedOn": "2026-02-12",
+      "review": "Annual"
+    },
+    {
+      "id": "APP-VEN",
+      "category": "Vendor",
+      "description": "No critical-tier vendor without an active risk assessment within 12 months.",
+      "posture": "Averse",
+      "tolerance": 6,
+      "currentExposure": 4,
+      "unit": "Score (1-25)",
+      "approvedBy": "Head of Procurement",
+      "approvedOn": "2026-01-30",
+      "review": "Quarterly"
+    },
+    {
+      "id": "APP-REP",
+      "category": "Reputation",
+      "description": "No more than 2 negative media events causing > 5% share-price impact per year.",
+      "posture": "Averse",
+      "tolerance": 8,
+      "currentExposure": 3,
+      "unit": "Score (1-25)",
+      "approvedBy": "CEO",
+      "approvedOn": "2026-01-15",
+      "review": "Annual"
+    }
+  ],
+  "workflow": [
+    {
+      "id": "WF-001",
+      "title": "Q1 2026 IT Risk Assessment Sign-off",
+      "type": "Risk Assessment",
+      "submittedBy": "Anthony Muller",
+      "submittedOn": "2026-05-12",
+      "approvers": [
+        {
+          "name": "Priya Sharma",
+          "role": "Risk Manager",
+          "decision": "Approved",
+          "on": "2026-05-13"
+        },
+        {
+          "name": "Srivatsan B",
+          "role": "Administrator"
+        }
+      ],
+      "status": "In Review",
+      "business": "Information Technology"
+    },
+    {
+      "id": "WF-002",
+      "title": "Mitigation plan — Cloud DLP Enforcement",
+      "type": "Mitigation Plan",
+      "submittedBy": "Anthony Muller",
+      "submittedOn": "2026-05-10",
+      "approvers": [
+        {
+          "name": "Priya Sharma",
+          "role": "Risk Manager"
+        }
+      ],
+      "status": "Pending",
+      "business": "Information Technology",
+      "amount": 245000
+    },
+    {
+      "id": "WF-003",
+      "title": "Policy update — Acceptable Use v3.2",
+      "type": "Policy Update",
+      "submittedBy": "Lin Wei",
+      "submittedOn": "2026-05-08",
+      "approvers": [
+        {
+          "name": "Priya Sharma",
+          "role": "Risk Manager",
+          "decision": "Approved",
+          "on": "2026-05-09"
+        },
+        {
+          "name": "Srivatsan B",
+          "role": "Administrator",
+          "decision": "Approved",
+          "on": "2026-05-10"
+        }
+      ],
+      "status": "Approved",
+      "business": "Human Resources"
+    },
+    {
+      "id": "WF-004",
+      "title": "Formal risk acceptance — Vendor V-0042",
+      "type": "Risk Acceptance",
+      "submittedBy": "Priya Sharma",
+      "submittedOn": "2026-05-05",
+      "approvers": [
+        {
+          "name": "Srivatsan B",
+          "role": "Administrator",
+          "decision": "Rejected",
+          "on": "2026-05-06",
+          "comment": "Need additional compensating controls"
+        }
+      ],
+      "status": "Rejected",
+      "business": "Procurement"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "V-0001",
+      "name": "Cloudbase Hosting Ltd",
+      "category": "Cloud Infrastructure",
+      "tier": "Critical",
+      "country": "IE",
+      "contractValue": 1250000,
+      "riskScore": 78,
+      "lastAssessment": "2026-03-12",
+      "nextReview": "2026-09-12",
+      "contact": "partners@cloudbase.io",
+      "status": "Active",
+      "findings": 2
+    },
+    {
+      "id": "V-0002",
+      "name": "Sentinel Cybersecurity",
+      "category": "Managed Security",
+      "tier": "Critical",
+      "country": "US",
+      "contractValue": 820000,
+      "riskScore": 91,
+      "lastAssessment": "2026-04-20",
+      "nextReview": "2026-10-20",
+      "contact": "msa@sentinel.com",
+      "status": "Active",
+      "findings": 0
+    },
+    {
+      "id": "V-0003",
+      "name": "PayStream Analytics",
+      "category": "Financial Data",
+      "tier": "High",
+      "country": "GB",
+      "contractValue": 410000,
+      "riskScore": 64,
+      "lastAssessment": "2026-02-08",
+      "nextReview": "2026-08-08",
+      "contact": "risk@paystream.co.uk",
+      "status": "Active",
+      "findings": 1
+    },
+    {
+      "id": "V-0004",
+      "name": "TextWorks Translations",
+      "category": "Localization",
+      "tier": "Low",
+      "country": "IN",
+      "contractValue": 65000,
+      "riskScore": 32,
+      "lastAssessment": "2025-12-15",
+      "nextReview": "2026-12-15",
+      "contact": "hello@textworks.in",
+      "status": "Active",
+      "findings": 0
+    },
+    {
+      "id": "V-0005",
+      "name": "Apex HR Outsourcing",
+      "category": "HR Services",
+      "tier": "High",
+      "country": "PH",
+      "contractValue": 320000,
+      "riskScore": 55,
+      "lastAssessment": "2026-01-30",
+      "nextReview": "2026-07-30",
+      "contact": "compliance@apexhr.ph",
+      "status": "Active",
+      "findings": 3
+    },
+    {
+      "id": "V-0006",
+      "name": "Streamline Print Co",
+      "category": "Logistics",
+      "tier": "Medium",
+      "country": "DE",
+      "contractValue": 180000,
+      "riskScore": 41,
+      "lastAssessment": "2026-03-01",
+      "nextReview": "2026-09-01",
+      "contact": "sales@streamline.de",
+      "status": "Active",
+      "findings": 0
+    }
+  ],
+  "incidents": [
+    {
+      "id": "INC-001",
+      "title": "Payment gateway API 503 latency spike during peak settlement",
+      "description": "Payment API returned 503 for 12 minutes during morning batch run.",
+      "severity": "High",
+      "status": "Mitigated",
+      "category": "IT & Cyber",
+      "reportedBy": "Anthony Muller",
+      "assignedTo": "IT Operations",
+      "reportedOn": "2026-05-10",
+      "closedOn": "2026-05-10",
+      "linkedRisks": [
+        "R-009"
+      ],
+      "rootCause": "Auto-scaling buffer saturation.",
+      "correctiveAction": "Pre-warm container capacity ahead of scheduled batches."
+    },
+    {
+      "id": "INC-002",
+      "title": "Spear-phishing email targeting treasury team members",
+      "description": "Targeted emails sent to accounts payable staff. Caught by security filter.",
+      "severity": "Medium",
+      "status": "Closed",
+      "category": "IT & Cyber",
+      "reportedBy": "Lin Wei",
+      "assignedTo": "IT Security",
+      "reportedOn": "2026-05-03",
+      "closedOn": "2026-05-07",
+      "linkedRisks": [
+        "R-014"
+      ],
+      "rootCause": "External social engineering campaign.",
+      "correctiveAction": "Updated email gateway heuristics."
+    },
+    {
+      "id": "INC-003",
+      "title": "Delayed daily bank reconciliation report generation",
+      "description": "Treasury reconciliation report delayed by 2 hours due to ETL job timeout.",
+      "severity": "Medium",
+      "status": "Investigating",
+      "category": "Financial",
+      "reportedBy": "Priya Sharma",
+      "assignedTo": "Data Operations",
+      "reportedOn": "2026-05-08",
+      "linkedRisks": [
+        "R-003"
+      ]
+    },
+    {
+      "id": "INC-004",
+      "title": "Vendor V-0005 security notice regarding subcontractor",
+      "description": "Apex HR reported a contained breach affecting subcontractor test environment.",
+      "severity": "Critical",
+      "status": "Open",
+      "category": "Vendor",
+      "reportedBy": "Priya Sharma",
+      "assignedTo": "CISO",
+      "reportedOn": "2026-05-15",
+      "linkedRisks": [
+        "R-018"
+      ]
+    }
+  ],
+  "bcp": [
+    {
+      "id": "BCP-001",
+      "name": "Core Payment Gateway Failover",
+      "scope": "Treasury & settlement infrastructure",
+      "rto": 4,
+      "rpo": 1,
+      "owner": "CTO",
+      "lastTested": "2026-03-15",
+      "nextTest": "2026-09-15",
+      "status": "Current"
+    },
+    {
+      "id": "BCP-002",
+      "name": "Customer Support Escalation Contingency",
+      "scope": "Global contact center routing",
+      "rto": 8,
+      "rpo": 4,
+      "owner": "COO",
+      "lastTested": "2026-04-01",
+      "nextTest": "2026-10-01",
+      "status": "Current"
+    },
+    {
+      "id": "BCP-003",
+      "name": "Primary Headquarters Site Loss Plan",
+      "scope": "HQ facility & workforce displacement",
+      "rto": 48,
+      "rpo": 24,
+      "owner": "CHRO",
+      "lastTested": "2025-09-20",
+      "nextTest": "2026-03-20",
+      "status": "Overdue"
+    },
+    {
+      "id": "BCP-004",
+      "name": "Ransomware Containment & Clean Recovery",
+      "scope": "Enterprise active directory & backup isolation",
+      "rto": 12,
+      "rpo": 4,
+      "owner": "CISO",
+      "lastTested": "2026-02-10",
+      "nextTest": "2026-08-10",
+      "status": "Current"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "SC-001",
+      "name": "Severe Foreign Exchange Devaluation",
+      "description": "20% currency depreciation against USD over 90 days.",
+      "type": "Stress Test",
+      "category": "Financial",
+      "shockMagnitude": 20,
+      "baselineLoss": 1200000,
+      "stressedLoss": 4800000,
+      "probability": 12,
+      "owner": "CFO",
+      "lastRun": "2026-04-12"
+    },
+    {
+      "id": "SC-002",
+      "name": "Primary Cloud Region Infrastructure Outage",
+      "description": "Primary cloud data center region offline for 24 hours.",
+      "type": "What-if",
+      "category": "IT & Cyber",
+      "shockMagnitude": 100,
+      "baselineLoss": 50000,
+      "stressedLoss": 920000,
+      "probability": 6,
+      "owner": "CIO",
+      "lastRun": "2026-03-30"
+    },
+    {
+      "id": "SC-003",
+      "name": "Major Strategic Customer Attrition",
+      "description": "Top-3 enterprise customer cancellation within single quarter.",
+      "type": "Tail Risk",
+      "category": "Strategic",
+      "shockMagnitude": 30,
+      "baselineLoss": 0,
+      "stressedLoss": 6300000,
+      "probability": 4,
+      "owner": "CRO",
+      "lastRun": "2026-02-15"
+    }
+  ],
+  "policies": [
+    {
+      "id": "POL-001",
+      "code": "POL-IT-001",
+      "title": "Acceptable Use Policy",
+      "category": "IT & Cyber",
+      "version": "3.2",
+      "owner": "CISO",
+      "effectiveDate": "2026-01-01",
+      "nextReview": "2027-01-01",
+      "acknowledgmentPct": 96,
+      "status": "Active",
+      "linkedControls": [
+        "CTL-001"
+      ]
+    },
+    {
+      "id": "POL-002",
+      "code": "POL-FIN-002",
+      "title": "Treasury & Payments Policy",
+      "category": "Financial",
+      "version": "4.1",
+      "owner": "CFO",
+      "effectiveDate": "2025-10-01",
+      "nextReview": "2026-10-01",
+      "acknowledgmentPct": 91,
+      "status": "Active",
+      "linkedControls": [
+        "CTL-002",
+        "CTL-007"
+      ]
+    },
+    {
+      "id": "POL-003",
+      "code": "POL-PRIV-003",
+      "title": "Personal Data Protection Policy (GDPR)",
+      "category": "Compliance",
+      "version": "2.5",
+      "owner": "CCO",
+      "effectiveDate": "2025-05-25",
+      "nextReview": "2026-05-25",
+      "acknowledgmentPct": 88,
+      "status": "Active",
+      "linkedControls": [
+        "CTL-004"
+      ]
+    },
+    {
+      "id": "POL-004",
+      "code": "POL-HR-004",
+      "title": "Code of Conduct",
+      "category": "People",
+      "version": "5.0",
+      "owner": "CHRO",
+      "effectiveDate": "2026-01-15",
+      "nextReview": "2027-01-15",
+      "acknowledgmentPct": 99,
+      "status": "Active",
+      "linkedControls": []
+    },
+    {
+      "id": "POL-005",
+      "code": "POL-VEN-005",
+      "title": "Third-party Risk Management Policy",
+      "category": "Vendor",
+      "version": "1.3",
+      "owner": "Head of Procurement",
+      "effectiveDate": "2025-11-01",
+      "nextReview": "2026-11-01",
+      "acknowledgmentPct": 82,
+      "status": "Active",
+      "linkedControls": [
+        "CTL-006"
+      ]
+    }
+  ]
+}

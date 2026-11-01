@@ -38,6 +38,7 @@ npm run user:create -- --email jane@example.com --name "Jane Doe" --role "Risk M
 | `npm run typecheck` | TypeScript strict check |
 | `npm run openapi` | Regenerate `openapi.json` (also served live at `/api/openapi.json`) |
 | `npm run check:ords-anon` | Checks whether your ORDS endpoints are readable **without** a token |
+| `npm run dev:fake-db` | In-memory stand-in for Oracle ORDS with demo data, for offline development |
 
 ## Security model
 
@@ -73,6 +74,39 @@ npm run user:create -- --email jane@example.com --name "Jane Doe" --role "Risk M
   entry's hash, so edits, deletions or a recomputed chain are detected by `GET /api/audit/verify`. Entries are
   also mirrored to `ERM_TRN_AUDIT_LOG` (with sequence number and hash) as an independent copy.
   Set `AUDIT_HMAC_KEY` once and never change it. Browser-reported events are labelled `Browser:` and can't be approvals.
+
+## Endpoints at a glance
+
+Full, always-current reference: `GET /api/openapi.json` (generated from the same code that validates requests).
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/login` · `/logout` · `GET /me` · `POST /change-password` | Sessions |
+| `/api/users` | User administration (Administrator) |
+| `/api/audit` · `/api/audit/verify` | Audit trail and chain verification |
+| `/api/settings` | Organisation settings (read: everyone; write: Administrator) |
+| `/api/workflow` · `/:id/decision` · `/:id/withdraw` | Maker-checker approvals |
+| `/api/<table>` · `/api/<table>/:id` | Records — see `src/tables/registry.ts` for the tables and their rules |
+
+**Listing tables.** `GET /api/<table>` accepts `page`, `pageSize` (≤ 500), `sort`, `order`, `search`
+(case-insensitive, over the table's search columns) and `filter` (JSON: `{"status":"Open"}` or
+`{"severity":["High","Critical"]}`) and returns `{ items, total, page, pageSize, pageCount, truncated }`.
+The API reads the table through ORDS paging (cap 20,000 rows; `truncated` tells you if it was hit) and
+does the search/sort/paging itself, so totals are exact and search ignores letter case.
+Without those parameters, `limit`/`offset`/`q` are passed through to ORDS as before.
+
+**Approval workflow rules** (enforced server-side): the submitter comes from the session; nobody decides
+their own request; steps are decided in order by the step's role (Administrators may act for any step);
+one person can't sign two steps of a request; rejections need a comment; a step someone else just decided
+is never overwritten (409).
+
+**Not set up yet.** If a module's tables haven't been created (migration not run), its endpoints answer
+`503 NOT_PROVISIONED` with a clear message, and the app shows "This module isn't set up in the database yet".
+
+## Database migrations
+
+Schema changes live in [`../db/migrations`](../db/README.md) (Flyway naming, idempotent). Run them before
+deploying a version of the API that uses new tables.
 
 ## Deploy
 

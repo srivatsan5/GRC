@@ -552,6 +552,370 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workflow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Approval requests with their steps */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "Pending" | "In Review" | "Approved" | "Rejected" | "Withdrawn";
+                    mine?: "submitted" | "to-decide";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            items: components["schemas"]["WorkflowItem"][];
+                            total: number;
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Submit a request for approval (submitter = signed-in user) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        title: string;
+                        /** @enum {string} */
+                        request_type: "Risk Assessment" | "Mitigation Plan" | "Control Change" | "Policy Update" | "Risk Acceptance";
+                        business_unit?: string;
+                        amount?: number;
+                        details?: string;
+                        approver_roles?: ("Risk Manager" | "Administrator")[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Submitted */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowItem"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflow/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One request */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowItem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflow/{id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve or reject the next step (segregation-of-duties rules apply) */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        decision: "Approved" | "Rejected";
+                        comment?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description Decided */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowItem"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Already decided by someone else */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workflow/{id}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw your own open request */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Withdrawn */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkflowItem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Organisation settings (defaults if not stored yet) */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SettingsResponse"];
+                    };
+                };
+            };
+        };
+        /** Save organisation settings (Administrator) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["OrgSettings"];
+                };
+            };
+            responses: {
+                /** @description Saved */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SettingsResponse"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/audit/verify": {
         parameters: {
             query?: never;
@@ -608,6 +972,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -621,7 +995,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -1060,6 +1434,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -1073,7 +1457,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -1512,6 +1896,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -1525,7 +1919,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -1964,6 +2358,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -1977,7 +2381,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -2416,6 +2820,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2429,7 +2843,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -2868,6 +3282,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2881,7 +3305,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -3320,6 +3744,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -3333,7 +3767,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -3772,6 +4206,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -3785,7 +4229,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -4224,6 +4668,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4237,7 +4691,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -4676,6 +5130,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -4689,7 +5153,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -5128,6 +5592,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -5141,7 +5615,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -5565,6 +6039,4998 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/erm_mst_control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Control */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Control */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstControlInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_mst_control/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Control */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Control (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstControlInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Control */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Control (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstControlInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_lnk_control_risk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Control–risk link */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Control–risk link */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkControlRiskInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_lnk_control_risk/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Control–risk link */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Control–risk link (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkControlRiskInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Control–risk link */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Control–risk link (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkControlRiskInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_mst_policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Policy */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Policy */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstPolicyInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_mst_policy/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Policy */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Policy (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstPolicyInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Policy */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Policy (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstPolicyInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_lnk_policy_control": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Policy–control link */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Policy–control link */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkPolicyControlInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_lnk_policy_control/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Policy–control link */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Policy–control link (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkPolicyControlInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Policy–control link */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Policy–control link (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkPolicyControlInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_trn_incident": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Incident */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Incident */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmTrnIncidentInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_trn_incident/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Incident */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Incident (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmTrnIncidentInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Incident */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Incident (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmTrnIncidentInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_lnk_incident_risk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Incident–risk link */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Incident–risk link */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkIncidentRiskInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_lnk_incident_risk/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Incident–risk link */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Incident–risk link (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkIncidentRiskInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Incident–risk link */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Incident–risk link (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmLnkIncidentRiskInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_mst_vendor": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Vendor */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Vendor */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstVendorInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_mst_vendor/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Vendor */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Vendor (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstVendorInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Vendor */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Vendor (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstVendorInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_mst_bcp_plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Continuity plan */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Continuity plan */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstBcpPlanInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_mst_bcp_plan/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Continuity plan */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Continuity plan (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstBcpPlanInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Continuity plan */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Continuity plan (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstBcpPlanInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_mst_scenario": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Scenario */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Scenario */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstScenarioInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_mst_scenario/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Scenario */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Scenario (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstScenarioInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Scenario */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Scenario (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstScenarioInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_mst_risk_appetite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Risk appetite statement */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** Create Risk appetite statement */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstRiskAppetiteInput"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_mst_risk_appetite/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Risk appetite statement */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        /** Update Risk appetite statement (partial) */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstRiskAppetiteInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        /** Delete Risk appetite statement */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** Update Risk appetite statement (partial) */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ErmMstRiskAppetiteInput"];
+                };
+            };
+            responses: {
+                /** @description Updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/erm_trn_approval_request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Approval request */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_trn_approval_request/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Approval request */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_trn_approval_step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Approval step */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number;
+                    offset?: number;
+                    /** @description ORDS filter JSON, e.g. {"status":"Y"} */
+                    q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/erm_trn_approval_step/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one Approval step */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: number;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Row"];
+                    };
+                };
+                /** @description Validation failed */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not signed in */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not allowed for your role */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Rejected by the database */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Database unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/per_mst_business_process": {
         parameters: {
             query?: never;
@@ -5580,6 +11046,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -5593,7 +11069,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -5756,6 +11232,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -5769,7 +11255,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -5932,6 +11418,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -5945,7 +11441,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -6108,6 +11604,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -6121,7 +11627,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -6284,6 +11790,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -6297,7 +11813,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -6460,6 +11976,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -6473,7 +11999,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -6636,6 +12162,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -6649,7 +12185,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -6812,6 +12348,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -6825,7 +12371,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -6988,6 +12534,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7001,7 +12557,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -7164,6 +12720,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7177,7 +12743,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -7340,6 +12906,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7353,7 +12929,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -7516,6 +13092,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7529,7 +13115,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -7692,6 +13278,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7705,7 +13301,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -7868,6 +13464,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -7881,7 +13487,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -8044,6 +13650,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -8057,7 +13673,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -8220,6 +13836,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -8233,7 +13859,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -8396,6 +14022,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -8409,7 +14045,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -8572,6 +14208,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -8585,7 +14231,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -8748,6 +14394,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -8761,7 +14417,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -8924,6 +14580,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -8937,7 +14603,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -9100,6 +14766,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -9113,7 +14789,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -9276,6 +14952,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -9289,7 +14975,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -9452,6 +15138,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -9465,7 +15161,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -9628,6 +15324,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -9641,7 +15347,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -9804,6 +15510,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -9817,7 +15533,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -9980,6 +15696,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -9993,7 +15719,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -10156,6 +15882,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10169,7 +15905,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -10332,6 +16068,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10345,7 +16091,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -10508,6 +16254,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10521,7 +16277,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -10684,6 +16440,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10697,7 +16463,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -10860,6 +16626,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -10873,7 +16649,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -11036,6 +16812,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11049,7 +16835,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -11212,6 +16998,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11225,7 +17021,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -11388,6 +17184,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11401,7 +17207,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -11564,6 +17370,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11577,7 +17393,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -11740,6 +17556,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11753,7 +17579,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -11916,6 +17742,16 @@ export interface paths {
                     offset?: number;
                     /** @description ORDS filter JSON, e.g. {"status":"Y"} */
                     q?: string;
+                    /** @description Managed listing: any of page/pageSize/sort/search/filter returns a RowPage with totals */
+                    page?: number;
+                    pageSize?: number;
+                    /** @description Column name */
+                    sort?: string;
+                    order?: "asc" | "desc";
+                    /** @description Case-insensitive text search over the table's search columns */
+                    search?: string;
+                    /** @description JSON object of column → value or list of values */
+                    filter?: string;
                 };
                 header?: never;
                 path?: never;
@@ -11929,7 +17765,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["RowList"];
+                        "application/json": components["schemas"]["RowList"] | components["schemas"]["RowPage"];
                     };
                 };
                 /** @description Validation failed */
@@ -12132,6 +17968,67 @@ export interface components {
             prev_hash: string;
             hash: string;
         };
+        WorkflowStep: {
+            uuid: number;
+            step_no: number;
+            /** @enum {string} */
+            approver_role: "Risk Manager" | "Administrator";
+            /** @enum {string|null} */
+            decision: "Approved" | "Rejected" | null;
+            decided_by: string | null;
+            decided_name: string | null;
+            decided_on: string | null;
+            comments: string | null;
+        };
+        WorkflowItem: {
+            uuid: number;
+            title?: string;
+            /** @enum {string} */
+            request_type?: "Risk Assessment" | "Mitigation Plan" | "Control Change" | "Policy Update" | "Risk Acceptance";
+            business_unit?: string | null;
+            amount?: number | null;
+            details?: string | null;
+            /** @enum {string} */
+            status: "Pending" | "In Review" | "Approved" | "Rejected" | "Withdrawn";
+            submitted_by: string;
+            submitted_name?: string | null;
+            submitted_on?: string | null;
+            closed_on?: string | null;
+            steps: components["schemas"]["WorkflowStep"][];
+            next_step: number | null;
+            can_decide: boolean;
+            blocked_reason: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        OrgSettings: {
+            orgName: string;
+            industry: string;
+            /** @enum {string} */
+            currency: "USD" | "EUR" | "GBP" | "INR" | "JPY" | "AUD" | "SGD" | "AED" | "CAD" | "CHF";
+            idleTimeoutMinutes: number;
+            /** @description A likelihood × impact score at or above a threshold falls in that band. */
+            riskBands: {
+                moderate: number;
+                high: number;
+                critical: number;
+            };
+        };
+        SettingsResponse: {
+            settings: components["schemas"]["OrgSettings"];
+            stored: boolean;
+            /** @enum {string} */
+            reason?: "not_provisioned" | "unavailable";
+        };
+        RowPage: {
+            items: components["schemas"]["Row"][];
+            total: number;
+            page: number;
+            pageSize: number;
+            pageCount: number;
+            /** @description True when the table exceeded the listing cap. */
+            truncated: boolean;
+        };
         /** @description A database row; keys are lower-case column names. */
         Row: {
             [key: string]: unknown;
@@ -12179,6 +18076,10 @@ export interface components {
             risk_owner?: string;
             risk_champion?: string;
             risk_appetite?: string | number;
+            inherent_likelihood?: number;
+            inherent_impact?: number;
+            residual_likelihood?: number;
+            residual_impact?: number;
             /** @enum {string} */
             approval_status?: "DRAFT" | "SUBMITTED" | "IN_REVIEW" | "PENDING" | "APPROVED" | "REJECTED";
             approver_comments?: string;
@@ -12319,6 +18220,9 @@ export interface components {
             measurement_frequency?: string;
             /** @enum {string} */
             is_active?: "Y" | "N";
+            owner_name?: string;
+            /** @enum {string} */
+            direction?: "HIGHER_WORSE" | "LOWER_WORSE";
         };
         /** @description Writable columns of erm_trn_kpi_actuals. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
         ErmTrnKpiActualsInput: {
@@ -12337,11 +18241,145 @@ export interface components {
             /** Format: date-time */
             reading_date?: string;
             reading_value: number;
-            traffic_light?: string;
+            /** @enum {string} */
+            traffic_light?: "GREEN" | "AMBER" | "RED";
             /** @enum {string} */
             is_breach?: "Y" | "N";
             breach_notes?: string;
             org_hierarchy_uuid?: number;
+        };
+        /** @description Writable columns of erm_mst_control. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmMstControlInput: {
+            control_code: string;
+            control_name: string;
+            description?: string;
+            /** @enum {string} */
+            control_type?: "Preventive" | "Detective" | "Corrective" | "Compensating";
+            /** @enum {string} */
+            control_nature?: "Manual" | "Automated" | "Hybrid";
+            /** @enum {string} */
+            frequency?: "Continuous" | "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Annual" | "Event-driven";
+            owner_name?: string;
+            frameworks?: string;
+            design_effectiveness?: number;
+            operating_effectiveness?: number;
+            /** Format: date-time */
+            last_tested_on?: string;
+            /** @enum {string} */
+            status?: "Draft" | "Active" | "Retired";
+        };
+        /** @description Writable columns of erm_lnk_control_risk. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmLnkControlRiskInput: {
+            control_uuid: number;
+            risk_uuid: number;
+        };
+        /** @description Writable columns of erm_mst_policy. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmMstPolicyInput: {
+            policy_code: string;
+            title: string;
+            category?: string;
+            version_label?: string;
+            owner_name?: string;
+            /** Format: date-time */
+            effective_date?: string;
+            /** Format: date-time */
+            next_review_date?: string;
+            acknowledged_pct?: number;
+            /** @enum {string} */
+            status?: "Draft" | "Active" | "Retired";
+        };
+        /** @description Writable columns of erm_lnk_policy_control. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmLnkPolicyControlInput: {
+            policy_uuid: number;
+            control_uuid: number;
+        };
+        /** @description Writable columns of erm_trn_incident. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmTrnIncidentInput: {
+            incident_ref?: string;
+            title: string;
+            description?: string;
+            /** @enum {string} */
+            severity: "Low" | "Medium" | "High" | "Critical";
+            /** @enum {string} */
+            status?: "Open" | "Investigating" | "Mitigated" | "Closed";
+            category?: string;
+            reported_by?: string;
+            assigned_to?: string;
+            /** Format: date-time */
+            occurred_on?: string;
+            /** Format: date-time */
+            reported_on?: string;
+            /** Format: date-time */
+            closed_on?: string;
+            root_cause?: string;
+            corrective_action?: string;
+            loss_amount?: number;
+        };
+        /** @description Writable columns of erm_lnk_incident_risk. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmLnkIncidentRiskInput: {
+            incident_uuid: number;
+            risk_uuid: number;
+        };
+        /** @description Writable columns of erm_mst_vendor. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmMstVendorInput: {
+            vendor_name: string;
+            category?: string;
+            /** @enum {string} */
+            tier: "Critical" | "High" | "Medium" | "Low";
+            country_code?: string;
+            contract_value?: number;
+            risk_score?: number;
+            /** Format: date-time */
+            last_assessment_on?: string;
+            /** Format: date-time */
+            next_review_on?: string;
+            /** Format: email */
+            contact_email?: string;
+            open_findings?: number;
+            /** @enum {string} */
+            status?: "Onboarding" | "Active" | "Offboarding" | "Exited";
+        };
+        /** @description Writable columns of erm_mst_bcp_plan. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmMstBcpPlanInput: {
+            plan_name: string;
+            scope?: string;
+            rto_hours: number;
+            rpo_hours: number;
+            owner_name?: string;
+            /** Format: date-time */
+            last_tested_on?: string;
+            /** Format: date-time */
+            next_test_on?: string;
+            /** @enum {string} */
+            status?: "Draft" | "Active" | "Retired";
+        };
+        /** @description Writable columns of erm_mst_scenario. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmMstScenarioInput: {
+            scenario_name: string;
+            description?: string;
+            /** @enum {string} */
+            scenario_type?: "Stress Test" | "What-if" | "Reverse Stress" | "Tail Risk";
+            category?: string;
+            shock_pct?: number;
+            baseline_loss?: number;
+            stressed_loss?: number;
+            probability_pct?: number;
+            owner_name?: string;
+            /** Format: date-time */
+            last_run_on?: string;
+        };
+        /** @description Writable columns of erm_mst_risk_appetite. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
+        ErmMstRiskAppetiteInput: {
+            category: string;
+            statement: string;
+            /** @enum {string} */
+            posture: "Averse" | "Cautious" | "Open" | "Hungry";
+            tolerance_score: number;
+            approved_by?: string;
+            /** Format: date-time */
+            approved_on?: string;
+            /** @enum {string} */
+            review_frequency?: "Quarterly" | "Semi-annual" | "Annual";
         };
     };
     responses: never;

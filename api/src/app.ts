@@ -9,6 +9,8 @@ import { authRoutes } from './auth/routes.js'
 import { userRoutes } from './users/routes.js'
 import { auditRoutes } from './audit/routes.js'
 import { tableRoutes } from './tables/routes.js'
+import { workflowRoutes } from './workflow/routes.js'
+import { settingsRoutes } from './settings/routes.js'
 import { buildOpenApi } from './openapi.js'
 import { errorHandler, notFoundHandler } from './http/errors.js'
 
@@ -68,6 +70,8 @@ export function createApp(ctx: AppContext) {
   app.use('/api/auth', authRoutes(ctx))
   app.use('/api/users', userRoutes(ctx))
   app.use('/api/audit', auditRoutes(ctx))
+  app.use('/api/workflow', workflowRoutes(ctx))
+  app.use('/api/settings', settingsRoutes(ctx))
   app.use('/api', tableRoutes(ctx))
 
   app.use(notFoundHandler)

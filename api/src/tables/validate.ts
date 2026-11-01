@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { APPROVAL_STATUSES, type ColumnType, type WritableTable } from './registry.js'
+export type { ColumnType }
+import { APPROVAL_STATUSES, type ColumnSpec, type ColumnType, type WritableTable } from './registry.js'
 
 const toNull = (v: unknown) => (v === '' || v === undefined ? null : v)
 
@@ -33,6 +34,35 @@ const COLUMN_SCHEMAS: Record<ColumnType, z.ZodTypeAny> = {
     z.enum(APPROVAL_STATUSES, { errorMap: () => ({ message: `must be one of ${APPROVAL_STATUSES.join(', ')}` }) }),
   ),
   scalar: z.union([z.string().trim().max(4000), z.number().finite()]),
+  rating: numeric.pipe(z.number().int('must be a whole number').min(1, 'must be 1–5').max(5, 'must be 1–5')),
+  email: z.string().trim().toLowerCase().email('must be an e-mail address').max(254),
+}
+
+const enumSchemas = new Map<readonly string[], z.ZodTypeAny>()
+
+/** Zod schema for a column spec (cached for enums). */
+export function schemaFor(spec: ColumnSpec): z.ZodTypeAny {
+  if (typeof spec === 'string') return COLUMN_SCHEMAS[spec]
+  if ('range' in spec) {
+    const [min, max] = spec.range
+    return numeric.pipe(z.number().int('must be a whole number').min(min, `must be ${min}–${max}`).max(max, `must be ${min}–${max}`))
+  }
+  let schema = enumSchemas.get(spec.enum)
+  if (!schema) {
+    // Accept any letter case from clients, store the canonical spelling.
+    const canonical = new Map(spec.enum.map(v => [v.toLowerCase(), v]))
+    schema = z.preprocess(
+      v => (typeof v === 'string' ? canonical.get(v.trim().toLowerCase()) ?? v : v),
+      z.enum(spec.enum as [string, ...string[]], { errorMap: () => ({ message: `must be one of: ${spec.enum.join(', ')}` }) }),
+    )
+    enumSchemas.set(spec.enum, schema)
+  }
+  return schema
+}
+
+/** Columns treated as free text for search defaults. */
+export function isTextSpec(spec: ColumnSpec): boolean {
+  return spec === 'text' || spec === 'email' || (typeof spec === 'object' && 'enum' in spec)
 }
 
 export interface NormalizedPayload {
@@ -58,8 +88,8 @@ export function normalizePayload(def: WritableTable, body: unknown, mode: 'creat
 
   for (const [rawKey, rawValue] of Object.entries(body as Record<string, unknown>)) {
     const key = rawKey.toUpperCase()
-    const type = def.columns[key]
-    if (!type) {
+    const spec = Object.hasOwn(def.columns, key) ? def.columns[key] : undefined
+    if (!spec) {
       ignoredFields.push(rawKey)
       continue
     }
@@ -68,7 +98,7 @@ export function normalizePayload(def: WritableTable, body: unknown, mode: 'creat
       row[key] = null
       continue
     }
-    const parsed = COLUMN_SCHEMAS[type].safeParse(value)
+    const parsed = schemaFor(spec).safeParse(value)
     if (parsed.success) {
       row[key] = parsed.data === '' ? null : parsed.data
     } else {
@@ -80,7 +110,9 @@ export function normalizePayload(def: WritableTable, body: unknown, mode: 'creat
     for (const [col, val] of Object.entries(def.defaults ?? {})) {
       if (row[col] === undefined || row[col] === null) row[col] = val
     }
+    const invalid = new Set(issues.map(i => String(i.path[0])))
     for (const col of def.required ?? []) {
+      if (invalid.has(col)) continue // already reported as invalid
       if (row[col] === undefined || row[col] === null || row[col] === '') {
         issues.push({ code: 'custom', path: [col], message: 'is required' })
       }
@@ -106,10 +138,39 @@ export const idParam = z
   .transform(Number)
   .refine(n => n > 0, 'id must be a positive whole number')
 
+const filterParam = z
+  .string()
+  .max(2000)
+  .transform((s, ctx) => {
+    try {
+      const v = JSON.parse(s)
+      if (v && typeof v === 'object' && !Array.isArray(v)) return v as Record<string, unknown>
+    } catch {
+      /* fall through */
+    }
+    ctx.addIssue({ code: 'custom', message: 'filter must be a JSON object of column → value (or list of values)' })
+    return z.NEVER
+  })
+  .refine(
+    f => Object.entries(f).every(([k, v]) => /^[A-Za-z0-9_]{1,64}$/.test(k) && (isScalar(v) || (Array.isArray(v) && v.length <= 50 && v.every(isScalar)))),
+    'filter values must be strings, numbers, booleans or null (or lists of them)',
+  )
+
+function isScalar(v: unknown) {
+  return v === null || ['string', 'number', 'boolean'].includes(typeof v)
+}
+
 export const listQuery = z
   .object({
     limit: z.coerce.number().int().min(1).max(10_000).default(1000),
     offset: z.coerce.number().int().min(0).default(0),
+    // Managed listing (page/sort/search/filter): done by the API with real totals.
+    page: z.coerce.number().int().min(1).optional(),
+    pageSize: z.coerce.number().int().min(1).max(500).optional(),
+    sort: z.string().regex(/^[A-Za-z0-9_]{1,64}$/, 'sort must be a column name').optional(),
+    order: z.enum(['asc', 'desc']).optional(),
+    search: z.string().trim().max(200).optional(),
+    filter: filterParam.optional(),
     q: z
       .string()
       .max(2000)

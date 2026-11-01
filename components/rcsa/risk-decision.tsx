@@ -1,6 +1,15 @@
 'use client'
 
-/** Submit / approve / reject actions for one risk-register row. */
+/**
+ * Submit / approve / reject actions for one risk-register row.
+ *
+ *  - `layout="row"` (default, legacy): small secondary buttons for table rows.
+ *  - `layout="footer"`: the detail sheet / risk page footer. One primary action for the current status:
+ *    "Submit for approval" (DRAFT / REJECTED, users who can update) or Approve + Reject (awaiting a
+ *    decision, users who can approve). Rejecting always needs a reason.
+ *
+ * The server enforces maker-checker (nobody decides a record they created); its message is shown as is.
+ */
 import React, { useState } from 'react'
 import { toast } from 'sonner'
 import { Check, Send, X } from 'lucide-react'
@@ -13,7 +22,20 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { Field, textareaClass } from './shared'
 import { RISK_TABLE } from './risk-dialog'
 
-export function RiskDecisionButtons({ risk, compact }: { risk: Row; compact?: boolean }) {
+export const AWAITING_STATUSES = ['SUBMITTED', 'IN_REVIEW', 'PENDING'] as const
+
+export function RiskDecisionButtons({
+  risk,
+  compact,
+  layout = 'row',
+  onError,
+}: {
+  risk: Row
+  compact?: boolean
+  layout?: 'row' | 'footer'
+  /** Called with the server's message when a decision fails (e.g. the self-approval rule), so callers can show it inline. */
+  onError?: (message: string | null) => void
+}) {
   const { hasPermission } = useAuth()
   const confirm = useConfirm()
   const update = useUpdateRow(RISK_TABLE)
@@ -22,18 +44,26 @@ export function RiskDecisionButtons({ risk, compact }: { risk: Row; compact?: bo
   const [commentError, setCommentError] = useState<string | null>(null)
   const status = String(risk.approval_status ?? 'DRAFT').toUpperCase()
   const id = risk.uuid ?? risk.id
-  const label = String(risk.risk_statement ?? `risk ${id}`).slice(0, 60)
+  const label = String(risk.risk_statement ?? `Risk ${id}`).slice(0, 120)
   const canApprove = hasPermission('approve')
-  const canSubmit = hasPermission('update') && (status === 'DRAFT' || status === 'REJECTED')
+  const editable = hasPermission('update') && (status === 'DRAFT' || status === 'REJECTED')
+  const awaiting = (AWAITING_STATUSES as readonly string[]).includes(status)
   const undecided = status !== 'APPROVED' && status !== 'REJECTED'
 
+  // Legacy row layout: approvers decide any undecided row; others submit drafts.
+  const showSubmit = layout === 'footer' ? editable : editable && !canApprove
+  const showDecide = layout === 'footer' ? canApprove && awaiting : canApprove && undecided
+
   async function setStatus(approval_status: string, extra: Row = {}, msg: string) {
+    onError?.(null)
     try {
       await update.mutateAsync({ id, values: { approval_status, ...extra } })
       toast.success(msg)
       return true
     } catch (err) {
-      toast.error(apiErrorMessage(err))
+      const m = apiErrorMessage(err)
+      toast.error(m)
+      onError?.(m)
       return false
     }
   }
@@ -46,7 +76,7 @@ export function RiskDecisionButtons({ risk, compact }: { risk: Row; compact?: bo
   async function reject(e: React.FormEvent) {
     e.preventDefault()
     if (!comment.trim()) {
-      setCommentError('Explain why the risk is rejected.')
+      setCommentError('Give the reason for rejecting. The maker sees it with the risk.')
       return
     }
     if (await setStatus('REJECTED', { approver_comments: comment.trim() }, 'Risk rejected')) {
@@ -55,51 +85,59 @@ export function RiskDecisionButtons({ risk, compact }: { risk: Row; compact?: bo
     }
   }
 
-  const size = compact ? 'sm' : 'default'
+  const footer = layout === 'footer'
+  const size = footer ? 'default' : compact ? 'sm' : 'default'
   return (
     <>
-      {canSubmit && !canApprove && (
-        <Button size={size} variant="outline" disabled={update.isPending} onClick={() => setStatus('SUBMITTED', {}, 'Submitted for review')}>
-          <Send className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-          Submit
+      {showSubmit && (
+        <Button size={size} variant={footer ? 'primary' : 'secondary'} disabled={update.isPending} onClick={() => setStatus('SUBMITTED', {}, 'Submitted for approval')}>
+          <Send aria-hidden="true" />
+          {footer ? 'Submit for approval' : 'Submit'}
         </Button>
       )}
-      {canApprove && undecided && (
+      {showDecide && (
         <>
-          <Button size={size} variant="outline" className="text-emerald-800" disabled={update.isPending} onClick={approve}>
-            <Check className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-            Approve
-          </Button>
           <Button
             size={size}
-            variant="outline"
-            className="text-red-700"
+            variant="secondary"
             disabled={update.isPending}
             onClick={() => {
               setCommentError(null)
               setRejectOpen(true)
             }}
           >
-            <X className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+            <X aria-hidden="true" />
             Reject
+          </Button>
+          <Button size={size} variant={footer ? 'primary' : 'secondary'} disabled={update.isPending} onClick={approve}>
+            <Check aria-hidden="true" />
+            Approve
           </Button>
         </>
       )}
       <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-        <DialogContent className="max-w-md bg-white border-slate-200 rounded-lg p-5 text-xs">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-sm font-semibold text-slate-900">Reject risk</DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">{label}</DialogDescription>
+            <DialogTitle>Reject risk</DialogTitle>
+            <DialogDescription>{label}</DialogDescription>
           </DialogHeader>
-          <form onSubmit={reject} noValidate className="space-y-3">
-            <Field id={`reject-comment-${id}`} label="Reason" required error={commentError ?? undefined}>
-              <textarea id={`reject-comment-${id}`} rows={3} value={comment} onChange={e => setComment(e.target.value)} className={textareaClass} aria-invalid={!!commentError || undefined} />
+          <form onSubmit={reject} noValidate className="space-y-4">
+            <Field id={`reject-comment-${id}`} label="Reason" required error={commentError ?? undefined} hint="Required. It is stored with the risk and in the audit trail.">
+              <textarea
+                id={`reject-comment-${id}`}
+                rows={4}
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                className={textareaClass}
+                aria-invalid={!!commentError || undefined}
+                aria-describedby={commentError ? `reject-comment-${id}-error` : undefined}
+              />
             </Field>
             <DialogFooter>
-              <Button type="button" variant="outline" size="sm" onClick={() => setRejectOpen(false)}>
+              <Button type="button" variant="secondary" onClick={() => setRejectOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" variant="destructive" size="sm" disabled={update.isPending}>
+              <Button type="submit" variant="destructive" disabled={update.isPending}>
                 Reject risk
               </Button>
             </DialogFooter>

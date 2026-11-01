@@ -3,6 +3,7 @@
 /** Create / edit one row of the risk register (per_trn_identify_risk). */
 import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -137,22 +138,22 @@ export function RiskDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl bg-white border-slate-200 rounded-lg p-5 text-xs max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-sm font-semibold text-slate-900">{editing ? 'Edit risk' : 'Add risk'}</DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">
+          <DialogTitle>{editing ? 'Edit risk' : 'Add risk'}</DialogTitle>
+          <DialogDescription>
             {editing ? 'Update the risk details and its inherent rating.' : 'Record a risk with its inherent likelihood and impact. Ratings can be added later.'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={submit} noValidate className="space-y-3">
+        <form onSubmit={submit} noValidate className="space-y-4">
           <Field id="risk-statement" label="Risk statement" required error={errors.risk_statement}>
             <textarea id="risk-statement" rows={3} value={form.risk_statement} onChange={e => set('risk_statement')(e.target.value)} className={textareaClass} aria-invalid={!!errors.risk_statement || undefined} aria-describedby={errors.risk_statement ? 'risk-statement-error' : undefined} />
           </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="risk-category" label="Category">
-              <Input id="risk-category" list="risk-category-options" value={form.risk_type} onChange={e => set('risk_type')(e.target.value)} className="h-8 text-xs" />
+              <Input id="risk-category" list="risk-category-options" value={form.risk_type} onChange={e => set('risk_type')(e.target.value)} />
               <datalist id="risk-category-options">{categories.map(c => <option key={c} value={c} />)}</datalist>
             </Field>
             {!lockCycle && (
@@ -169,24 +170,24 @@ export function RiskDialog({
               </Field>
             )}
             <Field id="risk-process" label="Business process">
-              <Input id="risk-process" list="risk-process-options" value={form.process_name} onChange={e => set('process_name')(e.target.value)} className="h-8 text-xs" />
+              <Input id="risk-process" list="risk-process-options" value={form.process_name} onChange={e => set('process_name')(e.target.value)} />
               <datalist id="risk-process-options">{processes.map(c => <option key={c} value={c} />)}</datalist>
             </Field>
             <Field id="risk-subprocess" label="Sub-process">
-              <Input id="risk-subprocess" value={form.sub_process_name} onChange={e => set('sub_process_name')(e.target.value)} className="h-8 text-xs" />
+              <Input id="risk-subprocess" value={form.sub_process_name} onChange={e => set('sub_process_name')(e.target.value)} />
             </Field>
             <Field id="risk-owner" label="Risk owner">
-              <Input id="risk-owner" list="risk-people-options" value={form.risk_owner} onChange={e => set('risk_owner')(e.target.value)} className="h-8 text-xs" />
+              <Input id="risk-owner" list="risk-people-options" value={form.risk_owner} onChange={e => set('risk_owner')(e.target.value)} />
             </Field>
             <Field id="risk-champion" label="Risk champion">
-              <Input id="risk-champion" list="risk-people-options" value={form.risk_champion} onChange={e => set('risk_champion')(e.target.value)} className="h-8 text-xs" />
+              <Input id="risk-champion" list="risk-people-options" value={form.risk_champion} onChange={e => set('risk_champion')(e.target.value)} />
             </Field>
             <datalist id="risk-people-options">{owners.map(c => <option key={c} value={c} />)}</datalist>
           </div>
 
-          <fieldset className="rounded border border-slate-200 p-3 space-y-3">
-            <legend className="px-1 text-xs font-semibold text-slate-900">Inherent rating</legend>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <fieldset className="space-y-4 rounded-lg bg-surface-sunken p-4 shadow-[inset_0_0_0_1px_var(--border)]">
+            <legend className="float-left mb-1 w-full font-display text-section text-foreground">Inherent rating</legend>
+            <div className="clear-both grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field id="risk-likelihood" label="Likelihood" error={errors.inherent_likelihood}>
                 <RatingSelect id="risk-likelihood" kind="likelihood" value={form.inherent_likelihood} onChange={set('inherent_likelihood')} invalid={!!errors.inherent_likelihood} />
               </Field>
@@ -194,22 +195,27 @@ export function RiskDialog({
                 <RatingSelect id="risk-impact" kind="impact" value={form.inherent_impact} onChange={set('inherent_impact')} invalid={!!errors.inherent_impact} />
               </Field>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-600">
+            <div className="flex items-center justify-between gap-3 text-body-sm text-foreground-secondary">
               <span>Inherent score (likelihood × impact)</span>
               <BandBadge score={scoreOf(l, i)} />
             </div>
             <Field id="risk-sle" label={`Single loss expectancy (${settings.currency})`} error={errors.inherent_sle} hint="Optional. The estimated loss from one occurrence.">
-              <Input id="risk-sle" type="number" min={0} step="any" inputMode="decimal" value={form.inherent_sle} onChange={e => set('inherent_sle')(e.target.value)} className="h-8 text-xs" aria-invalid={!!errors.inherent_sle || undefined} />
+              <Input id="risk-sle" type="number" min={0} step="any" inputMode="decimal" value={form.inherent_sle} onChange={e => set('inherent_sle')(e.target.value)} aria-invalid={!!errors.inherent_sle || undefined} />
             </Field>
           </fieldset>
 
-          {wasApproved && !hasPermission('approve') && <p className="text-[11px] text-amber-700">This risk is approved. Saving changes sends it back for review.</p>}
+          {wasApproved && !hasPermission('approve') && (
+            <p role="note" className="flex items-start gap-2 rounded-md bg-status-warning-bg px-3 py-2 text-body-sm text-status-warning-fg">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+              This risk is approved. Saving changes sends it back for review.
+            </p>
+          )}
 
-          <DialogFooter className="pt-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
+            <Button type="submit" disabled={busy}>
               {busy ? 'Saving…' : editing ? 'Save changes' : 'Add risk'}
             </Button>
           </DialogFooter>

@@ -2,10 +2,12 @@
 
 /** Small shared pieces for the RCSA pages (cycles, risk register, inherent assessment). */
 import React, { useMemo } from 'react'
-import Link from 'next/link'
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRows, type Row } from '@/lib/data'
 import { IMPACT_LABELS, LIKELIHOOD_LABELS } from '@/lib/risk'
+import { LifecycleStepper, type LifecycleStage } from '@/components/charter/lifecycle-stepper'
+import { ApprovalBadge as CharterApprovalBadge } from '@/components/charter/primitives'
 
 // ── Lifecycle stepper ─────────────────────────────────────────────────────────
 
@@ -19,46 +21,43 @@ export const RCSA_STEPS = [
 
 export type RcsaStep = (typeof RCSA_STEPS)[number]['key']
 
+const STAGE_FOR: Record<RcsaStep, LifecycleStage> = { setup: 'cycles', identify: 'register', inherent: 'inherent', mitigate: 'controls', monitor: 'monitoring' }
+
+/** Legacy API kept for older callers: renders the Charter LifecycleStepper (plus any `right` actions under it). */
 export function RcsaStepper({ active, right }: { active: RcsaStep; right?: React.ReactNode }) {
   return (
-    <nav aria-label="RCSA lifecycle" className="bg-white border border-slate-200 rounded p-3 text-xs flex flex-wrap items-center justify-between gap-2">
-      <ol className="flex flex-wrap items-center gap-2">
-        {RCSA_STEPS.map((s, i) => (
-          <li key={s.key} className="flex items-center gap-2">
-            {i > 0 && <span className="text-slate-300" aria-hidden="true">&rarr;</span>}
-            {s.key === active ? (
-              <span aria-current="step" className="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                {String(i + 1).padStart(2, '0')} {s.label}
-              </span>
-            ) : (
-              <Link href={s.href} className="text-slate-600 hover:text-slate-900 hover:underline">
-                {String(i + 1).padStart(2, '0')} {s.label}
-              </Link>
-            )}
-          </li>
-        ))}
-      </ol>
-      {right}
-    </nav>
+    <div className="space-y-3">
+      <LifecycleStepper current={STAGE_FOR[active]} />
+      {right && <div className="flex flex-wrap items-center justify-end gap-2">{right}</div>}
+    </div>
   )
 }
 
 // ── Form helpers ──────────────────────────────────────────────────────────────
 
-export const selectClass = 'w-full h-8 px-2 border border-slate-300 rounded text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600'
-export const textareaClass = 'w-full p-2 border border-slate-300 rounded text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-600'
+export const selectClass =
+  'h-control w-full rounded-md border border-input bg-card px-3 text-body text-foreground outline-none transition-[border-color,box-shadow] duration-(--duration-fast) ease-out focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--selection)] disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive'
+export const textareaClass =
+  'w-full rounded-md border border-input bg-card px-3 py-2 text-body leading-relaxed text-foreground placeholder:text-muted-foreground outline-none transition-[border-color,box-shadow] duration-(--duration-fast) ease-out focus-visible:border-ring focus-visible:shadow-[0_0_0_3px_var(--selection)] aria-invalid:border-destructive'
 
 export function Field({ id, label, required, error, hint, children, className }: { id: string; label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={className}>
-      <label htmlFor={id} className="block text-xs text-slate-700 font-medium mb-1">
+    <div className={cn('space-y-1.5', className)}>
+      <label htmlFor={id} className="block text-body-sm font-medium text-foreground">
         {label}
-        {required && <span className="text-red-600"> *</span>}
+        {required && (
+          <span className="text-status-danger-fg" aria-hidden="true">
+            {' '}
+            *
+          </span>
+        )}
+        {required && <span className="sr-only"> (required)</span>}
       </label>
       {children}
-      {hint && !error && <p className="mt-0.5 text-[11px] text-slate-500">{hint}</p>}
+      {hint && !error && <p className="text-caption text-muted-foreground">{hint}</p>}
       {error && (
-        <p id={`${id}-error`} role="alert" className="mt-0.5 text-[11px] text-red-600">
+        <p id={`${id}-error`} role="alert" className="flex items-start gap-1.5 text-caption text-status-danger-fg">
+          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden="true" />
           {error}
         </p>
       )}
@@ -117,24 +116,15 @@ export function useNameOptions(refTable: string | null, used: (string | null | u
 
 export const APPROVAL_STATUSES = ['DRAFT', 'SUBMITTED', 'IN_REVIEW', 'PENDING', 'APPROVED', 'REJECTED'] as const
 
-const APPROVAL_STYLE: Record<string, string> = {
-  DRAFT: 'bg-slate-50 text-slate-700 border-slate-200',
-  SUBMITTED: 'bg-blue-50 text-blue-800 border-blue-200',
-  IN_REVIEW: 'bg-blue-50 text-blue-800 border-blue-200',
-  PENDING: 'bg-amber-50 text-amber-800 border-amber-200',
-  APPROVED: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-  REJECTED: 'bg-red-50 text-red-800 border-red-200',
-}
-
 export function approvalLabel(s: string | null | undefined): string {
   if (!s) return 'Draft'
   const t = s.replace(/_/g, ' ').toLowerCase()
   return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
-export function ApprovalBadge({ status }: { status: string | null | undefined }) {
-  const s = (status ?? 'DRAFT').toUpperCase()
-  return <span className={cn('inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium', APPROVAL_STYLE[s] ?? APPROVAL_STYLE.DRAFT)}>{approvalLabel(s)}</span>
+/** Approval status of a register row (a missing status reads as Draft), always icon + word. */
+export function ApprovalBadge({ status, className }: { status: string | null | undefined; className?: string }) {
+  return <CharterApprovalBadge status={(status ?? 'DRAFT').toUpperCase()} className={className} />
 }
 
 // ── CSV ──────────────────────────────────────────────────────────────────────
@@ -202,15 +192,18 @@ export interface SortState {
   order: 'asc' | 'desc'
 }
 
-export function SortHeader({ label, column, state, onSort, className }: { label: string; column: string; state: SortState; onSort: (s: SortState) => void; className?: string }) {
+export function SortHeader({ label, column, state, onSort, className, numeric }: { label: string; column: string; state: SortState; onSort: (s: SortState) => void; className?: string; numeric?: boolean }) {
   const active = state.sort === column
+  const Icon = active ? (state.order === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown
   return (
-    <th className={className} aria-sort={active ? (state.order === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="inline-flex items-center gap-1 font-semibold hover:text-slate-900" onClick={() => onSort({ sort: column, order: active && state.order === 'asc' ? 'desc' : 'asc' })}>
+    <th className={className} data-numeric={numeric || undefined} aria-sort={active ? (state.order === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button
+        type="button"
+        className={cn('-mx-1 inline-flex items-center gap-1 rounded-xs px-1 uppercase transition-colors hover:text-foreground focus-ring', active && 'text-foreground')}
+        onClick={() => onSort({ sort: column, order: active && state.order === 'asc' ? 'desc' : 'asc' })}
+      >
         {label}
-        <span aria-hidden="true" className={active ? 'text-slate-700' : 'text-slate-300'}>
-          {active ? (state.order === 'asc' ? '▲' : '▼') : '↕'}
-        </span>
+        <Icon className={cn('size-3', !active && 'opacity-40')} aria-hidden="true" />
       </button>
     </th>
   )

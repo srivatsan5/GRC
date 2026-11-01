@@ -10,6 +10,7 @@ import { UserStore } from '../src/users/store.js'
 import { AuditLog } from '../src/audit/log.js'
 import { hashPassword, passwordProblem } from '../src/auth/passwords.js'
 import { ROLES, type Role } from '../src/auth/permissions.js'
+import { auditKeyFor, loadConfig } from '../src/config.js'
 
 const { values } = parseArgs({
   options: {
@@ -32,12 +33,13 @@ async function main() {
   const problem = passwordProblem(password)
   if (problem) throw new Error(problem)
 
-  const dataDir = process.env.DATA_DIR ?? './data'
+  const config = loadConfig()
+  const dataDir = config.DATA_DIR
   const users = new UserStore(dataDir)
   await users.load()
   if (users.findByEmail(values.email)) throw new Error('A user with that email already exists')
   const user = await users.create({ email: values.email, name: values.name, role: values.role as Role, department: values.department ?? '', passwordHash: await hashPassword(password) })
-  const audit = new AuditLog(dataDir)
+  const audit = new AuditLog(dataDir, auditKeyFor(config))
   await audit.load()
   await audit.record({ actor: { id: 'CLI', name: 'Command line', email: '', role: 'System' }, action: 'USER_CREATE', entity: 'User', entityId: user.id, description: `Created ${user.email} as ${user.role} from the command line`, result: 'SUCCESS', source: 'api' })
   console.log(`Created ${user.role} ${user.email} (${user.id}) in ${dataDir}/users.json`)

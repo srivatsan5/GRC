@@ -12182,9 +12182,6 @@ export interface components {
             /** @enum {string} */
             approval_status?: "DRAFT" | "SUBMITTED" | "IN_REVIEW" | "PENDING" | "APPROVED" | "REJECTED";
             approver_comments?: string;
-            approved_by?: string | number;
-            /** Format: date-time */
-            approved_on?: string;
         };
         /** @description Writable columns of per_trn_control_implementation. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
         PerTrnControlImplementationInput: {
@@ -12210,9 +12207,6 @@ export interface components {
             /** @enum {string} */
             approval_status?: "DRAFT" | "SUBMITTED" | "IN_REVIEW" | "PENDING" | "APPROVED" | "REJECTED";
             approver_comments?: string;
-            approved_by?: string | number;
-            /** Format: date-time */
-            approved_on?: string;
         };
         /** @description Writable columns of per_trn_risk_monitoring. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
         PerTrnRiskMonitoringInput: {
@@ -12238,9 +12232,6 @@ export interface components {
             /** @enum {string} */
             approval_status?: "DRAFT" | "SUBMITTED" | "IN_REVIEW" | "PENDING" | "APPROVED" | "REJECTED";
             approver_comments?: string;
-            approved_by?: string | number;
-            /** Format: date-time */
-            approved_on?: string;
         };
         /** @description Writable columns of per_trn_inherent_risk_assessment. Keys are case-insensitive. Unknown keys are ignored and listed in the X-Ignored-Fields response header. */
         PerTrnInherentRiskAssessmentInput: {

@@ -20,7 +20,10 @@ export class FakeOrds {
   mode: Mode = 'ok'
   calls: { method: string; path: string; body?: unknown; auth?: string | null }[] = []
   tokenRequests = 0
+  /** Called between the GET and the PUT of an update, to simulate a concurrent edit. */
+  beforePut?: () => void
   private nextId = 1000
+  private etag = (row: Record<string, unknown>) => `"${Buffer.from(JSON.stringify(row)).toString('base64').slice(-24)}"`
 
   seed(table: string, rows: Record<string, unknown>[]) {
     const t = this.ensure(table)
@@ -69,7 +72,7 @@ export class FakeOrds {
     const id = Number(idStr)
     if (method === 'GET') {
       const row = t.get(id)
-      return row ? Response.json(lower(row)) : Response.json({ code: 'NotFound' }, { status: 404 })
+      return row ? Response.json(lower(row), { headers: { ETag: this.etag(row) } }) : Response.json({ code: 'NotFound' }, { status: 404 })
     }
     if (method === 'POST') {
       const newId = this.nextId++
@@ -79,6 +82,9 @@ export class FakeOrds {
     }
     if (method === 'PUT') {
       if (!t.has(id)) return Response.json({ code: 'NotFound' }, { status: 404 })
+      this.beforePut?.()
+      const ifMatch = headers['If-Match']
+      if (ifMatch && ifMatch !== this.etag(t.get(id)!)) return Response.json({ code: 'PreconditionFailed' }, { status: 412 })
       const row = { ...body, UUID: id } // AutoREST: full replacement
       t.set(id, row)
       return Response.json(lower(row))

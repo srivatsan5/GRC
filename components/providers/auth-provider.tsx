@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { useQueryClient } from '@tanstack/react-query'
 import { LoginPage } from '@/components/pages/login'
 import { authApi, UNAUTHORIZED_EVENT, type ApiUser } from '@/lib/apiClient'
+import { clearRequestCache } from '@/lib/oracleService'
 
 export type Role = 'Administrator' | 'Risk Manager' | 'Assessor' | 'Auditor' | 'Viewer'
 
@@ -46,6 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [sessionMessage, setSessionMessage] = useState<string | null>(null)
 
   const applySession = useCallback((session: { user: AppUser; permissions: string[] } | null) => {
+    clearRequestCache()
     if (session) {
       setUser(session.user)
       setPermissions(session.permissions)

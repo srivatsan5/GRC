@@ -73,6 +73,8 @@ export class UserStore {
   }
 
   async create(input: { email: string; name: string; role: Role; department: string; passwordHash: string }): Promise<StoredUser> {
+    // Re-checked here (synchronously, just before insert) so two concurrent requests can't both create it.
+    if (this.findByEmail(input.email)) throw new DuplicateEmailError()
     const now = new Date().toISOString()
     const user: StoredUser = {
       id: `U-${randomUUID().slice(0, 8).toUpperCase()}`,
@@ -94,6 +96,26 @@ export class UserStore {
     return user
   }
 
+  /**
+   * Count a failed sign-in atomically (the in-memory increment happens synchronously, so
+   * parallel guesses can't all read the same old counter). Locks the account at `max`.
+   */
+  async registerFailedLogin(id: string, max: number, lockMs: number): Promise<{ locked: boolean }> {
+    const user = this.findById(id)
+    if (!user) return { locked: false }
+    const failed = user.failedLogins + 1
+    const locked = failed >= max
+    const next: StoredUser = {
+      ...user,
+      failedLogins: locked ? 0 : failed,
+      lockedUntil: locked ? new Date(Date.now() + lockMs).toISOString() : user.lockedUntil,
+      updatedAt: new Date().toISOString(),
+    }
+    this.users[this.users.indexOf(user)] = next
+    await this.persist()
+    return { locked }
+  }
+
   async update(id: string, patch: Partial<Omit<StoredUser, 'id' | 'createdAt'>>): Promise<StoredUser> {
     const idx = this.users.findIndex(u => u.id === id)
     if (idx === -1) throw new Error(`user ${id} not found`)
@@ -101,5 +123,11 @@ export class UserStore {
     this.users[idx] = next
     await this.persist()
     return next
+  }
+}
+
+export class DuplicateEmailError extends Error {
+  constructor() {
+    super('A user with this email already exists')
   }
 }

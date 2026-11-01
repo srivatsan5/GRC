@@ -184,6 +184,11 @@ const handleApiError = (error: any, endpoint: string) => {
 }
 
 const requestCache = new RequestCache()
+
+/** Drop all cached responses (called on sign-in/sign-out so one user never sees another's data). */
+export function clearRequestCache() {
+  requestCache.clear()
+}
 const requestQueue = new RequestQueue()
 
 export const oracleService = {

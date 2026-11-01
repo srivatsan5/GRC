@@ -5,7 +5,7 @@ import { requireAuth } from '../auth/middleware.js'
 import { can } from '../auth/permissions.js'
 import { forbidden, HttpError, notFound } from '../http/errors.js'
 import { OrdsError, type OrdsRow } from '../ords/client.js'
-import { DECISION_STATUSES, isWritable, TABLES, type TableDef, type WritableTable } from './registry.js'
+import { APPROVER_ONLY_COLUMNS, DECISION_STATUSES, isWritable, TABLES, type TableDef, type WritableTable } from './registry.js'
 import { idParam, listQuery, normalizePayload } from './validate.js'
 
 /** Translate a database failure into a safe API error. Never pretends the write succeeded. */
@@ -14,6 +14,8 @@ export function toHttpError(err: unknown): unknown {
   switch (err.kind) {
     case 'not_found':
       return new HttpError(404, 'NOT_FOUND', 'Record not found')
+    case 'conflict':
+      return new HttpError(409, 'CONFLICT', 'Someone else changed this record. Reload it and try again.')
     case 'rejected':
       return new HttpError(422, 'DB_REJECTED', err.message)
     case 'timeout':
@@ -45,10 +47,13 @@ function requireWritable(def: TableDef): WritableTable {
   return def
 }
 
-function writableColumns(def: WritableTable): string[] {
-  return [...Object.keys(def.columns), ...Object.values(def.serverColumns ?? {})]
+/** Echo ignored field names safely (only plain identifiers can go into a header). */
+function setIgnoredHeader(res: import('express').Response, ignored: string[]) {
+  const safe = ignored.filter(k => /^[A-Za-z0-9_]{1,64}$/.test(k)).slice(0, 50)
+  if (safe.length) res.setHeader('X-Ignored-Fields', safe.join(','))
 }
 
+const isDecision = (v: unknown) => typeof v === 'string' && DECISION_STATUSES.has(v)
 /** Try each upstream name in turn (legacy spellings), moving on only when a table doesn't exist. */
 async function withUpstream<T>(table: string, def: TableDef, fn: (upstream: string) => Promise<T>): Promise<T> {
   const candidates = ('upstreamCandidates' in def && def.upstreamCandidates) || [table]
@@ -107,17 +112,22 @@ export function tableRoutes(ctx: AppContext): Router {
   router.post('/:table', async (req, res) => {
     const table = String(req.params.table)
     const def = requireWritable(resolveTable(table))
-    if (!can(req.user!.role, 'create')) throw forbidden()
+    const role = req.user!.role
+    if (!can(role, 'create')) throw forbidden()
     const { row, ignoredFields } = normalizePayload(def, req.body, 'create')
-    const decision = typeof row.APPROVAL_STATUS === 'string' && DECISION_STATUSES.has(row.APPROVAL_STATUS)
-    if (decision && !can(req.user!.role, 'approve')) throw forbidden('Only approvers can create records as approved or rejected')
+    const decision = isDecision(row.APPROVAL_STATUS)
+    const approverFields = Object.keys(row).filter(k => APPROVER_ONLY_COLUMNS.has(k) && row[k] != null)
+    if ((decision || approverFields.length) && !can(role, 'approve')) {
+      throw forbidden('Only Risk Managers and Administrators can approve, reject or add approver comments')
+    }
     stampServerColumns(def, row, req, 'create')
+    if (decision && def.serverColumns?.approved_on) row[def.serverColumns.approved_on] = new Date().toISOString()
+    setIgnoredHeader(res, ignoredFields)
 
     try {
       const created = await ctx.ords.create(table, row)
       const id = (created as OrdsRow).uuid ?? (created as OrdsRow).id ?? null
       await audit(req, 'CREATE', table, def, id, true, `Created ${def.label.toLowerCase()}`, row)
-      if (ignoredFields.length) res.setHeader('X-Ignored-Fields', ignoredFields.join(','))
       res.status(201).json(created)
     } catch (err) {
       await audit(req, 'CREATE', table, def, null, false, `Failed to create ${def.label.toLowerCase()}: ${(err as Error).message}`)
@@ -128,25 +138,51 @@ export function tableRoutes(ctx: AppContext): Router {
   const update = async (req: Request, res: import('express').Response) => {
     const table = String(req.params.table)
     const def = requireWritable(resolveTable(table))
-    if (!can(req.user!.role, 'update')) throw forbidden()
+    const role = req.user!.role
+    if (!can(role, 'update')) throw forbidden()
     const id = idParam.parse(String(req.params.id))
     const { row, ignoredFields } = normalizePayload(def, req.body, 'update')
-
-    const status = typeof row.APPROVAL_STATUS === 'string' ? row.APPROVAL_STATUS : undefined
-    const decision = status !== undefined && DECISION_STATUSES.has(status)
-    if (decision) {
-      if (!can(req.user!.role, 'approve')) throw forbidden('Only Risk Managers and Administrators can approve or reject')
-      if ('APPROVED_ON' in def.columns && row.APPROVED_ON == null) row.APPROVED_ON = new Date().toISOString()
+    const isApprover = can(role, 'approve')
+    const hasApproval = 'APPROVAL_STATUS' in def.columns
+    const newStatus = row.APPROVAL_STATUS
+    const decision = isDecision(newStatus)
+    const approverFields = Object.keys(row).filter(k => APPROVER_ONLY_COLUMNS.has(k))
+    if ((decision || approverFields.length) && !isApprover) {
+      throw forbidden('Only Risk Managers and Administrators can approve, reject or add approver comments')
     }
     stampServerColumns(def, row, req, 'update')
-    const action = decision ? (status === 'APPROVED' ? 'APPROVE' : 'REJECT') : 'UPDATE'
+    setIgnoredHeader(res, ignoredFields)
+    const approvedOnCol = def.serverColumns?.approved_on
+    let reopened = false
 
+    const prepare = (current: OrdsRow): OrdsRow => {
+      const currentStatus = typeof current.approval_status === 'string' ? current.approval_status.toUpperCase() : null
+      if (hasApproval && isApprover) {
+        if (decision && approvedOnCol) row[approvedOnCol] = new Date().toISOString()
+        else if (newStatus !== undefined && isDecision(currentStatus) && approvedOnCol) row[approvedOnCol] = null
+      }
+      if (hasApproval && !isApprover) {
+        if ('APPROVAL_STATUS' in row && row.APPROVAL_STATUS == null) row.APPROVAL_STATUS = 'DRAFT'
+        // Editing an approved or rejected record without approval rights sends it back for review,
+        // so signed-off content can never change silently.
+        if (isDecision(currentStatus)) {
+          row.APPROVAL_STATUS = 'SUBMITTED'
+          if (approvedOnCol) row[approvedOnCol] = null
+          reopened = true
+        }
+      }
+      return row
+    }
+
+    const action = decision ? (newStatus === 'APPROVED' ? 'APPROVE' : 'REJECT') : 'UPDATE'
+    const verb = action === 'APPROVE' ? 'Approved' : action === 'REJECT' ? 'Rejected' : 'Updated'
     try {
-      const updated = await ctx.ords.update(table, id, row, writableColumns(def))
-      await audit(req, action, table, def, id, true, `${action === 'UPDATE' ? 'Updated' : status === 'APPROVED' ? 'Approved' : 'Rejected'} ${def.label.toLowerCase()}`, row)
-      if (ignoredFields.length) res.setHeader('X-Ignored-Fields', ignoredFields.join(','))
-      res.json(updated)
+      const { after } = await ctx.ords.update(table, id, prepare)
+      const note = reopened ? ' — was approved/rejected, sent back for review' : ''
+      await audit(req, action, table, def, id, true, `${verb} ${def.label.toLowerCase()}${note}`, row)
+      res.json(after)
     } catch (err) {
+      if (err instanceof HttpError) throw err
       await audit(req, action, table, def, id, false, `Failed to update ${def.label.toLowerCase()}: ${(err as Error).message}`)
       throw toHttpError(err)
     }

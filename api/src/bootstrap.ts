@@ -1,4 +1,4 @@
-import type { Config } from './config.js'
+import { auditKeyFor, type Config } from './config.js'
 import type { AppContext } from './context.js'
 import { OrdsClient } from './ords/client.js'
 import { UserStore } from './users/store.js'
@@ -19,7 +19,8 @@ export async function buildContext(config: Config, ords?: OrdsClient): Promise<A
     })
   const users = new UserStore(config.DATA_DIR)
   await users.load()
-  const audit = new AuditLog(config.DATA_DIR, client)
+  const auditKey = auditKeyFor(config)
+  const audit = new AuditLog(config.DATA_DIR, auditKey, client)
   await audit.load()
   const ctx: AppContext = { config, ords: client, users, audit, sessions: new SessionService(config) }
   await ensureBootstrapAdmin(ctx)

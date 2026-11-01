@@ -75,16 +75,16 @@ the web app's `package.json`.
 - The inherent-assessment page loads the right risk.
 
 **Tooling**
-- 43 API tests (Vitest + Supertest, with an in-memory fake of ORDS).
+- 56 API tests (Vitest + Supertest, with an in-memory fake of ORDS).
 - CI on Node 22: API typecheck, tests, build and OpenAPI drift check; web typecheck, generated-types check and build.
 - `api/Dockerfile` with a working healthcheck; simplified `docker-compose.yml`.
 - `npm run dev:fake-db` runs the app without Oracle.
 
 ## Verified
 
-- API: `npm run typecheck` ✔, `npm test` ✔ (43/43), `npm run build` ✔.
+- API: `npm run typecheck` ✔, `npm test` ✔ (56/56), `npm run build` ✔.
 - Web: `tsc --noEmit` ✔, `next build` ✔ (42 routes).
-- End-to-end in a real browser against the local ORDS stand-in (seeded from the real `probe_risks.json` rows), 17 checks passing:
+- End-to-end in a real browser against the local ORDS stand-in (seeded from the real `probe_risks.json` rows), 18 checks passing:
   - sign-in errors; httpOnly cookie not readable from JavaScript
   - dashboard loads all 25 risks
   - user creation, with weak passwords rejected
@@ -94,6 +94,31 @@ the web app's `package.json`.
   - an Assessor is blocked from Users and from approve/delete, and a spoofed role header is rejected
   - a database outage shows an error screen and a toast
 - Not verified against the real Oracle database (blocked by the sandbox network).
+
+## Independent security review: findings fixed
+
+An independent review of the new API confirmed several issues by probing them. All are fixed and covered by tests:
+
+- **Approval integrity:**
+  - Approver comments are approver-only, and `APPROVED_BY` / `APPROVED_ON` can no longer be sent by clients.
+  - The server stamps `APPROVED_ON`.
+  - If a non-approver edits an approved or rejected record, it goes back to `SUBMITTED`. Before, it stayed "approved" with changed content.
+- **Lockout:**
+  - Parallel wrong passwords could avoid the lockout. Failed sign-ins are now counted atomically.
+  - A locked account answers like a wrong password, so it can't be used to discover emails.
+- **Updates:**
+  - Every existing column is carried forward. Before, columns unknown to the API were blanked.
+  - ETag / If-Match turns a concurrent edit into a 409 instead of a silent overwrite.
+  - Odd field names can no longer crash a response after the write has succeeded.
+- **Audit chain:**
+  - Hashes are now keyed (HMAC, `AUDIT_HMAC_KEY`), so a recomputed chain fails verification.
+  - Entries deleted from the end are detected.
+  - A failed partial write is rolled back.
+  - Browser events need the matching permission, can't be approvals, and are labelled `Browser:`.
+- **Smaller fixes:**
+  - The frontend request cache is cleared on sign-in and sign-out, so the next user can't see cached data.
+  - Two simultaneous "create user" requests with the same email produce only one user.
+  - ORDS `$asof` (historical) queries are refused.
 
 ## Still open (Phase 2+)
 

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 
 const bool = z
@@ -15,6 +16,9 @@ const ConfigSchema = z
       .default('http://localhost:3000')
       .transform(s => s.split(',').map(o => o.trim()).filter(Boolean)),
     JWT_SECRET: z.preprocess(emptyToUndefined, z.string().min(32, 'JWT_SECRET must be at least 32 characters')),
+    // Key for the audit-log HMAC chain. Set it once and never change it (old entries would stop verifying).
+    // Falls back to a key derived from JWT_SECRET.
+    AUDIT_HMAC_KEY: z.preprocess(emptyToUndefined, z.string().min(32, 'AUDIT_HMAC_KEY must be at least 32 characters').optional()),
     SESSION_TTL_MINUTES: z.coerce.number().int().min(5).max(7 * 24 * 60).default(480),
     COOKIE_SECURE: bool.default(false),
     COOKIE_DOMAIN: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -64,4 +68,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     throw new Error(`Invalid API configuration:\n${lines.join('\n')}`)
   }
   return parsed.data
+}
+
+/** Key for the audit HMAC chain: AUDIT_HMAC_KEY, or one derived from JWT_SECRET. */
+export function auditKeyFor(config: Config): string {
+  return config.AUDIT_HMAC_KEY ?? createHash('sha256').update(`pericope-audit:${config.JWT_SECRET}`).digest('hex')
 }

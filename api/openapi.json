@@ -388,20 +388,6 @@
           "approver_comments": {
             "type": "string",
             "maxLength": 4000
-          },
-          "approved_by": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
-          },
-          "approved_on": {
-            "type": "string",
-            "format": "date-time"
           }
         },
         "required": []
@@ -538,20 +524,6 @@
           "approver_comments": {
             "type": "string",
             "maxLength": 4000
-          },
-          "approved_by": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
-          },
-          "approved_on": {
-            "type": "string",
-            "format": "date-time"
           }
         },
         "required": []
@@ -634,20 +606,6 @@
           "approver_comments": {
             "type": "string",
             "maxLength": 4000
-          },
-          "approved_by": {
-            "oneOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              }
-            ]
-          },
-          "approved_on": {
-            "type": "string",
-            "format": "date-time"
           }
         },
         "required": [

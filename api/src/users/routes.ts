@@ -6,7 +6,7 @@ import { requirePermission } from '../auth/middleware.js'
 import { hashPassword, passwordProblem } from '../auth/passwords.js'
 import { ROLES } from '../auth/permissions.js'
 import { badRequest, conflict, notFound } from '../http/errors.js'
-import { toPublic } from './store.js'
+import { DuplicateEmailError, toPublic } from './store.js'
 
 const CreateUser = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
@@ -41,7 +41,14 @@ export function userRoutes(ctx: AppContext): Router {
     const problem = passwordProblem(input.password)
     if (problem) throw badRequest(problem)
     if (ctx.users.findByEmail(input.email)) throw conflict('A user with this email already exists')
-    const user = await ctx.users.create({ ...input, passwordHash: await hashPassword(input.password) })
+    const passwordHash = await hashPassword(input.password)
+    let user
+    try {
+      user = await ctx.users.create({ ...input, passwordHash })
+    } catch (err) {
+      if (err instanceof DuplicateEmailError) throw conflict(err.message)
+      throw err
+    }
     await ctx.audit.record({ actor: actorOf(req.user!), action: 'USER_CREATE', entity: 'User', entityId: user.id, description: `Created user ${user.email} as ${user.role}`, result: 'SUCCESS', source: 'api', ip: req.ip })
     res.status(201).json(toPublic(user))
   })

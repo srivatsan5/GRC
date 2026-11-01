@@ -41,7 +41,7 @@ describe('audit trail', () => {
     await addUser('Administrator', 'admin@test.local')
     await addUser('Assessor', 'a@test.local')
     const agent = await login('a@test.local')
-    const res = await agent.post('/api/audit').set(xhr).send({ action: 'APPROVE', entity: 'Policy', description: 'forged', actor_name: 'CEO', actor_role: 'Administrator' })
+    const res = await agent.post('/api/audit').set(xhr).send({ action: 'UPDATE', entity: 'Policy', description: 'forged', actor_name: 'CEO', actor_role: 'Administrator' })
     expect(res.status).toBe(201)
     expect(res.body.actor_email).toBe('a@test.local')
     expect(res.body.actor_role).toBe('Assessor')

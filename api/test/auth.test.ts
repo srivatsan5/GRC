@@ -54,14 +54,26 @@ describe('authentication', () => {
     expect(res.headers['set-cookie']).toBeUndefined()
   })
 
-  it('locks an account after 5 wrong passwords', async () => {
+  it('locks an account after 5 wrong passwords, answering like a wrong password', async () => {
     const { app, addUser } = await makeApp()
     await addUser('Assessor', 'a@test.local')
     for (let i = 0; i < 5; i++) {
       await request(app).post('/api/auth/login').set(xhr).send({ email: 'a@test.local', password: 'wrong-password-99' })
     }
     const res = await request(app).post('/api/auth/login').set(xhr).send({ email: 'a@test.local', password: PASSWORD })
-    expect(res.status).toBe(423)
+    expect(res.status).toBe(401) // correct password refused while locked
+    const unknown = await request(app).post('/api/auth/login').set(xhr).send({ email: 'nobody@test.local', password: PASSWORD })
+    expect(res.body.error.message).toBe(unknown.body.error.message) // no account enumeration
+  })
+
+  it('parallel guesses cannot dodge the lockout', async () => {
+    const { app, ctx, addUser } = await makeApp()
+    const u = await addUser('Assessor', 'a@test.local')
+    await Promise.all(
+      Array.from({ length: 12 }, () => request(app).post('/api/auth/login').set(xhr).send({ email: 'a@test.local', password: 'wrong-password-99' })),
+    )
+    expect(ctx.users.findById(u.id)!.lockedUntil).not.toBeNull()
+    expect((await request(app).post('/api/auth/login').set(xhr).send({ email: 'a@test.local', password: PASSWORD })).status).toBe(401)
   })
 
   it('logout invalidates the session token, even if it was copied', async () => {

@@ -8,7 +8,7 @@
  *   Nothing here fabricates success.
  */
 
-export type OrdsErrorKind = 'not_configured' | 'auth_failed' | 'timeout' | 'unreachable' | 'rejected' | 'not_found' | 'server_error'
+export type OrdsErrorKind = 'not_configured' | 'auth_failed' | 'timeout' | 'unreachable' | 'rejected' | 'not_found' | 'conflict' | 'server_error'
 
 export class OrdsError extends Error {
   constructor(
@@ -107,10 +107,20 @@ export class OrdsClient {
     this.tokenExpiresAt = 0
   }
 
-  private async request(method: string, path: string, body?: unknown, retryOnAuth = true): Promise<unknown> {
+  private async request(method: string, path: string, body?: unknown, retryOnAuth = true, extraHeaders: Record<string, string> = {}): Promise<unknown> {
+    return (await this.send(method, path, body, retryOnAuth, extraHeaders)).data
+  }
+
+  private async send(
+    method: string,
+    path: string,
+    body?: unknown,
+    retryOnAuth = true,
+    extraHeaders: Record<string, string> = {},
+  ): Promise<{ data: unknown; etag: string | null }> {
     if (!this.opts.baseUrl) throw new OrdsError('not_configured', 'Database URL is not configured')
     const token = await this.getToken()
-    const headers: Record<string, string> = { Accept: 'application/json' }
+    const headers: Record<string, string> = { Accept: 'application/json', ...extraHeaders }
     if (body !== undefined) headers['Content-Type'] = 'application/json'
     if (token) headers.Authorization = `Bearer ${token}`
 
@@ -128,16 +138,18 @@ export class OrdsClient {
 
     if (res.status === 401 && token && retryOnAuth) {
       this.invalidateToken()
-      return this.request(method, path, body, false)
+      return this.send(method, path, body, false, extraHeaders)
     }
     if (res.status === 404) throw new OrdsError('not_found', 'Record not found', 404)
+    if (res.status === 412) throw new OrdsError('conflict', 'The record was changed by someone else', 412)
     if (res.status >= 400 && res.status < 500) {
       throw new OrdsError('rejected', await safeUpstreamMessage(res), res.status)
     }
     if (res.status >= 500) throw new OrdsError('server_error', 'The database returned an error', res.status)
-    if (res.status === 204) return null
+    const etag = res.headers.get('etag')
+    if (res.status === 204) return { data: null, etag }
     const text = await res.text()
-    return text ? JSON.parse(text) : null
+    return { data: text ? JSON.parse(text) : null, etag }
   }
 
   async list(table: string, params: { limit: number; offset: number; q?: string }): Promise<OrdsListResult> {
@@ -158,19 +170,24 @@ export class OrdsClient {
   }
 
   /**
-   * ORDS AutoREST PUT replaces the entire row (omitted columns become NULL),
-   * so a partial update is done as read → merge → write.
+   * ORDS AutoREST PUT replaces the entire row (omitted columns become NULL), so a
+   * partial update is read → merge → write:
+   * - every existing column is carried forward (not just the ones the API knows about);
+   * - `prepare` sees the current row and returns the columns to change (it may throw to refuse);
+   * - the row's ETag is sent as If-Match so a concurrent change is detected instead of overwritten.
    */
-  async update(table: string, id: number, patch: OrdsRow, writableColumns: readonly string[]): Promise<OrdsRow> {
-    const current = await this.get(table, id)
+  async update(table: string, id: number, prepare: (current: OrdsRow) => OrdsRow): Promise<{ before: OrdsRow; after: OrdsRow }> {
+    const { data, etag } = await this.send('GET', `/${table}/${id}`)
+    const current = stripLinks(data as OrdsRow)
+    const patch = prepare(current)
     const merged: OrdsRow = {}
-    for (const col of writableColumns) {
-      const key = col.toLowerCase()
-      if (key in current) merged[col] = current[key]
+    for (const [key, value] of Object.entries(current)) {
+      if (key === 'links') continue
+      merged[key.toUpperCase()] = value
     }
     Object.assign(merged, patch)
-    const data = (await this.request('PUT', `/${table}/${id}`, merged)) as OrdsRow | null
-    return stripLinks(data ?? { ...current, ...lowerKeys(patch) })
+    const res = await this.request('PUT', `/${table}/${id}`, merged, true, etag ? { 'If-Match': etag } : {})
+    return { before: current, after: stripLinks((res as OrdsRow | null) ?? { ...current, ...lowerKeys(patch) }) }
   }
 
   async remove(table: string, id: number): Promise<void> {

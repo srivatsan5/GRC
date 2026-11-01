@@ -17,7 +17,7 @@ export type ColumnType =
   | 'approval' // approval workflow status
   | 'scalar' //  string or number (legacy columns whose Oracle type is not pinned down yet)
 
-export type ServerField = 'created_on' | 'created_by' | 'updated_on' | 'updated_by'
+export type ServerField = 'created_on' | 'created_by' | 'updated_on' | 'updated_by' | 'approved_on'
 
 export interface WritableTable {
   access: 'write'
@@ -39,12 +39,17 @@ export interface ReadOnlyTable {
 
 export type TableDef = WritableTable | ReadOnlyTable
 
+// APPROVED_ON is stamped by the server; APPROVED_BY is preserved but never client-writable
+// (its Oracle type is not confirmed, the approver is recorded in the audit log).
 const APPROVAL_TRACKING: Record<string, ColumnType> = {
   APPROVAL_STATUS: 'approval',
   APPROVER_COMMENTS: 'text',
-  APPROVED_BY: 'scalar',
-  APPROVED_ON: 'date',
 }
+
+/** Columns only users with the `approve` permission may change. */
+export const APPROVER_ONLY_COLUMNS = new Set(['APPROVER_COMMENTS', 'APPROVAL_DETAILS'])
+/** A non-approver may move a record between these states (e.g. submit it for review). */
+export const WORKING_STATUSES = new Set(['DRAFT', 'SUBMITTED', 'IN_REVIEW', 'PENDING'])
 
 export const APPROVAL_STATUSES = ['DRAFT', 'SUBMITTED', 'IN_REVIEW', 'PENDING', 'APPROVED', 'REJECTED'] as const
 /** Setting one of these requires the `approve` permission. */
@@ -85,7 +90,7 @@ export const TABLES: Record<string, TableDef> = {
       ...APPROVAL_TRACKING,
     },
     defaults: { APPROVAL_STATUS: 'DRAFT', IS_STAGE_COMPLTED: 'N', STATUS: 'Y' },
-    serverColumns: { created_on: 'CREATED_ON' },
+    serverColumns: { created_on: 'CREATED_ON', approved_on: 'APPROVED_ON' },
   },
   per_trn_control_implementation: {
     access: 'write',
@@ -112,6 +117,7 @@ export const TABLES: Record<string, TableDef> = {
       ...APPROVAL_TRACKING,
     },
     defaults: { APPROVAL_STATUS: 'DRAFT', IS_STAGE_COMPLTED: 'N', ASSESSMENT_REFERENCE_NUMBER_UUID: 0 },
+    serverColumns: { approved_on: 'APPROVED_ON' },
   },
   per_trn_risk_monitoring: {
     access: 'write',
@@ -135,6 +141,7 @@ export const TABLES: Record<string, TableDef> = {
     },
     required: ['MONITORING_TITLE'],
     defaults: { APPROVAL_STATUS: 'DRAFT', IS_STAGE_COMPLTED: 'N', COMPLETION_PCT: 0 },
+    serverColumns: { approved_on: 'APPROVED_ON' },
   },
   per_trn_inherent_risk_assessment: {
     access: 'write',

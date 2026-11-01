@@ -1,5 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto'
-import { appendFile, mkdir, readFile } from 'node:fs/promises'
+import { createHmac, randomUUID } from 'node:crypto'
+import { appendFile, mkdir, readFile, stat, truncate } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { OrdsClient } from '../ords/client.js'
 
@@ -50,13 +50,14 @@ export interface AuditEntry {
 
 const GENESIS = '0'.repeat(64)
 
-function hashEntry(e: Omit<AuditEntry, 'hash'>): string {
+function hashEntry(key: string, e: Omit<AuditEntry, 'hash'>): string {
   // Fixed key order so the hash is reproducible by any verifier.
   const canonical = JSON.stringify([
     e.seq, e.id, e.timestamp, e.actor_id, e.actor_name, e.actor_email, e.actor_role, e.action,
     e.entity, e.entity_id, e.description, e.result, e.source, e.ip, e.changes, e.prev_hash,
   ])
-  return createHash('sha256').update(canonical).digest('hex')
+  // Keyed (HMAC-SHA256): without the server key nobody can recompute a valid chain after editing the file.
+  return createHmac('sha256', key).update(canonical).digest('hex')
 }
 
 export interface AuditQuery {
@@ -84,6 +85,7 @@ export class AuditLog {
 
   constructor(
     dataDir: string,
+    private readonly key: string,
     private readonly ords?: OrdsClient,
   ) {
     this.file = join(dataDir, 'audit.jsonl')
@@ -124,8 +126,15 @@ export class AuditLog {
         changes: input.changes ?? null,
         prev_hash: prev?.hash ?? GENESIS,
       }
-      const entry: AuditEntry = { ...base, hash: hashEntry(base) }
-      await appendFile(this.file, JSON.stringify(entry) + '\n', { mode: 0o600 })
+      const entry: AuditEntry = { ...base, hash: hashEntry(this.key, base) }
+      const sizeBefore = await stat(this.file).then(st => st.size, () => 0)
+      try {
+        await appendFile(this.file, JSON.stringify(entry) + '\n', { mode: 0o600 })
+      } catch (err) {
+        // Roll back a partial line (e.g. disk full) so the chain stays readable.
+        await truncate(this.file, sizeBefore).catch(() => undefined)
+        throw err
+      }
       this.entries.push(entry)
       this.mirror(entry)
       return entry
@@ -147,6 +156,7 @@ export class AuditLog {
         ACTION_TYPE: e.action,
         ENTITY_NAME: e.entity,
         ENTITY_ID: e.entity_id,
+        // seq + hash in Oracle give an independent copy to compare the file against.
         DESCRIPTION: `${e.description} [seq ${e.seq} hash ${e.hash.slice(0, 16)}]`.slice(0, 4000),
         RESULT: e.result,
         SOURCE_SYSTEM: e.source === 'ui' ? 'UI' : 'API',
@@ -189,8 +199,13 @@ export class AuditLog {
       }
       const { hash, ...rest } = e
       if (e.prev_hash !== prevHash) return { valid: false, entries: lines.length, brokenAt: e.seq ?? i + 1, reason: 'entry missing or reordered' }
-      if (hashEntry(rest) !== hash) return { valid: false, entries: lines.length, brokenAt: e.seq ?? i + 1, reason: 'entry was modified' }
+      if (hashEntry(this.key, rest) !== hash) return { valid: false, entries: lines.length, brokenAt: e.seq ?? i + 1, reason: 'entry was modified' }
       prevHash = hash
+    }
+    // Detect entries removed from the end while the API is running.
+    const last = this.entries[this.entries.length - 1]
+    if (lines.length < this.entries.length || (last && last.hash !== prevHash)) {
+      return { valid: false, entries: lines.length, brokenAt: lines.length + 1, reason: 'entries missing from the end of the log' }
     }
     return { valid: true, entries: lines.length }
   }

@@ -3,6 +3,8 @@ import { z } from 'zod'
 import type { AppContext } from '../context.js'
 import { actorOf } from '../context.js'
 import { requireAuth, requirePermission } from '../auth/middleware.js'
+import { can, type Permission } from '../auth/permissions.js'
+import { forbidden } from '../http/errors.js'
 import { AUDIT_ACTIONS } from './log.js'
 
 const ListQuery = z
@@ -18,8 +20,20 @@ const ListQuery = z
   })
   .strict()
 
-/** Events the browser may report for modules that are not database-backed yet. */
-const UI_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'EXPORT', 'VIEW', 'SETTINGS_CHANGE'] as const
+/**
+ * Events the browser may report for modules that are not database-backed yet.
+ * Approvals are deliberately not here: they only count when the API performs them.
+ * Each action needs the matching permission, so a Viewer can't log a "DELETE".
+ */
+const UI_ACTIONS = ['CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'VIEW', 'SETTINGS_CHANGE'] as const
+const UI_ACTION_PERMISSION: Record<(typeof UI_ACTIONS)[number], Permission> = {
+  CREATE: 'create',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  EXPORT: 'read',
+  VIEW: 'read',
+  SETTINGS_CHANGE: 'users:manage',
+}
 
 const UiEvent = z.object({
   action: z.enum(UI_ACTIONS),
@@ -44,10 +58,12 @@ export function auditRoutes(ctx: AppContext): Router {
   // The actor always comes from the session; clients cannot attribute events to anyone else.
   router.post('/', requireAuth, async (req, res) => {
     const e = UiEvent.parse(req.body)
+    if (!can(req.user!.role, UI_ACTION_PERMISSION[e.action])) throw forbidden('Your role cannot perform this action')
     const entry = await ctx.audit.record({
       actor: actorOf(req.user!),
       action: e.action,
-      entity: e.entity,
+      // Marked so browser-reported events are never mistaken for server-verified ones.
+      entity: `Browser: ${e.entity}`,
       entityId: e.entity_id ?? null,
       description: e.description,
       result: e.result,

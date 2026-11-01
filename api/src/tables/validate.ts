@@ -121,6 +121,7 @@ export const listQuery = z
           return false
         }
       }, 'q must be a JSON object (ORDS filter syntax)')
+      .refine(s => !/\$asof/i.test(s), 'historical ($asof) queries are not allowed')
       .optional(),
   })
   .strict()

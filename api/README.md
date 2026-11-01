@@ -54,7 +54,13 @@ npm run user:create -- --email jane@example.com --name "Jane Doe" --role "Risk M
   | Auditor | ✔ | | | | ✔ | |
   | Viewer | ✔ | | | | | |
 
+- **Approvals**: only Risk Managers and Administrators can set `APPROVED`/`REJECTED` or write approver comments.
+  `APPROVED_ON` is stamped by the server. If anyone else edits an approved or rejected record, it goes back to
+  `SUBMITTED` for re-review, so signed-off content can never change silently.
+- **Concurrent edits**: updates send the row's ETag; if someone changed the record in the meantime the API
+  answers 409 instead of overwriting their change.
 - **Sessions end immediately** on sign-out, password change, role change or deactivation.
+- A locked account answers exactly like a wrong password, so responses don't reveal which emails exist.
 - **CSRF**: state-changing requests need `X-Requested-With: XMLHttpRequest` and an allowed `Origin`.
 - **CORS** only allows `CORS_ORIGINS`. `helmet` security headers. Global rate limit.
 - **Tables**: only the tables in `src/tables/registry.ts` are reachable. Reference (`per_mst_*`) tables are
@@ -63,8 +69,10 @@ npm run user:create -- --email jane@example.com --name "Jane Doe" --role "Risk M
 - **No fake success**: if Oracle is down or rejects a change, the API says so (503/504/422) and records
   a FAILURE audit entry. There is no in-memory fallback.
 - **Audit log**: every sign-in, failed sign-in, data change and user change is appended to
-  `data/audit.jsonl`. Each entry contains the SHA-256 of the previous entry, so edits or deletions are
-  detected by `GET /api/audit/verify`. Entries are also mirrored to `ERM_TRN_AUDIT_LOG`.
+  `data/audit.jsonl`. Each entry carries an HMAC (keyed with `AUDIT_HMAC_KEY`) over its content and the previous
+  entry's hash, so edits, deletions or a recomputed chain are detected by `GET /api/audit/verify`. Entries are
+  also mirrored to `ERM_TRN_AUDIT_LOG` (with sequence number and hash) as an independent copy.
+  Set `AUDIT_HMAC_KEY` once and never change it. Browser-reported events are labelled `Browser:` and can't be approvals.
 
 ## Deploy
 
@@ -84,7 +92,11 @@ pm2 start ecosystem.config.cjs && pm2 save
 
 Production settings: `NODE_ENV=production`, `COOKIE_SECURE=true`, `CORS_ORIGINS=https://your-app-domain`,
 and if the app and API are on sibling subdomains, `COOKIE_DOMAIN=.your-domain.com`.
-Back up the `DATA_DIR` folder (users and audit chain). Run a single instance.
+Back up the `DATA_DIR` folder (users and audit chain).
+
+- **Run exactly one process** (no pm2 cluster mode, no replicas): users and the audit chain are files.
+- **`TRUST_PROXY`** must match your setup, or rate limits key on the wrong IP: `loopback` when nginx runs on the
+  same machine, `1` behind exactly one proxy/load balancer (e.g. Hostinger), never higher than the real number of proxies.
 
 ## Known limits (next phases)
 

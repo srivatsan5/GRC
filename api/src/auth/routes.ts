@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import type { AppContext } from '../context.js'
 import { actorOf, ANONYMOUS } from '../context.js'
-import { badRequest, HttpError, unauthorized } from '../http/errors.js'
+import { badRequest, unauthorized } from '../http/errors.js'
 import { requireAuth } from './middleware.js'
 import { DUMMY_HASH, hashPassword, passwordProblem, verifyPassword } from './passwords.js'
 import { permissionsFor } from './permissions.js'
@@ -42,30 +42,27 @@ export function authRoutes(ctx: AppContext): Router {
   router.post('/login', loginLimiter, async (req, res) => {
     const { email, password } = LoginBody.parse(req.body)
     const user = ctx.users.findByEmail(email)
-    const genericFailure = () => unauthorized('Email or password is incorrect')
+    const genericFailure = () => unauthorized('Email or password is incorrect, or the account is temporarily locked')
 
     if (!user) {
       await verifyPassword(password, DUMMY_HASH) // equalise timing
       await ctx.audit.record({ actor: { ...ANONYMOUS, email }, action: 'LOGIN_FAILED', entity: 'Session', description: `Failed sign-in for unknown account ${email}`, result: 'FAILURE', source: 'api', ip: req.ip })
       throw genericFailure()
     }
-    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-      throw new HttpError(423, 'ACCOUNT_LOCKED', 'Account is temporarily locked after repeated failed sign-ins. Try again later.')
-    }
     const ok = await verifyPassword(password, user.passwordHash)
-    if (!ok || !user.active) {
-      const failed = ok ? user.failedLogins : user.failedLogins + 1
-      const lock = failed >= MAX_FAILED_LOGINS
-      await ctx.users.update(user.id, {
-        failedLogins: lock ? 0 : failed,
-        lockedUntil: lock ? new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString() : user.lockedUntil,
-      })
+    // Re-read after the slow hash: another request may have locked or changed the account meanwhile.
+    const fresh = ctx.users.findById(user.id) ?? user
+    const locked = Boolean(fresh.lockedUntil && new Date(fresh.lockedUntil) > new Date())
+    if (!ok || !fresh.active || locked) {
+      // Wrong passwords always count — including while locked — and a locked account answers exactly
+      // like a wrong password, so responses don't reveal which emails exist.
+      const { locked: nowLocked } = ok ? { locked: false } : await ctx.users.registerFailedLogin(fresh.id, MAX_FAILED_LOGINS, LOCK_MINUTES * 60_000)
       await ctx.audit.record({
-        actor: actorOf(user),
+        actor: actorOf(fresh),
         action: 'LOGIN_FAILED',
         entity: 'Session',
-        entityId: user.id,
-        description: !user.active ? 'Sign-in refused: account is deactivated' : lock ? 'Wrong password — account locked for 15 minutes' : 'Wrong password',
+        entityId: fresh.id,
+        description: !fresh.active ? 'Sign-in refused: account is deactivated' : locked ? 'Sign-in refused: account is locked' : nowLocked ? 'Wrong password — account locked for 15 minutes' : 'Wrong password',
         result: 'FAILURE',
         source: 'api',
         ip: req.ip,
@@ -73,7 +70,7 @@ export function authRoutes(ctx: AppContext): Router {
       throw genericFailure()
     }
 
-    const updated = await ctx.users.update(user.id, { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date().toISOString() })
+    const updated = await ctx.users.update(fresh.id, { failedLogins: 0, lockedUntil: null, lastLoginAt: new Date().toISOString() })
     const token = await ctx.sessions.issue(updated.id, updated.tokenVersion)
     res.cookie(SESSION_COOKIE, token, ctx.sessions.cookieOptions())
     await ctx.audit.record({ actor: actorOf(updated), action: 'LOGIN', entity: 'Session', entityId: updated.id, description: `${updated.name} signed in`, result: 'SUCCESS', source: 'api', ip: req.ip })

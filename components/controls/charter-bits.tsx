@@ -6,6 +6,7 @@
  * Built only on tokens and the Charter kit in components/charter/primitives.
  */
 import React, { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Archive, CircleCheck, Download, Link2, OctagonAlert, PenLine, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { fieldBase } from '@/components/ui/input'
@@ -95,15 +96,15 @@ export function ExportCsvButton({ onClick, disabled, label = 'Export CSV' }: { o
 }
 
 /**
- * Prefills a search box from `?q=` once on mount (the ⌘K palette deep-links here).
- * Reads window.location so the route needs no Suspense boundary.
+ * Prefills a search box from `?q=` (the ⌘K palette deep-links here), including when the
+ * query changes while the page is already open.
  */
 export function useQueryParamSearch(onValue: (q: string) => void) {
+  const q = useSearchParams().get('q')
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('q')
     if (q) onValue(q)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [q])
 }
 
 // ── Table cells ──────────────────────────────────────────────────────────────

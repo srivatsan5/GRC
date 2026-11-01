@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
 import { Chip, CountUp, PageHeader, Panel, Person, SearchField, Segmented, Stat } from '@/components/charter/primitives'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { BandBadge } from '@/components/band-badge'
 import { useRows } from '@/lib/data'
 import { currentScore, toRisk } from '@/lib/risk'
@@ -82,6 +82,8 @@ export function MitigationActiveRisksPage() {
   }
   const loaded = !!(risksQ.data && implQ.data && plansQ.data)
   const of = (n: number) => (rows.length ? `${n} of ${rows.length} active risks` : 'No active risks')
+
+  useClampPage(page, shown.length, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

@@ -16,6 +16,8 @@ import { BandBadge } from '@/components/band-badge'
 import { Field, RatingSelect, selectClass, textareaClass, useNameOptions } from './shared'
 
 export const RISK_TABLE = 'per_trn_identify_risk'
+/** Tables whose rows the database removes along with a risk (cascades), so their caches must refresh after a delete. */
+export const RISK_DEPENDENT_TABLES = ['per_trn_control_implementation', 'per_trn_risk_monitoring', 'per_trn_inherent_risk_assessment', 'erm_lnk_control_risk', 'erm_lnk_incident_risk']
 export const CYCLE_TABLE = 'erm_trn_assessment_cycle'
 
 interface FormState {

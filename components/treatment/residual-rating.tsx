@@ -110,7 +110,7 @@ export function ResidualRating({ risk, canEdit, className, title = 'Inherent →
               <span className="text-body-sm text-foreground-secondary">{lxi(risk.inherentLikelihood, risk.inherentImpact) ?? 'Not rated yet'}</span>
             </dt>
             <dd>
-              <BandBadge score={inherent} kind="Inherent" rateHref={hasInherent ? undefined : '/assessments/inherent'} />
+              <BandBadge score={inherent} kind="Inherent" rateHref={hasInherent || !canEdit ? undefined : `/assessments/inherent?riskId=${risk.uuid}`} />
             </dd>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pt-3.5">

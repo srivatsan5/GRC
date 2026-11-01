@@ -7,7 +7,7 @@
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, ArrowRight, ExternalLink, History, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState, EmptyState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { BandBadge, RiskMovement } from '@/components/band-badge'
 import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
 import { RiskHeatmap } from '@/components/charter/heatmap'
@@ -36,23 +36,12 @@ const PICK_PAGE = 25
 
 export function AssessmentsinherentPage() {
   const router = useRouter()
-  const [riskId, setRiskId] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    const read = () => {
-      const id = new URLSearchParams(window.location.search).get('riskId')
-      setRiskId(id && /^\d+$/.test(id) ? id : null)
-      setReady(true)
-    }
-    read()
-    window.addEventListener('popstate', read)
-    return () => window.removeEventListener('popstate', read)
-  }, [])
+  // The risk comes from ?riskId= and follows the URL (sidebar, stepper and Back/Forward all change it).
+  const idParam = useSearchParams().get('riskId')
+  const riskId = idParam && /^\d+$/.test(idParam) ? idParam : null
 
   function choose(id: string | null) {
-    setRiskId(id)
-    router.replace(id ? `/assessments/inherent?riskId=${id}` : '/assessments/inherent', { scroll: false })
+    router.push(id ? `/assessments/inherent?riskId=${id}` : '/assessments/inherent', { scroll: false })
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
   }
 
@@ -82,7 +71,7 @@ export function AssessmentsinherentPage() {
           ) : undefined
         }
       />
-      {!ready ? null : riskId ? <Assessment riskId={riskId} /> : <RiskPicker onPick={id => choose(String(id))} />}
+      {riskId ? <Assessment key={riskId} riskId={riskId} /> : <RiskPicker onPick={id => choose(String(id))} />}
     </div>
   )
 }
@@ -111,6 +100,8 @@ function RiskPicker({ onPick }: { onPick: (id: number) => void }) {
     setView(v)
     setPage(1)
   }
+
+  useClampPage(page, q.data?.total, PICK_PAGE, setPage)
 
   return (
     <div className="space-y-4">

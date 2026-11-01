@@ -1,5 +1,7 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+
 import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Building2, CircleCheck, Clock, Gauge, OctagonAlert, ScrollText, ShieldAlert, ShieldCheck, Siren, TriangleAlert } from 'lucide-react'
@@ -38,10 +40,10 @@ export function ReportsPage() {
   const current = available.find(r => r.id === selected) ?? available[0]!
 
   // Deep link: /reports?report=kri opens that report; the choice is kept in the URL.
+  const reportParam = useSearchParams().get('report')
   useEffect(() => {
-    const r = new URLSearchParams(window.location.search).get('report')
-    if (isReportId(r)) setSelected(r)
-  }, [])
+    if (isReportId(reportParam)) setSelected(reportParam)
+  }, [reportParam])
   const choose = (id: ReportId) => {
     setSelected(id)
     const url = new URL(window.location.href)

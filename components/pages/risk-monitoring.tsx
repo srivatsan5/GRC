@@ -11,7 +11,7 @@ import { Chip, CountUp, DueChip, FilterChip, Meter, PageHeader, Panel, Person, S
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState, EmptyState, ErrorState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { useRow, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { apiErrorCode, apiErrorMessage } from '@/lib/apiClient'
 import { recordAudit } from '@/lib/auditLog'
@@ -183,6 +183,8 @@ export function RiskMonitoringPage() {
       New action plan
     </Button>
   )
+
+  useClampPage(page, shown.length, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

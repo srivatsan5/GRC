@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState, LoadingState, ErrorState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { BandBadge } from '@/components/band-badge'
 import { useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { DASH, daysUntil, formatDate, formatNumber, toDateInput } from '@/lib/format'
@@ -233,6 +233,8 @@ export function IncidentsPage() {
   const pageRiskIds = useMemo(() => Array.from(new Set(Array.from(pageLinks.values()).flat())), [pageLinks])
   const pageRisksQ = useRows(RISKS, { filter: { uuid: pageRiskIds }, enabled: pageRiskIds.length > 0 })
   const riskById = useMemo(() => new Map((pageRisksQ.data ?? []).map(r => [Number(r.uuid), toRisk(r)])), [pageRisksQ.data])
+
+  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

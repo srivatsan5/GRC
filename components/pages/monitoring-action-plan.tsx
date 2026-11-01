@@ -9,7 +9,7 @@ import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
 import { DueChip, FilterChip, PageHeader, Panel, Person, SearchField, ViewTabs } from '@/components/charter/primitives'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { useRows, type Row } from '@/lib/data'
 import { recordAudit } from '@/lib/auditLog'
 import { toRisk, type Risk } from '@/lib/risk'
@@ -51,19 +51,28 @@ export function MonitoringactionplanPage() {
   const [editing, setEditing] = useState<Row | null>(null)
   useEffect(() => setPage(1), [tab, search, riskFilter])
 
-  // Deep link (?id=) opens that plan for editing once it has loaded.
-  const [focused, setFocused] = useState(false)
+  // ?q= and ?riskId= follow the URL when it changes while the page is open.
+  const qParam = params.get('q'), riskParam = params.get('riskId')
   useEffect(() => {
-    if (focused || focusId == null || !plansQ.data) return
+    if (qParam) setSearch(qParam)
+  }, [qParam])
+  useEffect(() => {
+    if (riskParam) setRiskFilter(numOrNull(riskParam))
+  }, [riskParam])
+
+  // Deep link (?id=) opens that plan for editing once it has loaded (each new id once).
+  const [handledId, setHandledId] = useState<number | null>(null)
+  useEffect(() => {
+    if (focusId == null || handledId === focusId || !plansQ.data) return
     const row = plansQ.data.find(p => rowId(p) === focusId)
-    setFocused(true)
+    setHandledId(focusId)
     if (row && hasPermission('update')) {
       setEditing(row)
       setDialogOpen(true)
     } else if (row) {
       setSearch(text(row.monitoring_title) ?? '')
     }
-  }, [focusId, plansQ.data, focused, hasPermission])
+  }, [focusId, plansQ.data, handledId, hasPermission])
 
   const risks = useMemo(() => {
     const m = new Map<number, Risk>()
@@ -128,6 +137,8 @@ export function MonitoringactionplanPage() {
       New action plan
     </Button>
   ) : undefined
+
+  useClampPage(page, shown.length, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

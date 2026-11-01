@@ -489,6 +489,7 @@ export interface paths {
                     action?: string;
                     actor?: string;
                     entity?: string;
+                    entityId?: string;
                     from?: string;
                     to?: string;
                     search?: string;

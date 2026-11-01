@@ -69,6 +69,7 @@ export function Dashboard() {
   const { money, bands, settings } = useOrgSettings()
   const canApprove = hasPermission('approve')
   const canCreate = hasPermission('create')
+  const canUpdate = hasPermission('update')
 
   const risksQ = useRisks()
   const implQ = useRows('per_trn_control_implementation')
@@ -273,9 +274,13 @@ export function Dashboard() {
               {riskStats.unrated > 0 && (
                 <>
                   {' · '}
-                  <Link href="/assessments/inherent" className="rounded-xs font-medium text-primary hover:underline focus-ring">
-                    {riskStats.unrated} not rated
-                  </Link>
+                  {canUpdate ? (
+                    <Link href="/assessments/inherent" className="rounded-xs font-medium text-primary hover:underline focus-ring">
+                      {riskStats.unrated} not rated
+                    </Link>
+                  ) : (
+                    <span>{riskStats.unrated} not rated</span>
+                  )}
                 </>
               )}
             </>
@@ -396,7 +401,7 @@ export function Dashboard() {
         <div className="relative -mx-6 overflow-x-auto px-6 pb-1">
           <RiskHeatmap risks={risks} mode={mode} selected={selectedCell} onSelect={c => setPicked(c)} className="min-w-[460px]" />
         </div>
-        <HeatmapLegend unrated={unratedForMode} rateHref={mode === 'inherent' ? '/assessments/inherent' : '/assessments/residual'} />
+        <HeatmapLegend unrated={unratedForMode} rateHref={!canUpdate ? undefined : mode === 'inherent' ? '/assessments/inherent' : '/rcsa/mitigation'} />
       </DataState>
     </Panel>
   )

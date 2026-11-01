@@ -5,11 +5,12 @@
  * and an inset rounded work area with the top bar (breadcrumbs, ⌘K search, organisation,
  * attention bell, user menu). Below lg the sidebar becomes a drawer.
  */
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Eye, Menu, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useOrgSettings } from '@/lib/settings'
+import { LoadingState } from '@/components/data-state'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { Breadcrumbs } from './breadcrumbs'
 import { AttentionBell } from './attention-bell'
@@ -89,7 +90,8 @@ export function AppShell({ children, className }: { children: React.ReactNode; c
           </header>
 
           <main id="main" tabIndex={-1} className={cn('mx-auto w-full max-w-(--layout-content-max) flex-1 px-4 pt-6 pb-16 outline-none sm:px-6 lg:px-(--layout-page-gutter) lg:pt-8', className)}>
-            {children}
+            {/* Lets any page read the query string with useSearchParams and follow it as it changes. */}
+            <Suspense fallback={<LoadingState />}>{children}</Suspense>
           </main>
           <footer className="flex items-center justify-between px-4 pb-5 text-caption text-muted-foreground sm:px-6 lg:px-(--layout-page-gutter) print:hidden">
             <span>Pericope ERM</span>

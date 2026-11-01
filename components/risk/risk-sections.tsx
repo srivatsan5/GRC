@@ -262,7 +262,7 @@ export function openPlanCount(rows: Row[]): number {
 export function useRiskAudit(riskId: number | null, enabled: boolean, version?: unknown) {
   return useQuery({
     queryKey: ['audit', 'risk', riskId, version ?? null],
-    queryFn: () => auditApi.list({ entity: 'Risk register', search: String(riskId), limit: 200 }),
+    queryFn: () => auditApi.list({ entity: 'Risk register', entityId: String(riskId), limit: 1000 }),
     enabled: enabled && riskId != null,
     select: d => d.items.filter(e => e.entity_id === String(riskId)),
   })

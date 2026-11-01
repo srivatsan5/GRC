@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -59,4 +60,16 @@ export function Pager({
       </div>
     </nav>
   )
+}
+
+/**
+ * Keeps `page` within range. When the last row on the last page goes away (deleted, approved
+ * out of a filtered view, re-rated), step back to the new last page instead of showing "empty".
+ */
+export function useClampPage(page: number, total: number | undefined, pageSize: number, setPage: (page: number) => void) {
+  useEffect(() => {
+    if (total === undefined || total <= 0) return
+    const last = Math.max(1, Math.ceil(total / pageSize))
+    if (page > last) setPage(last)
+  }, [page, total, pageSize, setPage])
 }

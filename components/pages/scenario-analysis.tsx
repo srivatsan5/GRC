@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { DASH, formatDate, formatPct } from '@/lib/format'
 import { CountUp, FilterChip, PageHeader, Panel, SearchField } from '@/components/charter/primitives'
@@ -196,6 +196,8 @@ export function ScenarioPage() {
   const filtered = !!debounced.trim() || type !== 'All'
   const canCreate = hasPermission('create')
   const loadingAll = allQ.isLoading
+
+  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

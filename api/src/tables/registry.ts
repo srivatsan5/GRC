@@ -39,6 +39,11 @@ export interface WritableTable {
   search?: string[]
   /** Permission needed to create/update/delete (default: create / update / delete). */
   writePermission?: 'approve' | 'users:manage'
+  /**
+   * Permission needed to delete, when it differs from 'delete'. Link tables use 'update':
+   * removing a link between two records is part of editing them, not deleting either one.
+   */
+  deletePermission?: 'update'
   required?: string[]
   /** Applied on create only, and only when the client did not send the column. */
   defaults?: Record<string, string | number>
@@ -331,6 +336,7 @@ export const TABLES: Record<string, TableDef> = {
     label: 'Control–risk link',
     columns: { CONTROL_UUID: 'id', RISK_UUID: 'id' },
     required: ['CONTROL_UUID', 'RISK_UUID'],
+    deletePermission: 'update',
     serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
   },
   erm_mst_policy: {
@@ -357,6 +363,7 @@ export const TABLES: Record<string, TableDef> = {
     label: 'Policy–control link',
     columns: { POLICY_UUID: 'id', CONTROL_UUID: 'id' },
     required: ['POLICY_UUID', 'CONTROL_UUID'],
+    deletePermission: 'update',
     serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
   },
   erm_trn_incident: {
@@ -388,6 +395,7 @@ export const TABLES: Record<string, TableDef> = {
     label: 'Incident–risk link',
     columns: { INCIDENT_UUID: 'id', RISK_UUID: 'id' },
     required: ['INCIDENT_UUID', 'RISK_UUID'],
+    deletePermission: 'update',
     serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
   },
   erm_mst_vendor: {

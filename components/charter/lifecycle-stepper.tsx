@@ -41,7 +41,7 @@ export function LifecycleStepper({ current, className }: { current: LifecycleSta
     const covered = active.filter(r => withControls.has(r.uuid)).length
     return {
       cycles: cycles.data ? `${inProgress.length} in progress${latest?.cycle_name ? ` · ${latest.cycle_name}` : ''}` : null,
-      register: risks.data ? `${active.length} risks` : null,
+      register: risks.data ? `${active.length} active risks` : null,
       inherent: risks.data ? `${rated} of ${active.length} rated` : null,
       inherentPct: active.length ? (rated / active.length) * 100 : null,
       controls: risks.data && applied.data ? `${covered} of ${active.length} with controls` : null,

@@ -20,7 +20,7 @@ import { useDeleteRow, useRow, useRows, type Row } from '@/lib/data'
 import { toRisk } from '@/lib/risk'
 import { DASH, formatDate, formatDateTime } from '@/lib/format'
 import { apiErrorMessage, type ApiAuditEntry } from '@/lib/apiClient'
-import { CYCLE_TABLE, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
+import { CYCLE_TABLE, RISK_DEPENDENT_TABLES, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
 import { RiskDecisionButtons } from '@/components/rcsa/risk-decision'
 import { ApprovalBadge } from '@/components/rcsa/shared'
 import { ControlImplementationDialog, useRemoveAppliedControl } from '@/components/treatment/control-dialog'
@@ -79,7 +79,7 @@ function RiskDetail({ row }: { row: Row }) {
   const [planDialog, setPlanDialog] = useState<{ open: boolean; row: Row | null }>({ open: false, row: null })
   const { remove: removeControl, isPending: removingControl } = useRemoveAppliedControl()
   const { remove: removePlan, isPending: removingPlan } = useDeleteActionPlan()
-  const del = useDeleteRow(RISK_TABLE)
+  const del = useDeleteRow(RISK_TABLE, { alsoInvalidate: RISK_DEPENDENT_TABLES })
 
   const controls = impl.data ?? []
   const planRows = plans.data ?? []

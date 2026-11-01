@@ -7,7 +7,7 @@ import { ArrowUpRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DataState } from '@/components/data-state'
 import { BandBadge, RiskMovement } from '@/components/band-badge'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { useAuth } from '@/components/providers/auth-provider'
 import { ApprovalBadge, CountUp, PageHeader, Panel, Person, SearchField, Segmented } from '@/components/charter/primitives'
 import { HeatmapLegend, RiskHeatmap, riskRef, type CellRef } from '@/components/charter/heatmap'
@@ -68,6 +68,8 @@ export function RiskAssessmentPage() {
   }, [active, bands])
   const avgBand = stats.avg == null ? null : bandOf(Math.round(stats.avg), bands)
   const unratedForMatrix = active.filter(r => (matrix === 'inherent' ? r.inherentScore : r.residualScore) == null).length
+
+  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

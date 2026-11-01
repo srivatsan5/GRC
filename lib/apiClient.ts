@@ -74,6 +74,7 @@ export interface AuditQuery {
   action?: string
   actor?: string
   entity?: string
+  entityId?: string
   from?: string
   to?: string
   search?: string

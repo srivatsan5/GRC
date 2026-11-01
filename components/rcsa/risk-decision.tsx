@@ -10,7 +10,7 @@
  *
  * The server enforces maker-checker (nobody decides a record they created); its message is shown as is.
  */
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Check, Send, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,12 @@ export function RiskDecisionButtons({
   const status = String(risk.approval_status ?? 'DRAFT').toUpperCase()
   const id = risk.uuid ?? risk.id
   const label = String(risk.risk_statement ?? `Risk ${id}`).slice(0, 120)
+  // A reason typed for one risk must never carry over to the next (the detail sheet reuses this component on Previous / Next).
+  useEffect(() => {
+    setRejectOpen(false)
+    setComment('')
+    setCommentError(null)
+  }, [id])
   const canApprove = hasPermission('approve')
   const editable = hasPermission('update') && (status === 'DRAFT' || status === 'REJECTED')
   const awaiting = (AWAITING_STATUSES as readonly string[]).includes(status)

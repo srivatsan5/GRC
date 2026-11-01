@@ -66,6 +66,8 @@ export interface AuditQuery {
   action?: string
   actor?: string
   entity?: string
+  /** Exact match on the record id (e.g. one risk's history). */
+  entityId?: string
   from?: string
   to?: string
   search?: string
@@ -170,6 +172,7 @@ export class AuditLog {
       if (q.action && e.action !== q.action) return false
       if (q.actor && e.actor_id !== q.actor && e.actor_email !== q.actor.toLowerCase()) return false
       if (q.entity && e.entity !== q.entity) return false
+      if (q.entityId !== undefined && String(e.entity_id ?? '') !== q.entityId) return false
       if (q.from && e.timestamp < q.from) return false
       if (q.to && e.timestamp > q.to) return false
       if (search && !`${e.description} ${e.actor_name} ${e.entity} ${e.entity_id ?? ''}`.toLowerCase().includes(search)) return false

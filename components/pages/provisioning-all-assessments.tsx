@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
 import { Callout, CountUp, DueChip, FilterChip, Meter, PageHeader, Panel, SearchField, Stat, ViewTabs } from '@/components/charter/primitives'
 import { useDeleteRow, useRowPage, useRows, type Row } from '@/lib/data'
@@ -93,6 +93,10 @@ export function ProvisioningAllAssessmentsPage() {
   const del = useDeleteRow(CYCLE_TABLE)
 
   async function remove(c: Row) {
+    if (!risks.data) {
+      toast.error('Still counting this cycle’s risks. Try again in a moment.')
+      return
+    }
     const n = counts.get(Number(c.uuid))?.risks ?? 0
     if (n > 0) {
       toast.error(`This cycle has ${n} risk${n === 1 ? '' : 's'}. Move or delete them before deleting the cycle.`)
@@ -120,6 +124,8 @@ export function ProvisioningAllAssessmentsPage() {
   const pctRated = headline.risksOpen ? Math.round((headline.ratedOpen / headline.risksOpen) * 100) : null
   const headLoading = allCycles.isLoading || risks.isLoading
   const unassignedCount = unassigned.data?.total ?? 0
+
+  useClampPage(page, cycles.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

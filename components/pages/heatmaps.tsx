@@ -37,6 +37,7 @@ export function HeatmapsPage() {
   const { bands } = useOrgSettings()
   const { hasPermission } = useAuth()
   const canCreate = hasPermission('create')
+  const canUpdate = hasPermission('update')
   const [mode, setMode] = useState<HeatmapMode>('inherent')
   const [picked, setPicked] = useState<CellRef | null | undefined>(undefined)
 
@@ -73,7 +74,8 @@ export function HeatmapsPage() {
   }, [risks, mode, selected])
 
   const modeWord = mode === 'movement' ? 'inherent and residual' : which
-  const rateHref = mode === 'inherent' ? '/assessments/inherent' : '/assessments/residual'
+  // Residual ratings are set per risk on Controls & mitigation; only editors are offered the link.
+  const rateHref = !canUpdate ? undefined : mode === 'inherent' ? '/assessments/inherent' : '/rcsa/mitigation'
 
   return (
     <div className="flex flex-col gap-6">
@@ -130,9 +132,11 @@ export function HeatmapsPage() {
           <Callout
             hatch
             action={
-              <Link href={rateHref} className="inline-flex items-center gap-1 rounded-xs text-body-sm font-medium text-primary hover:underline focus-ring">
-                {mode === 'inherent' ? 'Rate inherent risk' : 'Assess residual risk'} <ArrowRight className="size-3.5" aria-hidden="true" />
-              </Link>
+              rateHref && (
+                <Link href={rateHref} className="inline-flex items-center gap-1 rounded-xs text-body-sm font-medium text-primary hover:underline focus-ring">
+                  {mode === 'inherent' ? 'Rate inherent risk' : 'Assess residual risk'} <ArrowRight className="size-3.5" aria-hidden="true" />
+                </Link>
+              )
             }
           >
             {unrated} of {risks.length} active {plural(risks.length, 'risk has', 'risks have')} no {modeWord} rating, so {unrated === 1 ? 'it is' : 'they are'} missing from this map.

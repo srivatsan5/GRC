@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { fetchAllRows, useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { DASH, formatDate, formatNumber, daysUntil, toDateInput } from '@/lib/format'
@@ -147,6 +147,8 @@ export function ControlLibraryPage() {
   const filtered = Boolean(deferredSearch.trim()) || !!typeFilter || !!statusFilter
   const canCreate = hasPermission('create')
   const loadingAll = allQ.isLoading
+
+  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

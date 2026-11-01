@@ -2,11 +2,11 @@
 
 This follows [CHANGES_PHASE_2.md](CHANGES_PHASE_2.md). The design came from Claude Design: the hand-off spec, token file and reference screens are in [`docs/design/phase3/`](docs/design/phase3/).
 
-**In one line:** every screen has been rebuilt in the Charter design system, and each one still reads and writes real data through the existing API. The API and database are unchanged in this phase.
+**In one line:** every screen has been rebuilt in the Charter design system, and each one still reads and writes real data through the existing API. The database is unchanged in this phase.
 
 ## ⚠️ What you need to do
 
-Nothing new. Phase 3 is front-end only: no migrations, no new environment variables, no API changes. Deploy the web app as before (`npm run build`).
+Nothing new: no migrations and no new environment variables. Rebuild and redeploy **both** the web app (`npm run build`) and the API (`cd api && npm run build`). The API has two small additions, listed under "Fixes from the independent review".
 
 ## Design foundation
 
@@ -47,10 +47,28 @@ Nothing new. Phase 3 is front-end only: no migrations, no new environment variab
 
 Old per-risk mitigation URLs (`/rcsa/mitigation/[id]`) now redirect to `/risks/[id]`.
 
+## Fixes from the independent review
+
+An independent review found no data-wiring mismatches against the API. It did confirm these behaviour bugs, all now fixed:
+
+| Bug | Fix |
+|---|---|
+| A list could show "empty" after its last page's last row was deleted or approved away | Every paged list steps back to the new last page (`useClampPage` in `components/pager.tsx`) |
+| ⌘K links to the page you were already on did nothing (`?q=`, `?new=1`, `?report=`) | Pages follow the query string with `useSearchParams`. The app shell now provides the Suspense boundary for this |
+| The inherent assessment page kept showing the previous risk after the URL changed | `riskId` is read from the URL, and the form resets for each risk |
+| "View in audit trail" opened the log unfiltered | The audit trail reads `?search=` |
+| Assessors were shown "Unlink" buttons that the API refused, leaving stale control–risk links | **API:** link tables (`erm_lnk_*`) accept deletes from anyone who can edit (`deletePermission: 'update'`). The records themselves still need `delete` |
+| A risk's approval history could miss entries for short ids | **API:** `/api/audit?entityId=` filters on the exact record id |
+| Residual "rate" links went to the read-only analytics page, and viewers saw "Rate now" | Links go to Controls & mitigation and are shown only to editors |
+| A reject reason typed for one risk carried over to the next in the detail sheet | The reason resets when the risk changes |
+| Deleting a risk left the controls, plans and links that depended on it in the cache | Those tables refresh too |
+| The stepper's "20 risks" and the register's "All risks 25" read as a contradiction | The stepper says "active risks". The register lists inactive risks as well |
+| Minor issues | "Apply control" now needs create permission. A cycle can't be deleted before its risk count has loaded. Monitoring `?id=` links work more than once |
+
 ## Verification
 
 - TypeScript has no errors (web and API). Lint is clean. The production build succeeds.
-- API tests: 91 of 91 pass.
+- API tests: 93 of 93 pass (2 new: link deletes by editors, exact audit record filter).
 - `e2e/real-data.cjs`: 19 of 19 pass against the production build.
   - All 31 routes render with real data.
   - Settings currency, the cycle page, the KRI matrix, the maker-checker approval in the UI, the viewer being read-only, and the attention bell are all checked.
@@ -60,6 +78,10 @@ Old per-risk mitigation URLs (`/rcsa/mitigation/[id]`) now redirect to `/risks/[
 - Screens were checked at 1440 px and 390 px in light and dark. None overflows horizontally at 390 px, and the risk register table fits at 1440 px with the sidebar open.
 
 ## Known follow-ups
+
+- The inherent assessment history shows "—" for date and author, because the API doesn't stamp `per_trn_inherent_risk_assessment` rows. To fix it:
+  - Confirm that table has `CREATED_ON` / `CREATED_BY` in Oracle (adding them with a migration if not).
+  - Add `serverColumns` for it in `api/src/tables/registry.ts`.
 
 - The progress dashboard shows more risks at "stage complete" than are approved. That is the stored data, shown as it is.
 - Unused shadcn primitives (select, tabs, card, etc.) are kept, restyled, as a kit for future screens.

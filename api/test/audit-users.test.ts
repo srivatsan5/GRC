@@ -24,6 +24,15 @@ describe('audit trail', () => {
     expect(mirrored.some(r => String(r.ACTOR_NAME).includes('rm@test.local') && r.ACTION_TYPE === 'CREATE')).toBe(true)
   })
 
+  it('filters by exact record id, so short ids do not match longer ones', async () => {
+    const { addUser, login } = await makeApp()
+    await addUser('Administrator', 'admin@test.local')
+    const agent = await login('admin@test.local')
+    for (const id of ['13', '1362', '113']) await agent.post('/api/audit').set(xhr).send({ action: 'EXPORT', entity: 'Report', entity_id: id, description: `Report ${id}` })
+    const res = await agent.get('/api/audit').query({ entity: 'Browser: Report', entityId: '13' })
+    expect(res.body.items.map((e: { entity_id: string }) => e.entity_id)).toEqual(['13'])
+  })
+
   it('detects tampering with the log file', async () => {
     const { addUser, login, dataDir } = await makeApp()
     await addUser('Administrator', 'admin@test.local')

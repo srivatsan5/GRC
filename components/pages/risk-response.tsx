@@ -1,5 +1,7 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
+
 /**
  * Treatment pipeline: every action plan (per_trn_risk_monitoring) grouped by a status
  * DERIVED from its progress and dates — nothing is read from a stored status flag:
@@ -70,11 +72,11 @@ export function RiskResponsePage() {
   const plansQ = useRows('per_trn_risk_monitoring')
   const risksQ = useRows('per_trn_identify_risk')
   const [search, setSearch] = useState('')
-  // ?q= deep link (read after mount to keep server and client markup identical)
+  // ?q= deep link, followed as it changes
+  const qParam = useSearchParams().get('q')
   useEffect(() => {
-    const q = new URLSearchParams(window.location.search).get('q')
-    if (q) setSearch(q)
-  }, [])
+    if (qParam) setSearch(qParam)
+  }, [qParam])
 
   const risksById = useMemo(() => new Map<number, Risk>((risksQ.data ?? []).map(r => toRisk(r)).map(r => [r.uuid, r])), [risksQ.data])
   const plans = useMemo(() => (plansQ.data ?? []).map(toPlan), [plansQ.data])

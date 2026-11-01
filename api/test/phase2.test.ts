@@ -81,6 +81,17 @@ describe('module tables', () => {
     expect((await manager.agent.post('/api/erm_mst_risk_appetite').set(xhr).send({ ...body, tolerance_score: 30 })).status).toBe(400)
   })
 
+  it('editors can remove links between records, but not delete the records themselves', async () => {
+    const { agent, fake } = await env('Assessor', ['erm_lnk_control_risk', 'erm_lnk_incident_risk', 'erm_lnk_policy_control', 'erm_mst_control'])
+    fake.seed('erm_lnk_control_risk', [{ uuid: 7, control_uuid: 1, risk_uuid: 2 }])
+    fake.seed('erm_mst_control', [{ uuid: 1, control_code: 'C-1', control_name: 'MFA' }])
+    expect((await agent.delete('/api/erm_lnk_control_risk/7').set(xhr)).status).toBe(204)
+    expect((await agent.delete('/api/erm_mst_control/1').set(xhr)).status).toBe(403)
+    const viewer = await env('Viewer', ['erm_lnk_control_risk'])
+    viewer.fake.seed('erm_lnk_control_risk', [{ uuid: 8, control_uuid: 1, risk_uuid: 2 }])
+    expect((await viewer.agent.delete('/api/erm_lnk_control_risk/8').set(xhr)).status).toBe(403)
+  })
+
   it('stores likelihood and impact ratings on the risk register', async () => {
     const { agent, fake } = await env('Assessor')
     const res = await agent.post('/api/per_trn_identify_risk').set(xhr).send({ risk_statement: 'x', inherent_likelihood: 4, inherent_impact: '5' })

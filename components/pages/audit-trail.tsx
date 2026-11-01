@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   useReactTable,
@@ -72,6 +73,12 @@ const timeFmt = (d: Date) => d.toLocaleTimeString(undefined, { hour: '2-digit', 
 
 export function AuditTrailPage() {
   const [globalFilter, setGlobalFilter] = useState('')
+  // ?search= (e.g. "View in audit trail" on a risk) or ?q= (⌘K) prefills the search box.
+  const params = useSearchParams()
+  const searchParam = params.get('search') ?? params.get('q')
+  useEffect(() => {
+    if (searchParam) setGlobalFilter(searchParam)
+  }, [searchParam])
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [actionFilter, setActionFilter] = useState('')

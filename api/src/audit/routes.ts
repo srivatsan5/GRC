@@ -14,6 +14,7 @@ const ListQuery = z
     action: z.enum(AUDIT_ACTIONS).optional(),
     actor: z.string().max(254).optional(),
     entity: z.string().max(128).optional(),
+    entityId: z.string().max(100).optional(),
     from: z.string().datetime().optional(),
     to: z.string().datetime().optional(),
     search: z.string().max(200).optional(),

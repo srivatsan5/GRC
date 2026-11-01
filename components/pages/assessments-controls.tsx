@@ -10,7 +10,7 @@ import { Chip, CountUp, FilterChip, PageHeader, Panel, SearchField, Stat } from 
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { BandBadge } from '@/components/band-badge'
 import { useRows, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
@@ -153,6 +153,8 @@ export function AssessmentscontrolsPage() {
   const filtered = search || effFilter || statusFilter || riskFilter != null
   const loaded = !!implQ.data
   const pct = (n: number) => (counts.total ? `${Math.round((n / counts.total) * 100)}% of applied controls` : 'No applied controls yet')
+
+  useClampPage(page, rows.length, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

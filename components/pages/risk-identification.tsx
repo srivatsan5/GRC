@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Check, CircleCheck, Columns3, Download, Ellipsis, FileSpreadsheet, Gauge, OctagonAlert, Pencil, Plus, Rows3, Rows4, ShieldCheck, SquareArrowOutUpRight, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -18,7 +19,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { BandBadge, RiskMovement } from '@/components/band-badge'
 import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
 import { Callout, FilterChip, PageHeader, Panel, Person, SearchField, Segmented, ViewTabs } from '@/components/charter/primitives'
@@ -32,7 +33,7 @@ import { apiErrorMessage } from '@/lib/apiClient'
 import { recordAudit } from '@/lib/auditLog'
 import { cn } from '@/lib/utils'
 import { ApprovalBadge, SortHeader, approvalLabel, downloadCsv, parseCsv, textareaClass, useDebounced, type SortState } from '@/components/rcsa/shared'
-import { CYCLE_TABLE, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
+import { CYCLE_TABLE, RISK_DEPENDENT_TABLES, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
 import { AWAITING_STATUSES } from '@/components/rcsa/risk-decision'
 import { RiskDetailSheet } from '@/components/risk/risk-detail-sheet'
 import { CycleLink, inherentRateHref, riskControlsHref } from '@/components/risk/risk-sections'
@@ -156,16 +157,28 @@ export function RiskIdentificationPage() {
   const [bulk, setBulk] = useState<{ running: boolean; ok: number; failed: { id: number; label: string; message: string }[] } | null>(null)
 
   // Deep links: ?q= prefills search, ?new=1 opens "Add risk", ?cycle=<uuid> filters, ?view=<view> picks a saved view.
+  // Follows the query string as it changes (the ⌘K palette can link here while the page is open).
+  const params = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const qParam = params.get('q'), cycleParam = params.get('cycle'), viewParam = params.get('view'), wantsNew = params.get('new') === '1'
   useEffect(() => {
-    const p = new URLSearchParams(window.location.search)
-    const q = p.get('q')
-    if (q) setSearchInput(q)
-    const c = p.get('cycle')
-    if (c && /^\d+$/.test(c)) setCycle(c)
-    const v = p.get('view')
-    if (isView(v)) setView(v)
-    if (p.get('new') === '1') setDialog({ open: true, risk: null })
-  }, [])
+    if (qParam) setSearchInput(qParam)
+  }, [qParam])
+  useEffect(() => {
+    if (cycleParam && /^\d+$/.test(cycleParam)) setCycle(cycleParam)
+  }, [cycleParam])
+  useEffect(() => {
+    if (isView(viewParam)) setView(viewParam)
+  }, [viewParam])
+  useEffect(() => {
+    if (!wantsNew) return
+    setDialog({ open: true, risk: null })
+    // Clear ?new=1 so a refresh or a second "Add a risk" from ⌘K behaves the same.
+    const next = new URLSearchParams(params.toString())
+    next.delete('new')
+    router.replace(next.size ? `${pathname}?${next}` : pathname, { scroll: false })
+  }, [wantsNew, params, pathname, router])
 
   const viewFilter = VIEWS.find(v => v.value === view)?.filter
   const filter = useMemo(() => {
@@ -226,7 +239,7 @@ export function RiskIdentificationPage() {
   const openIndex = items.findIndex(r => Number(r.uuid) === openId)
   const openRow = openId == null ? null : (items[openIndex] ?? all.data?.find(r => Number(r.uuid) === openId) ?? null)
 
-  const del = useDeleteRow(RISK_TABLE)
+  const del = useDeleteRow(RISK_TABLE, { alsoInvalidate: RISK_DEPENDENT_TABLES })
   const update = useUpdateRow(RISK_TABLE)
 
   async function remove(r: Risk) {
@@ -342,6 +355,8 @@ export function RiskIdentificationPage() {
   ) : null
 
   const visibleCount = TOTAL_COLUMNS - hidden.size
+
+  useClampPage(page, total, pageSize, setPage)
 
   return (
     <div className="min-w-0 space-y-6">
@@ -476,7 +491,7 @@ export function RiskIdentificationPage() {
           <strong className="font-semibold text-foreground">
             {counts.unrated} of {counts.all} risks
           </strong>{' '}
-          <span className="text-foreground-secondary">have no inherent rating, so they are missing from heatmaps and band totals.</span>
+          <span className="text-foreground-secondary">have no inherent rating. Active risks without one are left out of heatmaps and band totals.</span>
         </Callout>
       )}
 

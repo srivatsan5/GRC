@@ -39,6 +39,7 @@ export function RiskDetailSheet({
   // The edit dialog renders inside the sheet so Radix treats it as a nested layer (the sheet stays open).
   const [editOpen, setEditOpen] = useState(false)
   const canUpdate = hasPermission('update')
+  const canCreate = hasPermission('create')
   const canAudit = hasPermission('audit')
 
   // Reset the inline decision error when the shown risk changes.
@@ -94,7 +95,7 @@ export function RiskDetailSheet({
                   title="Controls"
                   meta={impl.isSuccess ? `${controls.length} applied` : undefined}
                   actions={
-                    canUpdate && (
+                    canCreate && (
                       <Button asChild variant="secondary" size="sm">
                         <Link href={riskControlsHref(risk)}>
                           <Plus aria-hidden="true" />

@@ -11,7 +11,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState, EmptyState } from '@/components/data-state'
-import { Pager } from '@/components/pager'
+import { Pager, useClampPage } from '@/components/pager'
 import { BandBadge, BandPips, RiskMovement } from '@/components/band-badge'
 import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
 import { ApprovalBadge, CountUp, DueChip, Meter, PageHeader, Panel, Person, Stat } from '@/components/charter/primitives'
@@ -20,7 +20,7 @@ import { BAND_STYLES, bandCounts, toRisk } from '@/lib/risk'
 import { formatDate } from '@/lib/format'
 import { useOrgSettings } from '@/lib/settings'
 import { apiErrorMessage } from '@/lib/apiClient'
-import { CYCLE_TABLE, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
+import { CYCLE_TABLE, RISK_DEPENDENT_TABLES, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
 import { CycleDialog } from '@/components/rcsa/cycle-dialog'
 import { CycleRiskDecision } from '@/components/cycles/decision'
 import { CycleStatusChip, CycleTimeline, SortTh, type SortState } from '@/components/cycles/cycle-bits'
@@ -56,7 +56,7 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
     filter: { identify_risk_uuid: ids },
     enabled: ids.length > 0,
   })
-  const del = useDeleteRow(RISK_TABLE)
+  const del = useDeleteRow(RISK_TABLE, { alsoInvalidate: RISK_DEPENDENT_TABLES })
 
   const controlCount = useMemo(() => {
     const m = new Map<number, number>()
@@ -143,6 +143,8 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
   const pct = (part: number) => (summary.total ? Math.round((part / summary.total) * 100) : null)
   const statsLoading = allRisks.isLoading
   const hc = summary.high + summary.critical
+
+  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

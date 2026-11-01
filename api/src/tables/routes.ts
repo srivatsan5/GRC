@@ -292,7 +292,7 @@ export function tableRoutes(ctx: AppContext): Router {
   router.delete('/:table/:id', async (req, res) => {
     const table = String(req.params.table)
     const def = requireWritable(resolveTable(table))
-    if (!can(req.user!.role, def.writePermission ?? 'delete')) throw forbidden()
+    if (!can(req.user!.role, def.writePermission ?? def.deletePermission ?? 'delete')) throw forbidden()
     const id = idParam.parse(String(req.params.id))
     try {
       await ctx.ords.remove(table, id)

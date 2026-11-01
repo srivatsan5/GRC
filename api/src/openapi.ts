@@ -228,7 +228,7 @@ export function buildOpenApi(): Record<string, unknown> {
       get: {
         tags: ['Audit'],
         summary: 'Query the audit trail (Administrator, Risk Manager, Auditor)',
-        parameters: ['limit', 'offset', 'action', 'actor', 'entity', 'from', 'to', 'search'].map(name => ({ name, in: 'query', schema: { type: ['limit', 'offset'].includes(name) ? 'integer' : 'string' } })),
+        parameters: ['limit', 'offset', 'action', 'actor', 'entity', 'entityId', 'from', 'to', 'search'].map(name => ({ name, in: 'query', schema: { type: ['limit', 'offset'].includes(name) ? 'integer' : 'string' } })),
         responses: { '200': { description: 'OK', ...json({ type: 'object', required: ['items', 'total'], properties: { items: { type: 'array', items: ref('AuditEntry') }, total: { type: 'integer' } } }) } },
       },
       post: {

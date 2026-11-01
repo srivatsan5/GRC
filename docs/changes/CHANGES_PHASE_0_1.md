@@ -1,6 +1,6 @@
 # Phase 0 + Phase 1: what changed
 
-This follows [AUDIT_REPORT.md](AUDIT_REPORT.md), §10 Phase 0 ("Lock it down") and Phase 1 ("Real backend foundation").
+This follows [AUDIT_REPORT.md](../AUDIT_REPORT.md), §10 Phase 0 ("Lock it down") and Phase 1 ("Real backend foundation").
 
 ## ⚠️ Actions only you can take
 

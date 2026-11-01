@@ -1,12 +1,12 @@
 # Phase 2: Make the data real
 
-This follows [AUDIT_REPORT.md](AUDIT_REPORT.md) §10, Phase 2. Phase 0 and 1 are in [CHANGES_PHASE_0_1.md](CHANGES_PHASE_0_1.md).
+This follows [AUDIT_REPORT.md](../AUDIT_REPORT.md) §10, Phase 2. Phase 0 and 1 are in [CHANGES_PHASE_0_1.md](CHANGES_PHASE_0_1.md).
 
 **In one line:** every number, chart and list in the app now comes from the database through the API. Nothing is invented, and nothing is stored only in the browser.
 
 ## ⚠️ What you need to do
 
-1. **Run the database migrations** on your Autonomous Database as the schema owner, in order. See [db/README.md](db/README.md) (Flyway command or SQLcl `@` files):
+1. **Run the database migrations** on your Autonomous Database as the schema owner, in order. See [db/README.md](../../db/README.md) (Flyway command or SQLcl `@` files):
    - `V1` helper package
    - `V2` likelihood/impact columns, indexes and foreign keys
    - `V3` the new module tables

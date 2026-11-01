@@ -1,5 +1,7 @@
 # Deploying Pericope (Hostinger / any VPS)
 
+> Using Docker instead? See [../DEPLOYMENT.md](../DEPLOYMENT.md). Run the database migrations first either way (step 1 there).
+
 Two parts are deployed separately:
 
 | Part | Folder | Example domain |
@@ -38,6 +40,8 @@ ORDS_CLIENT_SECRET=<new, rotated secret>
 BOOTSTRAP_ADMIN_EMAIL=you@yourcompany.com
 BOOTSTRAP_ADMIN_PASSWORD=<12+ chars, used once>
 TRUST_PROXY=1
+AUDIT_HMAC_KEY=<32+ random characters; set once, never change>
+# SENTRY_DSN=<optional: report server errors to Sentry>
 ```
 
 Start it:

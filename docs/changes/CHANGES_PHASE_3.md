@@ -1,6 +1,6 @@
 # Phase 3: The Charter design, connected end to end
 
-This follows [CHANGES_PHASE_2.md](CHANGES_PHASE_2.md). The design came from Claude Design: the hand-off spec, token file and reference screens are in [`docs/design/phase3/`](docs/design/phase3/).
+This follows [CHANGES_PHASE_2.md](CHANGES_PHASE_2.md). The design came from Claude Design: the hand-off spec, token file and reference screens are in [`docs/design/phase3/`](../design/phase3/).
 
 **In one line:** every screen has been rebuilt in the Charter design system, and each one still reads and writes real data through the existing API. The database is unchanged in this phase.
 

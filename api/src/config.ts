@@ -36,6 +36,8 @@ const ConfigSchema = z
     RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(1200),
     LOGIN_RATE_LIMIT_PER_15_MIN: z.coerce.number().int().positive().default(10),
     // Express 'trust proxy' setting: hop count, or a list such as 'loopback'. Needed for correct client IPs behind nginx.
+    // Optional: report unexpected errors to Sentry.
+    SENTRY_DSN: z.preprocess(emptyToUndefined, z.string().url().optional()),
     TRUST_PROXY: z
       .string()
       .default('loopback')

@@ -17,6 +17,8 @@ declare global {
   namespace Express {
     interface Request {
       user?: StoredUser
+      /** Correlates a request's log lines, error reports and the client's error message. */
+      id?: string
     }
   }
 }

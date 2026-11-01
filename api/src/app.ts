@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import express from 'express'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
@@ -13,12 +14,16 @@ import { workflowRoutes } from './workflow/routes.js'
 import { settingsRoutes } from './settings/routes.js'
 import { buildOpenApi } from './openapi.js'
 import { errorHandler, notFoundHandler } from './http/errors.js'
+import { log, setLogSilent } from './lib/log.js'
 
 export function createApp(ctx: AppContext) {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', ctx.config.TRUST_PROXY)
+  setLogSilent(ctx.config.NODE_ENV === 'test')
 
+  // First, so every later failure (even a malformed body) carries the request id.
+  app.use(requestLogger)
   app.use(helmet())
   app.use(
     cors({
@@ -26,13 +31,12 @@ export function createApp(ctx: AppContext) {
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
       allowedHeaders: ['Content-Type', 'X-Requested-With', 'Authorization'],
-      exposedHeaders: ['X-Ignored-Fields'],
+      exposedHeaders: ['X-Ignored-Fields', 'X-Request-Id'],
       maxAge: 600,
     }),
   )
   app.use(express.json({ limit: '256kb' }))
   app.use(cookieParser())
-  app.use(requestLogger(ctx.config.NODE_ENV !== 'test'))
 
   // Unauthenticated probes. They reveal nothing about the upstream host.
   app.get('/health', (_req, res) => {
@@ -82,23 +86,19 @@ export function createApp(ctx: AppContext) {
   return app
 }
 
-function requestLogger(enabled: boolean): express.RequestHandler {
-  return (req, res, next) => {
-    if (!enabled) return next()
-    const start = process.hrtime.bigint()
-    res.on('finish', () => {
-      const ms = Number(process.hrtime.bigint() - start) / 1e6
-      const line = {
-        t: new Date().toISOString(),
-        method: req.method,
-        path: req.path,
-        status: res.statusCode,
-        ms: Math.round(ms),
-        user: req.user?.id ?? null,
-        ip: req.ip,
-      }
-      console.log(JSON.stringify(line))
-    })
-    next()
-  }
+const REQUEST_ID = /^[A-Za-z0-9._-]{8,100}$/
+
+/** Gives every request an id (or keeps a valid one from the proxy), returns it as X-Request-Id, and logs the outcome. */
+const requestLogger: express.RequestHandler = (req, res, next) => {
+  const incoming = req.get('X-Request-Id')
+  req.id = incoming && REQUEST_ID.test(incoming) ? incoming : randomUUID()
+  res.setHeader('X-Request-Id', req.id)
+  const start = process.hrtime.bigint()
+  res.on('finish', () => {
+    const ms = Number(process.hrtime.bigint() - start) / 1e6
+    const fields = { requestId: req.id, method: req.method, path: req.path, status: res.statusCode, ms: Math.round(ms), user: req.user?.id ?? null, ip: req.ip }
+    if (res.statusCode >= 500) log.warn('request failed', fields)
+    else log.info('request', fields)
+  })
+  next()
 }

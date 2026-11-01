@@ -1,3 +1,4 @@
+import { log } from './lib/log.js'
 import { auditKeyFor, type Config } from './config.js'
 import type { AppContext } from './context.js'
 import { OrdsClient } from './ords/client.js'
@@ -40,5 +41,5 @@ async function ensureBootstrapAdmin(ctx: AppContext) {
     result: 'SUCCESS',
     source: 'api',
   })
-  console.log(`[api] created bootstrap administrator ${user.email}. Remove BOOTSTRAP_ADMIN_PASSWORD from the environment now.`)
+  log.warn('created bootstrap administrator; remove BOOTSTRAP_ADMIN_PASSWORD from the environment now', { email: user.email })
 }

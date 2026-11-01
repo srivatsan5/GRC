@@ -1,3 +1,4 @@
+import { log } from '../lib/log.js'
 import { createHmac, randomUUID } from 'node:crypto'
 import { appendFile, mkdir, readFile, stat, truncate } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -163,7 +164,7 @@ export class AuditLog {
         RESULT: e.result,
         SOURCE_SYSTEM: e.source === 'ui' ? 'UI' : 'API',
       })
-      .catch(err => console.warn(`[audit] could not mirror seq ${e.seq} to Oracle: ${(err as Error).message}`))
+      .catch(err => log.warn('audit entry not mirrored to Oracle', { seq: e.seq, error: (err as Error).message }))
   }
 
   query(q: AuditQuery): { items: AuditEntry[]; total: number } {

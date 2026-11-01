@@ -1,7 +1,36 @@
-@import 'tailwindcss';
+/* =============================================================================
+   Pericope ERM: "Charter" design tokens, rev 2
+   Replaces app/globals.css. Tailwind CSS v4 + shadcn/ui (New York, CSS variables).
+   All colours are OKLCH and sit inside the sRGB gamut.
+
+   Verified when this file was generated (WCAG 2.x relative luminance):
+   light: 57 text pairs (min 5.28:1), 13 UI pairs checked
+   dark: 57 text pairs (min 4.51:1), 13 UI pairs checked
+   All checked pairs pass AA: text 4.5:1 or better, UI marks and focus 3:1 or better.
+   Risk scale, minimum ΔE (OKLab×100) between adjacent bands under simulated
+   deuteranopia / protanopia / tritanopia (Machado 2009):
+     light 13.2 / 17.0 / 15.6 · dark 9.5 / 5.5 / 7.1
+   (dark trades some separation for a Critical that reads as red, not pink;
+   every band also carries its number and a 1–4 signal-bar glyph)
+
+   Fonts. The @import below works as-is. For self-hosting with next/font, load
+   Inter, Newsreader (axes: ['opsz']) and JetBrains_Mono with
+   variable: '--font-inter' | '--font-newsreader' | '--font-jetbrains-mono'
+   on <html>, then delete the @import. The font stacks pick them up either way.
+
+   Theme. Light is the default. next-themes: attribute="class", defaultTheme="light".
+   Density. <html data-density="compact"> switches tables and controls to 32 px rows.
+   Dark is screen-only: printed board packs always use the light tokens.
+   ============================================================================= */
+
+@import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
+/* -----------------------------------------------------------------------------
+   1. Tailwind theme: colours, fonts, radius and shadows read the runtime
+      variables, so each value is defined once per theme below.
+   -------------------------------------------------------------------------- */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -22,140 +51,664 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-page: var(--surface-page);
+  --color-surface-raised: var(--surface-raised);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-border-strong: var(--border-strong);
+  --color-hover: var(--hover);
+  --color-selection: var(--selection);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-risk-low: var(--risk-low);
+  --color-risk-low-fg: var(--risk-low-fg);
+  --color-risk-low-bg: var(--risk-low-bg);
+  --color-risk-low-border: var(--risk-low-border);
+  --color-risk-low-text: var(--risk-low-text);
+  --color-risk-moderate: var(--risk-moderate);
+  --color-risk-moderate-fg: var(--risk-moderate-fg);
+  --color-risk-moderate-bg: var(--risk-moderate-bg);
+  --color-risk-moderate-border: var(--risk-moderate-border);
+  --color-risk-moderate-text: var(--risk-moderate-text);
+  --color-risk-high: var(--risk-high);
+  --color-risk-high-fg: var(--risk-high-fg);
+  --color-risk-high-bg: var(--risk-high-bg);
+  --color-risk-high-border: var(--risk-high-border);
+  --color-risk-high-text: var(--risk-high-text);
+  --color-risk-critical: var(--risk-critical);
+  --color-risk-critical-fg: var(--risk-critical-fg);
+  --color-risk-critical-bg: var(--risk-critical-bg);
+  --color-risk-critical-border: var(--risk-critical-border);
+  --color-risk-critical-text: var(--risk-critical-text);
+  --color-risk-unrated: var(--risk-unrated);
+  --color-risk-unrated-fg: var(--risk-unrated-fg);
+  --color-risk-unrated-bg: var(--risk-unrated-bg);
+  --color-risk-unrated-border: var(--risk-unrated-border);
+  --color-risk-unrated-text: var(--risk-unrated-text);
+  --color-risk-hatch: var(--risk-hatch);
+  --color-status-success: var(--status-success);
+  --color-status-success-fg: var(--status-success-fg);
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-fg: var(--status-warning-fg);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-danger: var(--status-danger);
+  --color-status-danger-fg: var(--status-danger-fg);
+  --color-status-danger-bg: var(--status-danger-bg);
+  --color-status-info: var(--status-info);
+  --color-status-info-fg: var(--status-info-fg);
+  --color-status-info-bg: var(--status-info-bg);
+  --color-kri-green: var(--kri-green);
+  --color-kri-green-fg: var(--kri-green-fg);
+  --color-kri-green-bg: var(--kri-green-bg);
+  --color-kri-amber: var(--kri-amber);
+  --color-kri-amber-fg: var(--kri-amber-fg);
+  --color-kri-amber-bg: var(--kri-amber-bg);
+  --color-kri-red: var(--kri-red);
+  --color-kri-red-fg: var(--kri-red-fg);
+  --color-kri-red-bg: var(--kri-red-bg);
 
-  --radius-sm: calc(var(--radius) - 2px);
+  /* Fonts */
+  --font-sans: var(--font-inter, "Inter"), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-newsreader, "Newsreader"), "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Radius scale: 3 · 5 · 8 · 12 · 16 px */
+  --radius-xs: calc(var(--radius) - 5px);
+  --radius-sm: calc(var(--radius) - 3px);
   --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  
-  --font-sans: var(--font-inter), 'Inter', sans-serif;
-  --font-mono: ui-monospace, monospace;
+  --radius-lg: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) + 8px);
+
+  /* Elevation. shadcn components use shadow-xs / sm / md / lg; they map here. */
+  --shadow-xs: var(--elevation-xs);
+  --shadow-sm: var(--elevation-panel);
+  --shadow-md: var(--elevation-popover);
+  --shadow-lg: var(--elevation-dialog);
+  --shadow-xl: var(--elevation-dialog);
+  --shadow-panel: var(--elevation-panel);
+  --shadow-raised: var(--elevation-raised);
+  --shadow-popover: var(--elevation-popover);
+  --shadow-dialog: var(--elevation-dialog);
+  --shadow-button: var(--elevation-button);
 }
 
-/* Azure Pericope: High-Fidelity White & Blue Tint Design System */
+@theme {
+  /* 4 px base grid: p-1 = 4 px, p-2 = 8 px … */
+  --spacing: 0.25rem;
+  --breakpoint-3xl: 100rem;
+
+  /* Type scale. Inter for UI; the font-display (serif) sizes are for figures and titles only. */
+  --text-caption: 0.75rem;          --text-caption--line-height: 1.125rem;
+  --text-label: 0.75rem;            --text-label--line-height: 1rem;      --text-label--letter-spacing: 0.07em;  --text-label--font-weight: 500;
+  --text-body-sm: 0.8125rem;        --text-body-sm--line-height: 1.25rem;
+  --text-body: 0.875rem;            --text-body--line-height: 1.25rem;
+  --text-body-lg: 1rem;             --text-body-lg--line-height: 1.5rem;
+  --text-section: 1.3125rem;        --text-section--line-height: 1.625rem; --text-section--letter-spacing: -0.01em; --text-section--font-weight: 500;
+  --text-title: 2.25rem;            --text-title--line-height: 2.5rem;     --text-title--letter-spacing: -0.025em; --text-title--font-weight: 400;
+  --text-title-lg: 2.75rem;         --text-title-lg--line-height: 3rem;    --text-title-lg--letter-spacing: -0.025em; --text-title-lg--font-weight: 400;
+  --text-figure-sm: 1.25rem;        --text-figure-sm--line-height: 1.5rem;  --text-figure-sm--letter-spacing: -0.01em;
+  --text-figure: 2.5rem;            --text-figure--line-height: 2.75rem;   --text-figure--letter-spacing: -0.02em;
+  --text-figure-lg: 4rem;           --text-figure-lg--line-height: 3.75rem; --text-figure-lg--letter-spacing: -0.025em;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.3, 0, 0, 1);
+  --default-transition-duration: 150ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+
+  --animate-shimmer: shimmer 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  --animate-fade-in: fade-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
+  --animate-pop-in: pop-in 150ms cubic-bezier(0.2, 0, 0, 1) both;
+  --animate-dialog-in: dialog-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
+  --animate-sheet-in: sheet-in 250ms cubic-bezier(0.3, 0, 0, 1) both;
+  --animate-toast-in: toast-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
+
+  @keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } to { opacity: 1; transform: none; } }
+  @keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+  @keyframes sheet-in { from { opacity: 0.6; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+
+/* -----------------------------------------------------------------------------
+   2. Light theme (default)
+   -------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #1e40af;
+  color-scheme: light;
+  --radius: 0.5rem;
 
-  --card: rgba(255, 255, 255, 0.7);
-  --card-foreground: #1e40af;
+  /* shadcn/ui semantic tokens */
+  --background: oklch(0.945 0.010 78);
+  --foreground: oklch(0.22 0.015 60);
+  --card: oklch(0.993 0.004 85);
+  --card-foreground: oklch(0.22 0.015 60);
+  --popover: oklch(0.998 0.002 85);
+  --popover-foreground: oklch(0.22 0.015 60);
+  --primary: oklch(0.40 0.075 165);
+  --primary-foreground: oklch(0.985 0.01 120);
+  --secondary: oklch(0.935 0.011 78);
+  --secondary-foreground: oklch(0.22 0.015 60);
+  --muted: oklch(0.955 0.009 79);
+  --muted-foreground: oklch(0.49 0.014 60);
+  --accent: oklch(0.945 0.016 160);
+  --accent-foreground: oklch(0.22 0.015 60);
+  --destructive: oklch(0.47 0.16 25);
+  --destructive-foreground: oklch(0.985 0.006 60);
+  --border: oklch(0.22 0.015 60 / 0.12);
+  --input: oklch(0.615 0.012 70);
+  --ring: oklch(0.40 0.075 165);
 
-  --popover: rgba(255, 255, 255, 0.9);
-  --popover-foreground: #1e40af;
+  /* Surfaces and text beyond shadcn */
+  --surface-sunken: oklch(0.945 0.010 78);
+  --surface-page: oklch(0.965 0.008 80);
+  --surface-raised: oklch(0.998 0.002 85);
+  --foreground-secondary: oklch(0.41 0.015 60);
+  --border-strong: oklch(0.22 0.015 60 / 0.20);
+  --hover: oklch(0.22 0.015 60 / 0.045);
+  --selection: oklch(0.40 0.075 165 / 0.16);
 
-  --primary: #2563eb; /* Royal Blue 600 */
-  --primary-foreground: #ffffff;
+  /* Charts (Recharts): categorical series 1–5, grid and axis */
+  --chart-1: oklch(0.40 0.075 165);
+  --chart-2: oklch(0.50 0.07 235);
+  --chart-3: oklch(0.55 0.08 320);
+  --chart-4: oklch(0.62 0.06 200);
+  --chart-5: oklch(0.55 0.015 60);
+  --chart-grid: oklch(0.22 0.015 60 / 0.08);
+  --chart-axis: oklch(0.49 0.014 60);
 
-  --secondary: #eff6ff;
-  --secondary-foreground: #1e40af;
+  /* Sidebar */
+  --sidebar: oklch(0.965 0.008 80);
+  --sidebar-foreground: oklch(0.41 0.015 60);
+  --sidebar-primary: oklch(0.40 0.075 165);
+  --sidebar-primary-foreground: oklch(0.985 0.01 120);
+  --sidebar-accent: oklch(0.993 0.004 85);
+  --sidebar-accent-foreground: oklch(0.22 0.015 60);
+  --sidebar-border: oklch(0.22 0.015 60 / 0.10);
+  --sidebar-ring: oklch(0.40 0.075 165);
 
-  --muted: #f8fafc;
-  --muted-foreground: #6b8db5;
+  /* Risk scale. base = solid fill · -fg = text on the solid · -bg = soft wash · -border = keyline · -text = coloured text on a wash, card or page */
+  --risk-low: oklch(0.90 0.045 150);
+  --risk-low-fg: oklch(0.30 0.055 155);
+  --risk-low-bg: oklch(0.962 0.014 150);
+  --risk-low-border: oklch(0.80 0.05 150);
+  --risk-low-text: oklch(0.40 0.07 155);
+  --risk-moderate: oklch(0.78 0.115 80);
+  --risk-moderate-fg: oklch(0.31 0.07 65);
+  --risk-moderate-bg: oklch(0.962 0.03 85);
+  --risk-moderate-border: oklch(0.76 0.10 80);
+  --risk-moderate-text: oklch(0.45 0.09 70);
+  --risk-high: oklch(0.645 0.14 45);
+  --risk-high-fg: oklch(0.20 0.06 40);
+  --risk-high-bg: oklch(0.95 0.028 50);
+  --risk-high-border: oklch(0.68 0.12 46);
+  --risk-high-text: oklch(0.47 0.13 42);
+  --risk-critical: oklch(0.44 0.14 22);
+  --risk-critical-fg: oklch(0.975 0.01 60);
+  --risk-critical-bg: oklch(0.94 0.03 22);
+  --risk-critical-border: oklch(0.55 0.14 22);
+  --risk-critical-text: oklch(0.45 0.15 22);
+  --risk-unrated: oklch(0.935 0.011 78);
+  --risk-unrated-fg: oklch(0.41 0.015 60);
+  --risk-unrated-bg: oklch(0.955 0.009 79);
+  --risk-unrated-border: oklch(0.22 0.015 60 / 0.20);
+  --risk-unrated-text: oklch(0.41 0.015 60);
+  --risk-hatch: oklch(0.22 0.015 60 / 0.10);
 
-  --accent: #f1f5f9;
-  --accent-foreground: #1e40af;
+  /* Status (semantic). base = fill/dot · -fg = text and icons · -bg = soft wash */
+  --status-success: oklch(0.56 0.13 145);
+  --status-success-fg: oklch(0.46 0.11 145);
+  --status-success-bg: oklch(0.955 0.035 145);
+  --status-warning: oklch(0.76 0.14 75);
+  --status-warning-fg: oklch(0.47 0.10 65);
+  --status-warning-bg: oklch(0.958 0.035 85);
+  --status-danger: oklch(0.47 0.16 25);
+  --status-danger-fg: oklch(0.45 0.15 25);
+  --status-danger-bg: oklch(0.948 0.022 25);
+  --status-info: oklch(0.50 0.07 235);
+  --status-info-fg: oklch(0.45 0.07 235);
+  --status-info-bg: oklch(0.952 0.015 235);
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  /* KRI traffic lights (Within appetite / Warning / Breach) */
+  --kri-green: oklch(0.56 0.13 145);
+  --kri-green-fg: oklch(0.46 0.11 145);
+  --kri-green-bg: oklch(0.955 0.035 145);
+  --kri-amber: oklch(0.76 0.14 75);
+  --kri-amber-fg: oklch(0.47 0.10 65);
+  --kri-amber-bg: oklch(0.958 0.035 85);
+  --kri-red: oklch(0.44 0.14 22);
+  --kri-red-fg: oklch(0.45 0.15 22);
+  --kri-red-bg: oklch(0.94 0.03 22);
 
-  --border: rgba(226, 232, 240, 0.6);
-  --input: rgba(241, 245, 249, 0.5);
-  --ring: rgba(37, 99, 235, 0.2);
+  /* Elevation: page → panel → raised → popover → dialog. Only popovers, sheets and dialogs float. */
+  --elevation-xs: 0 1px 1px oklch(0.22 0.015 60 / 0.04);
+  --elevation-panel: 0 0 0 1px oklch(0.22 0.015 60 / 0.07), 0 1px 2px oklch(0.22 0.015 60 / 0.05), 0 8px 24px -12px oklch(0.22 0.015 60 / 0.10);
+  --elevation-raised: 0 0 0 1px oklch(0.22 0.015 60 / 0.08), 0 2px 4px oklch(0.22 0.015 60 / 0.06), 0 12px 28px -12px oklch(0.22 0.015 60 / 0.16);
+  --elevation-popover: 0 0 0 0.5px oklch(0.22 0.015 60 / 0.16), 0 4px 8px oklch(0.22 0.015 60 / 0.06), 0 18px 40px -12px oklch(0.22 0.015 60 / 0.26);
+  --elevation-dialog: 0 0 0 0.5px oklch(0.22 0.015 60 / 0.16), 0 8px 16px oklch(0.22 0.015 60 / 0.08), 0 32px 64px -16px oklch(0.22 0.015 60 / 0.32);
+  --elevation-button: inset 0 1px 0 oklch(1 0 0 / 0.16), inset 0 -1px 0 oklch(0 0 0 / 0.12), 0 1px 2px oklch(0.22 0.015 60 / 0.20);
 
-  --radius: 1.25rem;
+  /* Focus: 2 px ring, 2 px offset. Evergreen on ivory and stone is 8:1 or better. */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* Motion durations: use as duration-(--duration-fast) */
+  --duration-instant: 100ms;
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-slow: 250ms;
+  --duration-count-up: 600ms;
+
+  /* Layout and density */
+  --layout-sidebar-width: 248px;
+  --layout-sidebar-rail: 64px;
+  --layout-topbar-height: 60px;
+  --layout-page-gutter: 40px;
+  --layout-content-max: 1440px;
+  --row-height: 44px;
+  --row-height-header: 40px;
+  --cell-padding-x: 12px;
+  --control-height: 36px;
+  --badge-height: 22px;
 }
 
-/* Dark mode forced to light */
+[data-density="compact"] {
+  --row-height: 32px;
+  --row-height-header: 32px;
+  --cell-padding-x: 10px;
+  --control-height: 32px;
+  --badge-height: 20px;
+}
+
+/* -----------------------------------------------------------------------------
+   3. Dark theme ("humidor"). Designed separately, not inverted: on a dark ground
+      the risk scale gets brighter as risk rises; panels lift by tone plus a 1 px
+      top highlight instead of shadow.
+   -------------------------------------------------------------------------- */
 .dark {
-  --background: #ffffff;
-  --foreground: #1e40af;
-  --card: rgba(255, 255, 255, 0.7);
-  --card-foreground: #1e40af;
-  --popover: rgba(255, 255, 255, 0.9);
-  --popover-foreground: #1e40af;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --secondary: #eff6ff;
-  --secondary-foreground: #1e40af;
-  --muted: #f8fafc;
-  --muted-foreground: #6b8db5;
-  --accent: #f1f5f9;
-  --accent-foreground: #1e40af;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: rgba(226, 232, 240, 0.6);
-  --input: rgba(241, 245, 249, 0.5);
-  --ring: rgba(37, 99, 235, 0.2);
+  color-scheme: dark;
+
+  /* shadcn/ui semantic tokens */
+  --background: oklch(0.165 0.010 60);
+  --foreground: oklch(0.94 0.012 85);
+  --card: oklch(0.215 0.011 60);
+  --card-foreground: oklch(0.94 0.012 85);
+  --popover: oklch(0.25 0.012 60);
+  --popover-foreground: oklch(0.94 0.012 85);
+  --primary: oklch(0.80 0.075 172);
+  --primary-foreground: oklch(0.19 0.03 170);
+  --secondary: oklch(0.27 0.012 60);
+  --secondary-foreground: oklch(0.94 0.012 85);
+  --muted: oklch(0.245 0.012 60);
+  --muted-foreground: oklch(0.70 0.015 70);
+  --accent: oklch(0.28 0.02 165);
+  --accent-foreground: oklch(0.94 0.012 85);
+  --destructive: oklch(0.66 0.18 25);
+  --destructive-foreground: oklch(0.16 0.04 25);
+  --border: oklch(0.94 0.012 85 / 0.10);
+  --input: oklch(0.52 0.012 70);
+  --ring: oklch(0.80 0.075 172);
+
+  /* Surfaces and text beyond shadcn */
+  --surface-sunken: oklch(0.165 0.010 60);
+  --surface-page: oklch(0.185 0.010 60);
+  --surface-raised: oklch(0.25 0.012 60);
+  --foreground-secondary: oklch(0.80 0.014 75);
+  --border-strong: oklch(0.94 0.012 85 / 0.16);
+  --hover: oklch(0.94 0.012 85 / 0.05);
+  --selection: oklch(0.80 0.075 172 / 0.24);
+
+  /* Charts (Recharts): categorical series 1–5, grid and axis */
+  --chart-1: oklch(0.80 0.075 172);
+  --chart-2: oklch(0.74 0.08 235);
+  --chart-3: oklch(0.74 0.08 320);
+  --chart-4: oklch(0.80 0.05 200);
+  --chart-5: oklch(0.72 0.015 70);
+  --chart-grid: oklch(0.94 0.012 85 / 0.07);
+  --chart-axis: oklch(0.70 0.015 70);
+
+  /* Sidebar */
+  --sidebar: oklch(0.185 0.010 60);
+  --sidebar-foreground: oklch(0.80 0.014 75);
+  --sidebar-primary: oklch(0.80 0.075 172);
+  --sidebar-primary-foreground: oklch(0.19 0.03 170);
+  --sidebar-accent: oklch(0.25 0.012 60);
+  --sidebar-accent-foreground: oklch(0.94 0.012 85);
+  --sidebar-border: oklch(0.94 0.012 85 / 0.08);
+  --sidebar-ring: oklch(0.80 0.075 172);
+
+  /* Risk scale. base = solid fill · -fg = text on the solid · -bg = soft wash · -border = keyline · -text = coloured text on a wash, card or page */
+  --risk-low: oklch(0.40 0.05 155);
+  --risk-low-fg: oklch(0.95 0.02 150);
+  --risk-low-bg: oklch(0.25 0.025 155);
+  --risk-low-border: oklch(0.48 0.05 155);
+  --risk-low-text: oklch(0.78 0.07 155);
+  --risk-moderate: oklch(0.58 0.12 75);
+  --risk-moderate-fg: oklch(0.15 0.03 70);
+  --risk-moderate-bg: oklch(0.26 0.035 78);
+  --risk-moderate-border: oklch(0.55 0.10 75);
+  --risk-moderate-text: oklch(0.82 0.11 82);
+  --risk-high: oklch(0.67 0.16 50);
+  --risk-high-fg: oklch(0.15 0.035 45);
+  --risk-high-bg: oklch(0.27 0.045 48);
+  --risk-high-border: oklch(0.58 0.13 50);
+  --risk-high-text: oklch(0.79 0.12 52);
+  --risk-critical: oklch(0.76 0.14 25);
+  --risk-critical-fg: oklch(0.17 0.035 25);
+  --risk-critical-bg: oklch(0.28 0.05 22);
+  --risk-critical-border: oklch(0.64 0.13 25);
+  --risk-critical-text: oklch(0.80 0.11 25);
+  --risk-unrated: oklch(0.27 0.012 60);
+  --risk-unrated-fg: oklch(0.80 0.014 75);
+  --risk-unrated-bg: oklch(0.215 0.011 60);
+  --risk-unrated-border: oklch(0.94 0.012 85 / 0.16);
+  --risk-unrated-text: oklch(0.80 0.014 75);
+  --risk-hatch: oklch(0.94 0.012 85 / 0.10);
+
+  /* Status (semantic). base = fill/dot · -fg = text and icons · -bg = soft wash */
+  --status-success: oklch(0.72 0.16 142);
+  --status-success-fg: oklch(0.78 0.15 142);
+  --status-success-bg: oklch(0.26 0.04 142);
+  --status-warning: oklch(0.80 0.13 78);
+  --status-warning-fg: oklch(0.84 0.12 80);
+  --status-warning-bg: oklch(0.27 0.04 78);
+  --status-danger: oklch(0.66 0.18 25);
+  --status-danger-fg: oklch(0.76 0.14 25);
+  --status-danger-bg: oklch(0.27 0.05 25);
+  --status-info: oklch(0.72 0.08 235);
+  --status-info-fg: oklch(0.78 0.07 235);
+  --status-info-bg: oklch(0.26 0.03 235);
+
+  /* KRI traffic lights (Within appetite / Warning / Breach) */
+  --kri-green: oklch(0.72 0.16 142);
+  --kri-green-fg: oklch(0.78 0.15 142);
+  --kri-green-bg: oklch(0.26 0.04 142);
+  --kri-amber: oklch(0.80 0.13 78);
+  --kri-amber-fg: oklch(0.84 0.12 80);
+  --kri-amber-bg: oklch(0.27 0.04 78);
+  --kri-red: oklch(0.76 0.14 25);
+  --kri-red-fg: oklch(0.80 0.11 25);
+  --kri-red-bg: oklch(0.28 0.05 22);
+
+  --elevation-xs: 0 0 0 1px oklch(0.94 0.012 85 / 0.06);
+  --elevation-panel: 0 0 0 1px oklch(0.94 0.012 85 / 0.07), inset 0 1px 0 oklch(0.94 0.012 85 / 0.04);
+  --elevation-raised: 0 0 0 1px oklch(0.94 0.012 85 / 0.09), inset 0 1px 0 oklch(0.94 0.012 85 / 0.05), 0 8px 20px -8px oklch(0 0 0 / 0.5);
+  --elevation-popover: 0 0 0 1px oklch(0.94 0.012 85 / 0.10), 0 18px 40px -10px oklch(0 0 0 / 0.60);
+  --elevation-dialog: 0 0 0 1px oklch(0.94 0.012 85 / 0.10), 0 32px 64px -16px oklch(0 0 0 / 0.70);
+  --elevation-button: inset 0 1px 0 oklch(1 0 0 / 0.22), inset 0 -1px 0 oklch(0 0 0 / 0.18), 0 1px 2px oklch(0 0 0 / 0.40);
 }
 
+/* -----------------------------------------------------------------------------
+   4. Base
+   -------------------------------------------------------------------------- */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
   body {
-    @apply bg-background text-foreground transition-colors duration-500 relative overflow-x-hidden;
-    -webkit-font-smoothing: antialiased;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.03) 0px, transparent 50%);
+    @apply bg-background text-foreground font-sans text-body antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   }
-  
-  .dark body {
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.03) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.03) 0px, transparent 50%);
+  h1 { @apply font-display text-title text-foreground; font-variant-numeric: lining-nums; }
+  h2 { @apply font-display text-section text-foreground; }
+  h3 { @apply text-body font-semibold text-foreground; }
+
+  ::selection { background: var(--selection); }
+
+  :focus-visible {
+    outline: var(--focus-ring-width) solid var(--ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
+  /* Tables: one look for every page. Kept under the legacy class name. */
+  .enterprise-table {
+    @apply w-full border-collapse text-left text-body-sm;
+    font-variant-numeric: tabular-nums;
+  }
+  .enterprise-table th {
+    @apply sticky top-0 z-10 bg-card text-label uppercase text-muted-foreground;
+    height: var(--row-height-header);
+    padding: 0 var(--cell-padding-x);
+    box-shadow: inset 0 -1px 0 var(--border-strong);
+    white-space: nowrap;
+  }
+  .enterprise-table td {
+    @apply text-foreground;
+    height: var(--row-height);
+    padding: 0 var(--cell-padding-x);
+    border-bottom: 1px solid var(--border);
+  }
+  .enterprise-table th[data-numeric], .enterprise-table td[data-numeric] { text-align: right; }
+  .enterprise-table tbody tr { transition: background-color var(--duration-fast) var(--ease-out); }
+  .enterprise-table tbody tr:hover td { background: var(--hover); }
+  .enterprise-table tbody tr[aria-selected="true"] td { background: var(--accent); }
 
-  /* Premium Glass effects */
-  .glass {
-    @apply bg-background/60 backdrop-blur-2xl border border-border/50 shadow-sm;
-  }
-  
-  .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-border/60 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 rounded-xl overflow-hidden shadow-sm;
-  }
-
-  /* Dynamic Custom Scrollbar */
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    @apply bg-border/50 rounded-full transition-colors border-2 border-transparent bg-clip-padding;
+    background: var(--border-strong);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
-  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--muted-foreground); }
+}
 
-  /* Enterprise Table styles */
-  table {
-    @apply w-full text-[13px];
+/* -----------------------------------------------------------------------------
+   5. Utilities
+   -------------------------------------------------------------------------- */
+/* Large display figures: <span class="figure text-figure-lg">20</span> */
+@utility figure {
+  font-family: var(--font-display);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-optical-sizing: auto;
+  font-weight: 400;
+}
+/* Small caps label: "ACTIVE RISKS" */
+@utility label-caps {
+  font-size: var(--text-label);
+  line-height: var(--text-label--line-height);
+  letter-spacing: var(--text-label--letter-spacing);
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+/* The one focus treatment for custom controls (heatmap cells, chips) */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: var(--focus-ring-width) solid var(--ring);
+    outline-offset: var(--focus-ring-offset);
   }
-  thead {
-    @apply bg-secondary/80 backdrop-blur-md;
-  }
-  thead tr {
-    @apply border-b border-border/80;
-  }
-  tbody tr {
-    @apply border-b border-border/40 last:border-0 hover:bg-muted/50 transition-colors duration-200;
-  }
-  td, th {
-    @apply px-4 py-3 align-middle;
-  }
-  th {
-    @apply font-bold text-muted-foreground uppercase tracking-wider text-[11px];
-  }
+}
+/* "Not rated" pattern: never a flat grey */
+@utility hatch {
+  background-image: repeating-linear-gradient(135deg, transparent 0 4px, var(--risk-hatch) 4px 5px);
+}
+/* Loading skeleton */
+@utility skeleton {
+  border-radius: var(--radius-sm);
+  background-color: var(--muted);
+  background-image: linear-gradient(90deg, transparent 0%, var(--hover) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+/* Surfaces */
+@utility surface-panel {
+  background-color: var(--card);
+  color: var(--card-foreground);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-panel);
+}
+@utility surface-raised {
+  background-color: var(--surface-raised);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--elevation-raised);
+}
+/* Row and control sizes that follow the density setting */
+@utility h-row { height: var(--row-height); }
+@utility h-control { height: var(--control-height); }
+@utility h-badge { height: var(--badge-height); }
 
-  .recharts-surface {
-    font-family: inherit;
+/* -----------------------------------------------------------------------------
+   6. Reduced motion: transitions become instant, shimmer and count-up stop.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0ms;
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --duration-count-up: 0ms;
   }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* -----------------------------------------------------------------------------
+   7. Print: board-pack PDFs. Always light, exact colours, A4.
+   -------------------------------------------------------------------------- */
+@media print {
+  @page { margin: 12mm 15mm; size: A4 portrait; }
+  .dark {
+    color-scheme: light;
+
+    /* shadcn/ui semantic tokens */
+    --background: oklch(0.945 0.010 78);
+    --foreground: oklch(0.22 0.015 60);
+    --card: oklch(0.993 0.004 85);
+    --card-foreground: oklch(0.22 0.015 60);
+    --popover: oklch(0.998 0.002 85);
+    --popover-foreground: oklch(0.22 0.015 60);
+    --primary: oklch(0.40 0.075 165);
+    --primary-foreground: oklch(0.985 0.01 120);
+    --secondary: oklch(0.935 0.011 78);
+    --secondary-foreground: oklch(0.22 0.015 60);
+    --muted: oklch(0.955 0.009 79);
+    --muted-foreground: oklch(0.49 0.014 60);
+    --accent: oklch(0.945 0.016 160);
+    --accent-foreground: oklch(0.22 0.015 60);
+    --destructive: oklch(0.47 0.16 25);
+    --destructive-foreground: oklch(0.985 0.006 60);
+    --border: oklch(0.22 0.015 60 / 0.12);
+    --input: oklch(0.615 0.012 70);
+    --ring: oklch(0.40 0.075 165);
+
+    /* Surfaces and text beyond shadcn */
+    --surface-sunken: oklch(0.945 0.010 78);
+    --surface-page: oklch(0.965 0.008 80);
+    --surface-raised: oklch(0.998 0.002 85);
+    --foreground-secondary: oklch(0.41 0.015 60);
+    --border-strong: oklch(0.22 0.015 60 / 0.20);
+    --hover: oklch(0.22 0.015 60 / 0.045);
+    --selection: oklch(0.40 0.075 165 / 0.16);
+
+    /* Charts (Recharts): categorical series 1–5, grid and axis */
+    --chart-1: oklch(0.40 0.075 165);
+    --chart-2: oklch(0.50 0.07 235);
+    --chart-3: oklch(0.55 0.08 320);
+    --chart-4: oklch(0.62 0.06 200);
+    --chart-5: oklch(0.55 0.015 60);
+    --chart-grid: oklch(0.22 0.015 60 / 0.08);
+    --chart-axis: oklch(0.49 0.014 60);
+
+    /* Sidebar */
+    --sidebar: oklch(0.965 0.008 80);
+    --sidebar-foreground: oklch(0.41 0.015 60);
+    --sidebar-primary: oklch(0.40 0.075 165);
+    --sidebar-primary-foreground: oklch(0.985 0.01 120);
+    --sidebar-accent: oklch(0.993 0.004 85);
+    --sidebar-accent-foreground: oklch(0.22 0.015 60);
+    --sidebar-border: oklch(0.22 0.015 60 / 0.10);
+    --sidebar-ring: oklch(0.40 0.075 165);
+
+    /* Risk scale. base = solid fill · -fg = text on the solid · -bg = soft wash · -border = keyline · -text = coloured text on a wash, card or page */
+    --risk-low: oklch(0.90 0.045 150);
+    --risk-low-fg: oklch(0.30 0.055 155);
+    --risk-low-bg: oklch(0.962 0.014 150);
+    --risk-low-border: oklch(0.80 0.05 150);
+    --risk-low-text: oklch(0.40 0.07 155);
+    --risk-moderate: oklch(0.78 0.115 80);
+    --risk-moderate-fg: oklch(0.31 0.07 65);
+    --risk-moderate-bg: oklch(0.962 0.03 85);
+    --risk-moderate-border: oklch(0.76 0.10 80);
+    --risk-moderate-text: oklch(0.45 0.09 70);
+    --risk-high: oklch(0.645 0.14 45);
+    --risk-high-fg: oklch(0.20 0.06 40);
+    --risk-high-bg: oklch(0.95 0.028 50);
+    --risk-high-border: oklch(0.68 0.12 46);
+    --risk-high-text: oklch(0.47 0.13 42);
+    --risk-critical: oklch(0.44 0.14 22);
+    --risk-critical-fg: oklch(0.975 0.01 60);
+    --risk-critical-bg: oklch(0.94 0.03 22);
+    --risk-critical-border: oklch(0.55 0.14 22);
+    --risk-critical-text: oklch(0.45 0.15 22);
+    --risk-unrated: oklch(0.935 0.011 78);
+    --risk-unrated-fg: oklch(0.41 0.015 60);
+    --risk-unrated-bg: oklch(0.955 0.009 79);
+    --risk-unrated-border: oklch(0.22 0.015 60 / 0.20);
+    --risk-unrated-text: oklch(0.41 0.015 60);
+    --risk-hatch: oklch(0.22 0.015 60 / 0.10);
+
+    /* Status (semantic). base = fill/dot · -fg = text and icons · -bg = soft wash */
+    --status-success: oklch(0.56 0.13 145);
+    --status-success-fg: oklch(0.46 0.11 145);
+    --status-success-bg: oklch(0.955 0.035 145);
+    --status-warning: oklch(0.76 0.14 75);
+    --status-warning-fg: oklch(0.47 0.10 65);
+    --status-warning-bg: oklch(0.958 0.035 85);
+    --status-danger: oklch(0.47 0.16 25);
+    --status-danger-fg: oklch(0.45 0.15 25);
+    --status-danger-bg: oklch(0.948 0.022 25);
+    --status-info: oklch(0.50 0.07 235);
+    --status-info-fg: oklch(0.45 0.07 235);
+    --status-info-bg: oklch(0.952 0.015 235);
+
+    /* KRI traffic lights (Within appetite / Warning / Breach) */
+    --kri-green: oklch(0.56 0.13 145);
+    --kri-green-fg: oklch(0.46 0.11 145);
+    --kri-green-bg: oklch(0.955 0.035 145);
+    --kri-amber: oklch(0.76 0.14 75);
+    --kri-amber-fg: oklch(0.47 0.10 65);
+    --kri-amber-bg: oklch(0.958 0.035 85);
+    --kri-red: oklch(0.44 0.14 22);
+    --kri-red-fg: oklch(0.45 0.15 22);
+    --kri-red-bg: oklch(0.94 0.03 22);
+  }
+  body {
+    background: oklch(1 0 0) !important;
+    font-size: 10pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  header, aside, nav, footer, .no-print, [data-radix-portal] { display: none !important; }
+  main { margin: 0 !important; padding: 0 !important; max-width: 100% !important; width: 100% !important; }
+  .enterprise-table { page-break-inside: auto; width: 100% !important; }
+  .enterprise-table tr { page-break-inside: avoid; break-inside: avoid; }
+  .enterprise-table th { position: static; }
+  *, *::before, *::after { box-shadow: none !important; }
 }

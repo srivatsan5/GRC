@@ -31,13 +31,73 @@ export function bandOf(score: number | null | undefined, bands: RiskBands = DEFA
   return 'Low'
 }
 
-/** Tailwind classes per band (text/background/border/dot) — use these instead of ad-hoc colours. */
-export const BAND_STYLES: Record<Band, { text: string; bg: string; border: string; dot: string; cell: string }> = {
-  Low: { text: 'text-emerald-800', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', cell: 'bg-emerald-100' },
-  Moderate: { text: 'text-amber-800', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500', cell: 'bg-amber-100' },
-  High: { text: 'text-orange-800', bg: 'bg-orange-50', border: 'border-orange-200', dot: 'bg-orange-500', cell: 'bg-orange-200' },
-  Critical: { text: 'text-red-800', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-600', cell: 'bg-red-200' },
+/**
+ * Tailwind classes per band, built on the --risk-* tokens in globals.css. Never use ad-hoc colours.
+ *
+ *  - text / bg / border: the soft treatment (coloured text on a wash, with a keyline)
+ *  - dot:   the band colour on its own (legend swatches, chart marks)
+ *  - solid: filled badge or occupied heatmap cell (band fill + its own AA text colour)
+ *  - cell:  heatmap cell with no risks in it (wash + AA text), so the matrix still shows the zones
+ *  - level: 1–4, drives the signal-bar glyph so the band never relies on colour alone
+ *
+ * Every pairing here passes WCAG AA (4.5:1) in light and dark.
+ */
+export interface BandStyle {
+  text: string
+  bg: string
+  border: string
+  dot: string
+  solid: string
+  cell: string
+  level: 1 | 2 | 3 | 4
 }
+
+export const BAND_STYLES: Record<Band, BandStyle> = {
+  Low: {
+    text: 'text-risk-low-text',
+    bg: 'bg-risk-low-bg',
+    border: 'border-risk-low-border',
+    dot: 'bg-risk-low',
+    solid: 'bg-risk-low text-risk-low-fg',
+    cell: 'bg-risk-low-bg text-risk-low-text',
+    level: 1,
+  },
+  Moderate: {
+    text: 'text-risk-moderate-text',
+    bg: 'bg-risk-moderate-bg',
+    border: 'border-risk-moderate-border',
+    dot: 'bg-risk-moderate',
+    solid: 'bg-risk-moderate text-risk-moderate-fg',
+    cell: 'bg-risk-moderate-bg text-risk-moderate-text',
+    level: 2,
+  },
+  High: {
+    text: 'text-risk-high-text',
+    bg: 'bg-risk-high-bg',
+    border: 'border-risk-high-border',
+    dot: 'bg-risk-high',
+    solid: 'bg-risk-high text-risk-high-fg',
+    cell: 'bg-risk-high-bg text-risk-high-text',
+    level: 3,
+  },
+  Critical: {
+    text: 'text-risk-critical-text',
+    bg: 'bg-risk-critical-bg',
+    border: 'border-risk-critical-border',
+    dot: 'bg-risk-critical',
+    solid: 'bg-risk-critical text-risk-critical-fg',
+    cell: 'bg-risk-critical-bg text-risk-critical-text',
+    level: 4,
+  },
+}
+
+/** "Not rated" is a designed state: hatched, neutral, never a flat grey that looks broken. */
+export const UNRATED_STYLE = {
+  text: 'text-risk-unrated-text',
+  bg: 'bg-risk-unrated-bg',
+  border: 'border-risk-unrated-border',
+  pattern: 'hatch',
+} as const
 
 function rating(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v) : v

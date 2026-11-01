@@ -4,6 +4,10 @@ const { version } = JSON.parse(readFileSync(new URL('./package.json', import.met
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Lets a separate dev server run next to a production build (e.g. NEXT_DIST_DIR=.next-dev).
+  distDir: process.env.NEXT_DIST_DIR || '.next',
+  // Don't write AGENTS.md / CLAUDE.md into the repo on `next dev`.
+  agentRules: false,
   // Shown in the footer, from package.json (no hardcoded version strings).
   env: { NEXT_PUBLIC_APP_VERSION: version },
   output: 'standalone',

@@ -35,10 +35,13 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "dist/types/**/*.ts",
-    "dist/dev/types/**/*.ts"
+    "dist/dev/types/**/*.ts",
+    ".next-dev/types/**/*.ts",
+    ".next-dev/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "api"
+    "api",
+    "docs"
   ]
 }

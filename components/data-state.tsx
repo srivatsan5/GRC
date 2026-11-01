@@ -8,7 +8,7 @@
  *   </DataState>
  */
 import React from 'react'
-import { AlertTriangle, Database, Inbox, Loader2 } from 'lucide-react'
+import { AlertTriangle, Database, Inbox } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { apiErrorCode, apiErrorMessage } from '@/lib/apiClient'
 
@@ -21,9 +21,15 @@ interface QueryLike {
 
 export function LoadingState({ label = 'Loading…', compact = false }: { label?: string; compact?: boolean }) {
   return (
-    <div role="status" aria-live="polite" className={`flex items-center justify-center gap-2 text-sm text-slate-500 ${compact ? 'py-6' : 'py-16'}`}>
-      <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-      {label}
+    <div role="status" aria-live="polite" aria-label={label} className={compact ? 'space-y-2 py-3' : 'space-y-3 py-6'}>
+      {Array.from({ length: compact ? 3 : 5 }, (_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <span className="skeleton h-4 flex-[3]" />
+          <span className="skeleton h-4 flex-1" />
+          <span className="skeleton h-4 w-20" />
+        </div>
+      ))}
+      <span className="sr-only">{label}</span>
     </div>
   )
 }
@@ -32,19 +38,19 @@ export function ErrorState({ error, onRetry, compact = false }: { error: unknown
   if (apiErrorCode(error) === 'NOT_PROVISIONED') {
     return (
       <div role="status" className={`mx-auto max-w-lg text-center ${compact ? 'py-6' : 'py-14'}`}>
-        <Database className="w-7 h-7 mx-auto text-slate-400" aria-hidden="true" />
-        <p className="mt-3 text-sm font-semibold text-slate-900">This module isn’t set up in the database yet</p>
-        <p className="mt-1 text-xs text-slate-500">{apiErrorMessage(error)} An administrator can run them (see db/README.md).</p>
+        <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-status-info-bg text-status-info-fg"><Database className="size-5" aria-hidden="true" /></span>
+        <p className="mt-4 font-display text-section text-foreground">This module isn’t set up in the database yet</p>
+        <p className="mt-1.5 text-body-sm text-muted-foreground">{apiErrorMessage(error)} An administrator can run them (see db/README.md).</p>
       </div>
     )
   }
   return (
     <div role="alert" className={`mx-auto max-w-lg text-center ${compact ? 'py-6' : 'py-14'}`}>
-      <AlertTriangle className="w-7 h-7 mx-auto text-red-500" aria-hidden="true" />
-      <p className="mt-3 text-sm font-semibold text-slate-900">Couldn’t load this data</p>
-      <p className="mt-1 text-xs text-slate-500">{apiErrorMessage(error)}</p>
+      <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-status-danger-bg text-status-danger-fg"><AlertTriangle className="size-5" aria-hidden="true" /></span>
+      <p className="mt-4 font-display text-section text-foreground">Couldn’t load this data</p>
+      <p className="mt-1.5 text-body-sm text-muted-foreground">{apiErrorMessage(error)}</p>
       {onRetry && (
-        <Button size="sm" variant="outline" className="mt-4" onClick={() => onRetry()}>
+        <Button variant="secondary" className="mt-5" onClick={() => onRetry()}>
           Try again
         </Button>
       )}
@@ -67,10 +73,10 @@ export function EmptyState({
 }) {
   return (
     <div className={`mx-auto max-w-md text-center ${compact ? 'py-6' : 'py-14'}`}>
-      <Icon className="w-7 h-7 mx-auto text-slate-300" aria-hidden="true" />
-      <p className="mt-3 text-sm font-semibold text-slate-900">{title}</p>
-      {description && <p className="mt-1 text-xs text-slate-500">{description}</p>}
-      {action && <div className="mt-4">{action}</div>}
+      <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]"><Icon className="size-5" aria-hidden="true" /></span>
+      <p className="mt-4 font-display text-section text-foreground">{title}</p>
+      {description && <p className="mt-1.5 text-body-sm text-muted-foreground">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   )
 }

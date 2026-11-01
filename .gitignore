@@ -38,3 +38,4 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 next.user-config.*
 e2e/screenshots/
+.next-dev/

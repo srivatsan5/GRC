@@ -12,6 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 /**
@@ -77,39 +78,35 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
     }
   }
 
-  const toneClasses = state.tone === 'warning'
-    ? 'bg-amber-500 hover:bg-amber-600 text-white'
-    : state.tone === 'info'
-      ? 'bg-blue-600 hover:bg-blue-700 text-white'
-      : 'bg-red-600 hover:bg-red-700 text-white'
+  const danger = state.tone !== 'warning' && state.tone !== 'info'
+  const iconWrap = state.tone === 'warning' ? 'bg-status-warning-bg text-status-warning-fg' : state.tone === 'info' ? 'bg-status-info-bg text-status-info-fg' : 'bg-status-danger-bg text-status-danger-fg'
 
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       <AlertDialog open={state.open} onOpenChange={(o) => { if (!o) handleClose() }}>
-        <AlertDialogContent className="rounded-3xl">
-          <AlertDialogHeader>
-            <div className={cn(
-              'mx-auto w-12 h-12 rounded-2xl flex items-center justify-center mb-2',
-              state.tone === 'warning' ? 'bg-amber-50 text-amber-600' : state.tone === 'info' ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'
-            )}>
-              <AlertTriangle className="w-6 h-6" />
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader className="flex-row items-start gap-4 text-left">
+            <span className={cn('mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-md', iconWrap)}>
+              <AlertTriangle className="size-4.5" aria-hidden="true" />
+            </span>
+            <div className="space-y-1.5">
+              <AlertDialogTitle className="font-display text-section">{state.title}</AlertDialogTitle>
+              <AlertDialogDescription className="text-body-sm text-muted-foreground">
+                {state.description || 'This action cannot be undone.'}
+              </AlertDialogDescription>
             </div>
-            <AlertDialogTitle className="text-center text-lg font-black tracking-tight">{state.title}</AlertDialogTitle>
-            <AlertDialogDescription className="text-center text-[13px] text-muted-foreground font-medium">
-              {state.description || 'This action cannot be undone.'}
-            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel disabled={state.loading} className="rounded-xl font-bold text-xs uppercase tracking-widest">
+            <AlertDialogCancel disabled={state.loading} className={buttonVariants({ variant: 'secondary' })}>
               {state.cancelLabel || 'Cancel'}
             </AlertDialogCancel>
             <AlertDialogAction
               disabled={state.loading}
               onClick={(e) => { e.preventDefault(); handleConfirm() }}
-              className={cn('rounded-xl font-black text-xs uppercase tracking-widest', toneClasses)}
+              className={buttonVariants({ variant: danger ? 'destructive' : 'primary' })}
             >
-              {state.loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {state.loading ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : null}
               {state.confirmLabel || 'Confirm'}
             </AlertDialogAction>
           </AlertDialogFooter>

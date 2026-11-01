@@ -77,8 +77,50 @@ export function thresholdProblem(green: number, amber: number, red: number, dire
   return null
 }
 
-export const LIGHT_STYLES: Record<KriLight, { text: string; bg: string; border: string; dot: string; label: string }> = {
-  GREEN: { text: 'text-emerald-800', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Within appetite' },
-  AMBER: { text: 'text-amber-800', bg: 'bg-amber-50', border: 'border-amber-200', dot: 'bg-amber-500', label: 'Warning' },
-  RED: { text: 'text-red-800', bg: 'bg-red-50', border: 'border-red-200', dot: 'bg-red-600', label: 'Breach' },
+/**
+ * Traffic-light classes, built on the --kri-* tokens in globals.css (AA in light and dark).
+ *  - text / bg / border: the status pill
+ *  - dot:  the light on its own (chart threshold bands, legend)
+ *  - band: the shaded threshold band behind a KRI line chart
+ *  - icon: the Lucide icon that always travels with the colour, so status is never colour-only
+ *    (circle-check → CircleCheck, triangle-alert → TriangleAlert, octagon-alert → OctagonAlert)
+ */
+export interface LightStyle {
+  text: string
+  bg: string
+  border: string
+  dot: string
+  band: string
+  icon: 'circle-check' | 'triangle-alert' | 'octagon-alert'
+  label: string
+}
+
+export const LIGHT_STYLES: Record<KriLight, LightStyle> = {
+  GREEN: {
+    text: 'text-kri-green-fg',
+    bg: 'bg-kri-green-bg',
+    border: 'border-kri-green/40',
+    dot: 'bg-kri-green',
+    band: 'fill-kri-green-bg',
+    icon: 'circle-check',
+    label: 'Within appetite',
+  },
+  AMBER: {
+    text: 'text-kri-amber-fg',
+    bg: 'bg-kri-amber-bg',
+    border: 'border-kri-amber/50',
+    dot: 'bg-kri-amber',
+    band: 'fill-kri-amber-bg',
+    icon: 'triangle-alert',
+    label: 'Warning',
+  },
+  RED: {
+    text: 'text-kri-red-fg',
+    bg: 'bg-kri-red-bg',
+    border: 'border-kri-red/50',
+    dot: 'bg-kri-red',
+    band: 'fill-kri-red-bg',
+    icon: 'octagon-alert',
+    label: 'Breach',
+  },
 }

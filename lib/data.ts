@@ -54,12 +54,13 @@ function pageParams(p: PageParams) {
 
 /** Every row of a table (up to the API cap), optionally filtered. For totals, charts and lookups. */
 export async function fetchAllRows(table: string, filter?: PageParams['filter']): Promise<Row[]> {
-  const rows: Row[] = []
-  for (let page = 1; ; page++) {
-    const { data } = await http.get<RowPage>(`/api/${table}`, { params: pageParams({ page, pageSize: 500, filter }) })
-    rows.push(...data.items.map(lowerKeys))
-    if (page >= data.pageCount || data.items.length === 0) return rows
+  const { data } = await http.get<RowPage>(`/api/${table}`, {
+    params: { all: 1, filter: filter && Object.keys(filter).length ? JSON.stringify(filter) : undefined },
+  })
+  if (data.truncated) {
+    console.warn(`[data] ${table}: more rows than the API listing cap; totals cover the first ${data.items.length}`)
   }
+  return data.items.map(lowerKeys)
 }
 
 export function useRows<T = Row>(

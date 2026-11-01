@@ -128,7 +128,7 @@ export function tableRoutes(ctx: AppContext): Router {
     const def = resolveTable(table)
     requireRead(req, def)
     const query = listQuery.parse(req.query)
-    const managed = query.page !== undefined || query.pageSize !== undefined || query.sort || query.search || query.filter
+    const managed = query.page !== undefined || query.pageSize !== undefined || query.sort || query.search || query.filter || query.all
     try {
       if (!managed) {
         const result = await withUpstream(table, def, up => ctx.ords.list(up, query))
@@ -166,9 +166,13 @@ export function tableRoutes(ctx: AppContext): Router {
           return dir * compareValues(a, b)
         })
       }
+      const total = items.length
+      if (query.all) {
+        res.json({ items, total, page: 1, pageSize: total, pageCount: 1, truncated })
+        return
+      }
       const pageSize = query.pageSize ?? 50
       const page = query.page ?? 1
-      const total = items.length
       res.json({
         items: items.slice((page - 1) * pageSize, page * pageSize),
         total,
@@ -238,6 +242,17 @@ export function tableRoutes(ctx: AppContext): Router {
     setIgnoredHeader(res, ignoredFields)
     const approvedOnCol = def.serverColumns?.approved_on
     let reopened = false
+
+    // Segregation of duties: nobody approves or rejects a record they created themselves.
+    // The creator comes from the server's audit log (the register tables have no CREATED_BY column).
+    if (decision) {
+      const creator = ctx.audit
+        .query({ limit: 100_000, offset: 0, action: 'CREATE', entity: def.label })
+        .items.find(e => e.entity_id === String(id) && e.result === 'SUCCESS')
+      if (creator && creator.actor_email === req.user!.email) {
+        throw forbidden('You cannot approve or reject a record you created — another approver must decide')
+      }
+    }
 
     const prepare = (current: OrdsRow): OrdsRow => {
       const currentStatus = typeof current.approval_status === 'string' ? current.approval_status.toUpperCase() : null

@@ -27,10 +27,16 @@ export function pctOf(part: number, whole: number): number | null {
   return whole > 0 ? (part / whole) * 100 : null
 }
 
+/** Calendar dates are stored as midnight UTC; show them in UTC so they never shift a day. */
+function isDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) || /T00:00(:00(\.0+)?)?(Z|\+00:?00)$/.test(value)
+}
+
 export function formatDate(value: string | null | undefined, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }): string {
   if (!value) return DASH
   const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? DASH : d.toLocaleDateString(undefined, opts)
+  if (Number.isNaN(d.getTime())) return DASH
+  return d.toLocaleDateString(undefined, isDateOnly(value) ? { ...opts, timeZone: 'UTC' } : opts)
 }
 
 export function formatDateTime(value: string | null | undefined): string {

@@ -13,7 +13,8 @@ export interface CsvColumn<T> {
 function cell(v: unknown): string {
   if (v === null || v === undefined) return '""'
   let s = v instanceof Date ? v.toISOString() : String(v)
-  if (/^[=+\-@]/.test(s)) s = `'${s}`
+  // Neutralise spreadsheet formulas, but leave plain numbers (e.g. -5) as numbers.
+  if (/^[=+\-@]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s)) s = `'${s}`
   return `"${s.replace(/"/g, '""')}"`
 }
 

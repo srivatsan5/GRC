@@ -38,15 +38,24 @@ flyway -url="jdbc:oracle:thin:@<tns_alias>?TNS_ADMIN=/path/to/wallet" \
 @db/migrations/V4__correctly_spelled_views.sql
 ```
 
-Read the `DBMS_OUTPUT` lines: any `WARNING:` means a constraint or REST endpoint could not be
-created (for example if a table's key column is not called `UUID`); fix it by hand.
+(In SQLcl/SQL Developer run `SET SERVEROUTPUT ON` first to see progress.)
+
+**Check for warnings** — every step is also logged to a table, because Flyway doesn't show `DBMS_OUTPUT`:
+
+```sql
+SELECT logged_on, message FROM pericope_migration_log WHERE log_level = 'WARNING' ORDER BY logged_on;
+```
+
+Typical warnings: a foreign key skipped because existing rows point at a missing parent (fix those rows
+with `db/scripts/find_orphans.sql`, then simply re-run the migration), or a REST endpoint that couldn't be
+enabled. Foreign keys are only ever added fully validated, so editing old rows through the API never breaks.
 
 ### After migrating
 
 1. Grant the API's OAuth client access to the new REST endpoints (they are created with
    authentication required, like the existing ones).
 2. `cd api && npm run check:ords-anon` — every table must answer 401 without a token.
-3. Optional: `@db/seed/demo_data.sql` to load sample content on a **demo** schema
+3. Optional: `@db/seed/demo_data.sql` (SQLcl / SQL Developer — it uses `SET DEFINE OFF` because the text contains `&`) to load sample content on a **demo** schema
    (remove later with `DELETE … WHERE CREATED_BY = 'demo-seed'`).
 4. Optional: `db/scripts/find_orphans.sql` lists old rows that break the new foreign keys;
    `db/scripts/migrate_legacy_assessments.sql` moves assessment cycles that the old web app

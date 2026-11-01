@@ -226,3 +226,59 @@ describe('settings', () => {
     expect((await viewer.agent.put('/api/settings').set(xhr).send(settings)).status).toBe(403)
   })
 })
+
+describe('review fixes (phase 2)', () => {
+  it('an approver cannot approve a risk they created; another approver can', async () => {
+    const e = await makeApp()
+    e.fake.ensure('per_trn_identify_risk')
+    await e.addUser('Risk Manager', 'rm1@test.local')
+    await e.addUser('Risk Manager', 'rm2@test.local')
+    const rm1 = await e.login('rm1@test.local')
+    const created = await rm1.post('/api/per_trn_identify_risk').set(xhr).send({ risk_statement: 'Self-approved?' })
+    const own = await rm1.patch(`/api/per_trn_identify_risk/${created.body.uuid}`).set(xhr).send({ approval_status: 'APPROVED' })
+    expect(own.status).toBe(403)
+    expect(own.body.error.message).toMatch(/created/)
+    const rm2 = await e.login('rm2@test.local')
+    expect((await rm2.patch(`/api/per_trn_identify_risk/${created.body.uuid}`).set(xhr).send({ approval_status: 'APPROVED' })).status).toBe(200)
+  })
+
+  it('all=1 returns every matching row in one response', async () => {
+    const { agent, fake } = await env('Viewer')
+    fake.seed('per_trn_identify_risk', Array.from({ length: 1203 }, (_, i) => ({ uuid: i + 1, risk_statement: `r${i}` })))
+    const res = await agent.get('/api/per_trn_identify_risk').query({ all: 1 })
+    expect(res.body).toMatchObject({ total: 1203, truncated: false })
+    expect(res.body.items).toHaveLength(1203)
+  })
+
+  it('filters accept long lists (link pickers)', async () => {
+    const { agent } = await env('Viewer')
+    const ids = Array.from({ length: 300 }, (_, i) => i + 1)
+    expect((await agent.get('/api/per_trn_identify_risk').query({ filter: JSON.stringify({ uuid: ids }), pageSize: 10 })).status).toBe(200)
+  })
+
+  it('an idle-timeout sign-out ends only this device', async () => {
+    const e = await makeApp()
+    await e.addUser('Assessor', 'a@test.local')
+    const tabA = await e.login('a@test.local')
+    const tabB = await e.login('a@test.local')
+    await tabA.post('/api/auth/logout').set(xhr).send({ allDevices: false })
+    expect((await tabA.get('/api/auth/me')).status).toBe(401)
+    expect((await tabB.get('/api/auth/me')).status).toBe(200)
+    await tabB.post('/api/auth/logout').set(xhr).send({})
+    expect((await tabB.get('/api/auth/me')).status).toBe(401)
+  })
+})
+
+describe('rate limiting', () => {
+  it('is per signed-in user, so colleagues behind one IP do not throttle each other', async () => {
+    const e = await makeApp({ env: { RATE_LIMIT_PER_MINUTE: '5' } })
+    e.fake.ensure('per_trn_identify_risk')
+    await e.addUser('Viewer', 'a@test.local')
+    await e.addUser('Viewer', 'b@test.local')
+    const a = await e.login('a@test.local')
+    const b = await e.login('b@test.local')
+    for (let i = 0; i < 5; i++) await a.get('/api/per_trn_identify_risk')
+    expect((await a.get('/api/per_trn_identify_risk')).status).toBe(429)
+    expect((await b.get('/api/per_trn_identify_risk')).status).toBe(200)
+  })
+})

@@ -12,7 +12,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
-import { useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
+import { fetchAllRows, useCreateRow, useDeleteRow, useRowPage, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { DASH, formatDate, formatNumber, daysUntil, toDateInput } from '@/lib/format'
 import { Field, Stat, exportCsv, selectClass, textOrNull } from '@/components/controls/form-bits'
@@ -79,6 +79,17 @@ export function ControlLibraryPage() {
   }, [allQ.data])
 
   const handleDelete = async (c: Row) => {
+    // A control that is applied to risks can't be deleted (the applications would point at nothing).
+    try {
+      const applied = await fetchAllRows('per_trn_control_implementation', { control_id: c.uuid })
+      if (applied.length) {
+        toast.error(`${str(c.control_code)} is applied to ${applied.length} risk${applied.length === 1 ? '' : 's'}. Set its status to Retired instead, or remove it from those risks first.`)
+        return
+      }
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+      return
+    }
     const ok = await confirm({
       title: `Delete ${str(c.control_code)}?`,
       description: `This removes "${str(c.control_name)}" from the library, along with its links to risks and policies.`,

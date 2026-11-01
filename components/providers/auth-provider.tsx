@@ -27,7 +27,8 @@ interface AuthContextType {
   permissions: string[]
   /** Throws with a readable message when sign-in fails. */
   login: (email: string, password: string) => Promise<void>
-  logout: () => Promise<void>
+  /** Signs out everywhere by default; `{ allDevices: false }` ends only this browser's session. */
+  logout: (opts?: { allDevices?: boolean }) => Promise<void>
   /** Re-read the session (e.g. after changing the password). */
   refresh: () => Promise<void>
   hasPermission: (action: UiAction) => boolean
@@ -90,9 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     applySession(session)
   }, [applySession, queryClient])
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (opts?: { allDevices?: boolean }) => {
     try {
-      await authApi.logout()
+      await authApi.logout(opts?.allDevices ?? true)
     } finally {
       queryClient.clear()
       applySession(null)

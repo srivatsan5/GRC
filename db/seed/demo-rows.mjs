@@ -71,7 +71,9 @@ export function demoRows() {
 
   rows.ERM_MST_RISK_APPETITE = data.appetite.map(a => ({
     CATEGORY: a.category, STATEMENT: a.description, POSTURE: a.posture, TOLERANCE_SCORE: a.tolerance,
-    APPROVED_BY: a.approvedBy, APPROVED_ON: a.approvedOn, REVIEW_FREQUENCY: a.review, ...audit,
+    APPROVED_BY: a.approvedBy, APPROVED_ON: a.approvedOn,
+    // The old samples used free text ("Continuous"); the table allows Quarterly / Semi-annual / Annual.
+    REVIEW_FREQUENCY: ['Quarterly', 'Semi-annual', 'Annual'].includes(a.review) ? a.review : 'Quarterly', ...audit,
   }))
 
   rows.ERM_MST_KRI_DEFINITION = data.kris.map(k => ({

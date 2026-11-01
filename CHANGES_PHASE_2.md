@@ -50,7 +50,8 @@ Until the migrations have run, the new modules show **"This module isn't set up 
   - Requests can be withdrawn by the submitter.
 - **Organisation settings** (`/api/settings`) are validated and admin-only. Only settings that change behaviour are kept: organisation name, industry, currency, idle sign-out time, and the score bands.
 - **"Not set up yet" answers** (`503 NOT_PROVISIONED`) when a module's tables are missing.
-- 74 API tests, up from 56.
+- Rate limits apply per signed-in user, not per IP, so colleagues behind one office IP don't slow each other down.
+- 91 API tests, up from 56.
 
 ## Web app
 
@@ -117,9 +118,9 @@ Until the migrations have run, the new modules show **"This module isn't set up 
 
 ## Verified
 
-- **API:** typecheck ✔, 74/74 tests ✔, build ✔.
+- **API:** typecheck ✔, 91/91 tests ✔, build ✔.
 - **Web:** typecheck ✔, production build ✔ (42 routes).
-- **Browser test** against the local ORDS stand-in seeded with the real risk rows and the demo module data, run as each role:
+- **Browser tests** (saved in `e2e/`): 17 data checks and 18 security checks, all passing, run against the local ORDS stand-in seeded with the real risk rows and the demo module data, as each role:
   - All 31 pages render with real data and no errors, and the 5 redirects work.
   - Data survives clearing browser storage, because it's in the database.
   - The dashboard has no fake figures, and legacy risks show as not rated.
@@ -129,6 +130,24 @@ Until the migrations have run, the new modules show **"This module isn't set up 
   - An Assessor can't approve; a Risk Manager approves in the UI.
   - A Viewer sees no add buttons.
 - **Not run against the real Oracle database.** This sandbox can't reach it. Run the migrations and smoke-test on a test schema first.
+
+## Independent review: findings fixed
+
+A separate review crawled every route as each role and ran the main flows. Everything worked; these issues were fixed:
+
+| Finding | Fix |
+|---|---|
+| The notification bell showed invented events to everyone | It now lists real items needing your attention: approvals waiting for you, KRIs in red or amber, overdue action plans. Its count badge only appears when there is something to show. |
+| The RCSA hub claimed "Real-time DB synchronization", "SOX & ISO 27001", and the footer showed a hardcoded "Version 3.0" | The hub shows live counts for each lifecycle stage. The version comes from `package.json`. |
+| Deleting a risk would fail on Oracle (child rows) or leave orphans | Foreign keys now cascade to applied controls, action plans and assessment records. The delete dialog says what will be removed. A library control that is applied to risks can't be deleted; retire it instead. |
+| `NOVALIDATE` foreign keys combined with whole-row updates would have blocked edits to the 25 legacy risks | Foreign keys are only ever added fully validated. If old rows point at missing parents, the key is skipped and a warning says how many rows to fix. |
+| Migration warnings were invisible under Flyway, and `SET` commands broke Flyway Community | Every message goes to a `PERICOPE_MIGRATION_LOG` table. The `SET` lines are removed from the migrations. |
+| One demo seed row broke a CHECK constraint | Fixed. A test now checks every seed row against the API's rules. |
+| Dates showed a day early for users west of UTC | Calendar dates are displayed in UTC. |
+| An idle background tab signed the user out everywhere | Tabs share the last-activity time. An idle sign-out ends only this browser's session. |
+| A Risk Manager could approve a risk they created | The API refuses self-approval; the creator comes from the audit log. |
+| "Load all rows" requests grew quadratically and silently stopped at the cap | A single request (`all=1`) loads everything, and truncation is reported. |
+| Small inconsistencies | Control coverage now uses the same rule on every page. The residual reduction is labelled correctly. The vendor report excludes Exited vendors. CSV exports keep negative numbers as numbers. Settings warn that changing currency doesn't convert amounts. Link pickers work beyond 50 links. |
 
 ## Still open (Phase 3+)
 

@@ -421,6 +421,7 @@ function VendorReport() {
   const q = useRows('erm_mst_vendor')
   const vendors = q.data ?? []
   const overdue = (v: Row) => {
+    if (v.status === 'Exited') return false // same rule as the vendor register
     const d = daysUntil(v.next_review_on)
     return d != null && d < 0
   }

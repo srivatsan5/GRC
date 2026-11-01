@@ -65,7 +65,8 @@ export const numOrNull = (v: string) => (v.trim() === '' ? null : Number(v))
 
 function csvCell(v: unknown): string {
   let s = v == null ? '' : String(v)
-  if (/^[=+\-@]/.test(s)) s = `'${s}`
+  // Neutralise spreadsheet formulas, but leave plain numbers (e.g. -5) as numbers.
+  if (/^[=+\-@]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s)) s = `'${s}`
   return `"${s.replace(/"/g, '""')}"`
 }
 

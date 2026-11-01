@@ -2,7 +2,7 @@ import express from 'express'
 import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import type { AppContext } from './context.js'
 import { authenticate, csrfGuard } from './auth/middleware.js'
 import { authRoutes } from './auth/routes.js'
@@ -28,15 +28,6 @@ export function createApp(ctx: AppContext) {
       allowedHeaders: ['Content-Type', 'X-Requested-With', 'Authorization'],
       exposedHeaders: ['X-Ignored-Fields'],
       maxAge: 600,
-    }),
-  )
-  app.use(
-    rateLimit({
-      windowMs: 60_000,
-      limit: ctx.config.RATE_LIMIT_PER_MINUTE,
-      standardHeaders: 'draft-7',
-      legacyHeaders: false,
-      message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Please slow down.' } },
     }),
   )
   app.use(express.json({ limit: '256kb' }))
@@ -65,6 +56,18 @@ export function createApp(ctx: AppContext) {
   })
 
   app.use(authenticate(ctx))
+  // Limit per signed-in user (per IP only for anonymous requests), so many people behind one
+  // office IP don't throttle each other.
+  app.use(
+    rateLimit({
+      windowMs: 60_000,
+      limit: ctx.config.RATE_LIMIT_PER_MINUTE,
+      keyGenerator: req => (req.user ? `user:${req.user.id}` : `ip:${ipKeyGenerator(req.ip ?? '')}`),
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      message: { error: { code: 'RATE_LIMITED', message: 'Too many requests. Please slow down.' } },
+    }),
+  )
   app.use(csrfGuard(ctx.config.CORS_ORIGINS))
 
   app.use('/api/auth', authRoutes(ctx))

@@ -64,7 +64,7 @@ export function AuditTrailPage() {
     // Quote every field and neutralise spreadsheet formulas (=, +, -, @) so the export is safe to open in Excel.
     const cell = (v: unknown) => {
       let t = v == null ? '' : String(v)
-      if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`
+      if (/^[=+\-@\t\r]/.test(t) && !/^[+-]?\d+(\.\d+)?$/.test(t)) t = `'${t}`
       return `"${t.replace(/"/g, '""')}"`
     }
     const rows = filteredByDate.map(e => [

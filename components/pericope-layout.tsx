@@ -49,7 +49,7 @@ export function PericopeLayout({ children, className }: { children: React.ReactN
           
           <footer className="px-6 py-4 border-t border-slate-200 bg-white text-xs text-slate-500 flex flex-col sm:flex-row justify-between items-center gap-2 print:hidden">
             <span>Pericope ERM &middot; Enterprise Risk Management</span>
-            <span className="text-slate-400">Version 3.0</span>
+            <span className="text-slate-400">v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           </footer>
         </div>
       </div>

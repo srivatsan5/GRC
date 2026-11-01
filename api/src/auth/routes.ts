@@ -78,10 +78,12 @@ export function authRoutes(ctx: AppContext): Router {
   })
 
   router.post('/logout', async (req, res) => {
+    // Default: end every session of this user (bump the token version). The web app's idle
+    // timeout sends {"allDevices": false} so one idle tab doesn't sign the user out elsewhere.
+    const allDevices = (req.body as { allDevices?: unknown } | undefined)?.allDevices !== false
     if (req.user) {
-      // Bump the token version so this session (and any copy of it) stops working immediately.
-      await ctx.users.update(req.user.id, { tokenVersion: req.user.tokenVersion + 1 })
-      await ctx.audit.record({ actor: actorOf(req.user), action: 'LOGOUT', entity: 'Session', entityId: req.user.id, description: `${req.user.name} signed out`, result: 'SUCCESS', source: 'api', ip: req.ip })
+      if (allDevices) await ctx.users.update(req.user.id, { tokenVersion: req.user.tokenVersion + 1 })
+      await ctx.audit.record({ actor: actorOf(req.user), action: 'LOGOUT', entity: 'Session', entityId: req.user.id, description: `${req.user.name} signed out${allDevices ? '' : ' (idle timeout, this device)'}`, result: 'SUCCESS', source: 'api', ip: req.ip })
     }
     const { maxAge: _maxAge, ...opts } = ctx.sessions.cookieOptions()
     res.clearCookie(SESSION_COOKIE, opts)

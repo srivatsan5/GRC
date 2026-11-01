@@ -131,7 +131,8 @@ export function controlName(controlId: unknown, library: Map<number, Row>): { co
 
 function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v)
-  if (/^[=+\-@]/.test(s)) s = `'${s}`
+  // Neutralise spreadsheet formulas, but leave plain numbers (e.g. -5) as numbers.
+  if (/^[=+\-@]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s)) s = `'${s}`
   return `"${s.replace(/"/g, '""')}"`
 }
 

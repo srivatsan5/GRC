@@ -21,7 +21,6 @@
 -- Every table has a UUID identity key and CREATED_/UPDATED_ BY/ON columns that the
 -- API fills in. All are REST-enabled with authentication required. Safe to re-run.
 -- =============================================================================
-SET SERVEROUTPUT ON
 
 BEGIN
   pericope_ddl.create_table('ERM_MST_CONTROL', q'[
@@ -189,9 +188,9 @@ BEGIN
   pericope_ddl.create_index('IX_ETAR_STATUS',    'ERM_TRN_APPROVAL_REQUEST', 'STATUS');
   pericope_ddl.create_index('IX_ETAR_SUBMITTER', 'ERM_TRN_APPROVAL_REQUEST', 'SUBMITTED_BY');
 
-  -- Links to the risk register (NOVALIDATE: tolerate legacy rows; enforce for new ones)
-  pericope_ddl.add_constraint('ERM_LNK_CONTROL_RISK',  'FK_ELCR_RISK', 'FOREIGN KEY (RISK_UUID) REFERENCES PER_TRN_IDENTIFY_RISK (UUID) ON DELETE CASCADE ENABLE NOVALIDATE');
-  pericope_ddl.add_constraint('ERM_LNK_INCIDENT_RISK', 'FK_ELIR_RISK', 'FOREIGN KEY (RISK_UUID) REFERENCES PER_TRN_IDENTIFY_RISK (UUID) ON DELETE CASCADE ENABLE NOVALIDATE');
+  -- Links to the risk register (removed together with the risk)
+  pericope_ddl.add_fk('ERM_LNK_CONTROL_RISK',  'FK_ELCR_RISK', 'RISK_UUID', 'PER_TRN_IDENTIFY_RISK', 'UUID', 'CASCADE');
+  pericope_ddl.add_fk('ERM_LNK_INCIDENT_RISK', 'FK_ELIR_RISK', 'RISK_UUID', 'PER_TRN_IDENTIFY_RISK', 'UUID', 'CASCADE');
 
   -- REST endpoints (authentication required)
   FOR t IN (SELECT column_value AS name FROM TABLE(sys.odcivarchar2list(

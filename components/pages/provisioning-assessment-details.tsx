@@ -70,7 +70,7 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
     const r = toRisk(row)
     const ok = await confirm({
       title: 'Delete this risk?',
-      description: `${r.statement ?? `Risk ${r.uuid}`} — the risk is removed from the register permanently.`,
+      description: `${r.statement ?? `Risk ${r.uuid}`} — the risk is removed permanently, together with its applied controls, action plans and assessment records.`,
       confirmLabel: 'Delete risk',
       tone: 'danger',
     })

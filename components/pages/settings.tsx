@@ -176,6 +176,12 @@ export function SettingsPage() {
                     ))}
                   </select>
                   <p className="mt-1 text-[11px] text-slate-500">Every money amount is shown in this currency, e.g. {formatMoney(1250000, draft.currency)}.</p>
+                  {loaded && draft.currency !== loaded.currency && (
+                    <p role="note" className="mt-1 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      Amounts are not converted: values already recorded in {loaded.currency} will simply be labelled {draft.currency}.
+                      Only change this if the figures are actually in {draft.currency}.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="set-idle" className={label}>

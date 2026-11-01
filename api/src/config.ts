@@ -33,7 +33,7 @@ const ConfigSchema = z
     ORDS_CLIENT_SECRET: z.preprocess(emptyToUndefined, z.string().optional()),
     ORDS_ALLOW_ANONYMOUS: bool.default(false),
     ORDS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60000).default(8000),
-    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
+    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(1200),
     LOGIN_RATE_LIMIT_PER_15_MIN: z.coerce.number().int().positive().default(10),
     // Express 'trust proxy' setting: hop count, or a list such as 'loopback'. Needed for correct client IPs behind nginx.
     TRUST_PROXY: z

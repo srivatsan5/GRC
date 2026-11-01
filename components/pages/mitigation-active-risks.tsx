@@ -22,6 +22,8 @@ export function MitigationActiveRisksPage() {
   const risksQ = useRows('per_trn_identify_risk')
   const implQ = useRows('per_trn_control_implementation')
   const plansQ = useRows('per_trn_risk_monitoring')
+  // Same coverage rule as the dashboard: an applied control OR a control-library link.
+  const linksQ = useRows('erm_lnk_control_risk')
 
   const [search, setSearch] = useState('')
   const [scope, setScope] = useState<Scope>('needs')
@@ -33,6 +35,10 @@ export function MitigationActiveRisksPage() {
     for (const c of implQ.data ?? []) {
       const id = numOrNull(c.identify_risk_uuid)
       if (id != null) controlCount.set(id, (controlCount.get(id) ?? 0) + 1)
+    }
+    for (const l of linksQ.data ?? []) {
+      const id = numOrNull(l.risk_uuid)
+      if (id != null && !controlCount.has(id)) controlCount.set(id, 1)
     }
     const planCount = new Map<number, { total: number; open: number }>()
     for (const p of plansQ.data ?? []) {
@@ -53,7 +59,7 @@ export function MitigationActiveRisksPage() {
         return { risk: r, score, controls, plans: planCount.get(r.uuid) ?? { total: 0, open: 0 }, above, noControls: controls === 0 }
       })
       .sort((a, b) => (b.score ?? -1) - (a.score ?? -1) || a.risk.uuid - b.risk.uuid)
-  }, [risksQ.data, implQ.data, plansQ.data, bands.high])
+  }, [risksQ.data, implQ.data, plansQ.data, bands.high, linksQ.data])
 
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase()

@@ -132,7 +132,8 @@ export const textareaClass = 'w-full min-h-[64px] px-2 py-1.5 border border-slat
 
 function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v)
-  if (/^[=+\-@]/.test(s)) s = `'${s}`
+  // Neutralise spreadsheet formulas, but leave plain numbers (e.g. -5) as numbers.
+  if (/^[=+\-@]/.test(s) && !/^[+-]?\d+(\.\d+)?$/.test(s)) s = `'${s}`
   return `"${s.replace(/"/g, '""')}"`
 }
 

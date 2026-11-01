@@ -104,7 +104,7 @@ export function RiskIdentificationPage() {
 
   const del = useDeleteRow(RISK_TABLE)
   async function remove(r: Risk) {
-    const ok = await confirm({ title: 'Delete this risk?', description: `${r.statement ?? `Risk ${r.uuid}`} — removed from the register permanently.`, confirmLabel: 'Delete risk', tone: 'danger' })
+    const ok = await confirm({ title: 'Delete this risk?', description: `${r.statement ?? `Risk ${r.uuid}`} — removed permanently, together with its applied controls, action plans and assessment records.`, confirmLabel: 'Delete risk', tone: 'danger' })
     if (!ok) return
     try {
       await del.mutateAsync(r.uuid)

@@ -152,7 +152,7 @@ const filterParam = z
     return z.NEVER
   })
   .refine(
-    f => Object.entries(f).every(([k, v]) => /^[A-Za-z0-9_]{1,64}$/.test(k) && (isScalar(v) || (Array.isArray(v) && v.length <= 50 && v.every(isScalar)))),
+    f => Object.entries(f).every(([k, v]) => /^[A-Za-z0-9_]{1,64}$/.test(k) && (isScalar(v) || (Array.isArray(v) && v.length <= 1000 && v.every(isScalar)))),
     'filter values must be strings, numbers, booleans or null (or lists of them)',
   )
 
@@ -171,6 +171,8 @@ export const listQuery = z
     order: z.enum(['asc', 'desc']).optional(),
     search: z.string().trim().max(200).optional(),
     filter: filterParam.optional(),
+    // Return every matching row in one response (for totals / charts); `truncated` reports the cap.
+    all: z.enum(['1', 'true']).optional(),
     q: z
       .string()
       .max(2000)

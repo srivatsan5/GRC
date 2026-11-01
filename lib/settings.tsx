@@ -33,27 +33,40 @@ export function useOrgSettings() {
   return { settings, bands, money, band, stored: query.data?.stored ?? false, query }
 }
 
-/** Signs the user out after `idleTimeoutMinutes` without mouse/keyboard/touch activity. */
+const ACTIVITY_KEY = 'pericope_last_activity'
+
+/**
+ * Signs the user out of this browser after `idleTimeoutMinutes` without activity in ANY tab:
+ * tabs share the last-activity time through localStorage, so an idle background tab never
+ * signs out a tab you are working in. Only this browser's session ends (other devices stay signed in).
+ */
 export function IdleTimeout() {
   const { settings } = useOrgSettings()
   const { logout, isAuthenticated } = useAuth()
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastWrite = useRef(0)
 
   useEffect(() => {
     if (!isAuthenticated) return
-    const ms = settings.idleTimeoutMinutes * 60_000
-    const reset = () => {
-      if (timer.current) clearTimeout(timer.current)
-      timer.current = setTimeout(() => {
-        logout()
-      }, ms)
+    const limit = settings.idleTimeoutMinutes * 60_000
+    const touch = () => {
+      const now = Date.now()
+      if (now - lastWrite.current < 5_000) return // throttle storage writes
+      lastWrite.current = now
+      try { localStorage.setItem(ACTIVITY_KEY, String(now)) } catch { /* private mode */ }
     }
+    const lastActivity = () => {
+      try { return Number(localStorage.getItem(ACTIVITY_KEY)) || Date.now() } catch { return lastWrite.current || Date.now() }
+    }
+    lastWrite.current = 0
+    touch()
     const events = ['mousemove', 'keydown', 'pointerdown', 'scroll', 'touchstart'] as const
-    events.forEach(e => window.addEventListener(e, reset, { passive: true }))
-    reset()
+    events.forEach(e => window.addEventListener(e, touch, { passive: true }))
+    const check = setInterval(() => {
+      if (Date.now() - lastActivity() >= limit) logout({ allDevices: false })
+    }, 30_000)
     return () => {
-      events.forEach(e => window.removeEventListener(e, reset))
-      if (timer.current) clearTimeout(timer.current)
+      events.forEach(e => window.removeEventListener(e, touch))
+      clearInterval(check)
     }
   }, [settings.idleTimeoutMinutes, logout, isAuthenticated])
 

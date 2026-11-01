@@ -80,7 +80,7 @@ export function ResidualRating({ risk, canEdit }: { risk: Risk; canEdit: boolean
         <div className="p-3 bg-slate-50 rounded border border-slate-200">
           <span className="text-[11px] text-slate-500 block mb-1">Reduction (inherent − residual)</span>
           <span className="text-base font-semibold text-slate-900 tabular-nums">
-            {reduction == null ? DASH : `${reduction > 0 ? '−' : reduction < 0 ? '+' : ''}${Math.abs(reduction)} points`}
+            {reduction == null ? DASH : reduction > 0 ? `${reduction} points lower` : reduction < 0 ? `${-reduction} points higher` : 'No change'}
           </span>
           {reduction == null ? (
             <span className="block text-[11px] text-slate-500 mt-1">Shown once both ratings exist.</span>

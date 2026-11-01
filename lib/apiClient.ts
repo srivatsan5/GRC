@@ -51,7 +51,8 @@ export function apiErrorMessage(error: unknown, fallback = 'Something went wrong
 
 export const authApi = {
   login: (email: string, password: string) => http.post<ApiSession>('/api/auth/login', { email, password }).then(r => r.data),
-  logout: () => http.post('/api/auth/logout').then(() => undefined),
+  /** allDevices=false ends only this browser's session (used by the idle timeout). */
+  logout: (allDevices = true) => http.post('/api/auth/logout', { allDevices }).then(() => undefined),
   me: () => http.get<ApiSession>('/api/auth/me').then(r => r.data),
   changePassword: (currentPassword: string, newPassword: string) =>
     http.post<ApiSession>('/api/auth/change-password', { currentPassword, newPassword }).then(r => r.data),

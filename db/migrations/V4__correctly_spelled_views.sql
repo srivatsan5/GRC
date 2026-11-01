@@ -8,19 +8,18 @@
 -- Columns keep their legacy names (e.g. IS_STAGE_COMPLTED) because the existing
 -- APEX application reads them; the API maps them for clients.
 -- =============================================================================
-SET SERVEROUTPUT ON
 
 DECLARE
   PROCEDURE alias_view(p_correct VARCHAR2, p_legacy VARCHAR2) IS
   BEGIN
     IF pericope_ddl.table_exists(p_correct) THEN
-      DBMS_OUTPUT.PUT_LINE(p_correct || ' already exists');
+      pericope_ddl.log_msg('INFO', p_correct || ' already exists');
     ELSIF pericope_ddl.table_exists(p_legacy) THEN
       EXECUTE IMMEDIATE 'CREATE VIEW ' || p_correct || ' AS SELECT * FROM ' || p_legacy || ' WITH READ ONLY';
-      DBMS_OUTPUT.PUT_LINE('created view ' || p_correct || ' over ' || p_legacy);
+      pericope_ddl.log_msg('INFO', 'created view ' || p_correct || ' over ' || p_legacy);
       pericope_ddl.enable_rest(p_correct, 'VIEW');
     ELSE
-      DBMS_OUTPUT.PUT_LINE('neither ' || p_correct || ' nor ' || p_legacy || ' exists');
+      pericope_ddl.log_msg('INFO', 'neither ' || p_correct || ' nor ' || p_legacy || ' exists');
     END IF;
   END;
 BEGIN

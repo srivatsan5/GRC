@@ -1,5 +1,11 @@
+import { readFileSync } from 'node:fs'
+
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Shown in the footer, from package.json (no hardcoded version strings).
+  env: { NEXT_PUBLIC_APP_VERSION: version },
   output: 'standalone',
   typescript: {
     ignoreBuildErrors: true,

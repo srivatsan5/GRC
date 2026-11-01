@@ -1,11 +1,7 @@
-import { MitigationRiskDetailsPage } from '@/components/pages/mitigation-risk-details'
-import { PericopeLayout } from '@/components/pericope-layout'
+import { redirect } from 'next/navigation'
 
-export default async function MitigationDetailsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return (
-    <PericopeLayout>
-      <MitigationRiskDetailsPage riskId={id} />
-    </PericopeLayout>
-  )
+/** The canonical risk page is /risks/[id]; keep old mitigation links working. */
+export default async function MitigationDetailsRedirect({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  redirect(`/risks/${encodeURIComponent(id)}`)
 }

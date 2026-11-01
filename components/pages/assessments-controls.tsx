@@ -4,9 +4,9 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Download, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Check, CircleCheck, Clock, Download, Minus, OctagonAlert, Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Chip, CountUp, FilterChip, PageHeader, Panel, SearchField, Stat } from '@/components/charter/primitives'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
@@ -19,16 +19,17 @@ import { currentScore, toRisk, type Risk } from '@/lib/risk'
 import { DASH } from '@/lib/format'
 import { ControlImplementationDialog, useRemoveAppliedControl } from '@/components/treatment/control-dialog'
 import {
+  EffectivenessChip,
+  FigureStrip,
   OPERATING_OPTIONS,
-  ValueChip,
   controlName,
   downloadCsv,
-  labelCls,
   numOrNull,
   pageSlice,
   riskLabel,
+  riskRefOf,
   rowId,
-  selectCls,
+  testStatus,
   text,
 } from '@/components/treatment/shared'
 
@@ -46,7 +47,7 @@ export function AssessmentscontrolsPage() {
   const libraryQ = useRows('erm_mst_control')
   const { remove, isPending: removing } = useRemoveAppliedControl()
 
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(params.get('q') ?? '')
   const [effFilter, setEffFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'' | 'Y' | 'N'>('')
   const [riskFilter, setRiskFilter] = useState<number | null>(initialRisk)
@@ -150,99 +151,98 @@ export function AssessmentscontrolsPage() {
   }
 
   const filtered = search || effFilter || statusFilter || riskFilter != null
+  const loaded = !!implQ.data
+  const pct = (n: number) => (counts.total ? `${Math.round((n / counts.total) * 100)}% of applied controls` : 'No applied controls yet')
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Control testing</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Controls applied to risks, with their design and operating effectiveness and test evidence.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
-            <Download className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-            Export CSV
-          </Button>
-          {hasPermission('create') && (
-            <Button size="sm" onClick={openNew}>
-              <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-              New applied control
+      <PageHeader
+        eyebrow="Controls & mitigation · Testing"
+        title="Control testing"
+        description="Controls applied to risks, with their design and operating effectiveness and test evidence."
+        actions={
+          <>
+            <Button variant="secondary" onClick={exportCsv} disabled={rows.length === 0}>
+              <Download aria-hidden="true" />
+              Export CSV
             </Button>
-          )}
-        </div>
+            {hasPermission('create') && (
+              <Button onClick={openNew}>
+                <Plus aria-hidden="true" />
+                New applied control
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <FigureStrip>
+        <Stat label="Applied controls" loading={!loaded} value={<CountUp value={counts.total} />} context={`Across ${new Set((implQ.data ?? []).map(c => numOrNull(c.identify_risk_uuid)).filter(v => v != null)).size} risks`} />
+        <Stat
+          label={<span className="inline-flex items-center gap-1.5"><CircleCheck className="size-3.5 text-status-success-fg" aria-hidden="true" />Effective</span>}
+          loading={!loaded}
+          value={<CountUp value={counts.effective} />}
+          context={pct(counts.effective)}
+        />
+        <Stat
+          label={<span className="inline-flex items-center gap-1.5"><TriangleAlert className="size-3.5 text-status-warning-fg" aria-hidden="true" />Partially effective</span>}
+          loading={!loaded}
+          value={<CountUp value={counts.partial} />}
+          context={pct(counts.partial)}
+        />
+        <Stat
+          label={<span className="inline-flex items-center gap-1.5"><OctagonAlert className="size-3.5 text-status-danger-fg" aria-hidden="true" />Ineffective</span>}
+          loading={!loaded}
+          value={<CountUp value={counts.ineffective} />}
+          tone={counts.ineffective > 0 ? 'text-status-danger-fg' : undefined}
+          context={counts.ineffective > 0 ? 'Need remediation' : 'None failing'}
+        />
+        <Stat label="Never tested" loading={!loaded} value={<CountUp value={counts.notAssessed} />} context="No operating result recorded" />
+      </FigureStrip>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchField value={search} onChange={setSearch} label="Search applied controls" placeholder="Control, risk, evidence…" />
+        <FilterChip
+          label="Operating"
+          value={effFilter}
+          onChange={setEffFilter}
+          options={[...OPERATING_OPTIONS.map(o => ({ value: o, label: o })), { value: NOT_ASSESSED, label: 'Not assessed' }]}
+        />
+        <FilterChip
+          label="Test"
+          value={statusFilter}
+          onChange={v => setStatusFilter(v as '' | 'Y' | 'N')}
+          options={[
+            { value: 'N', label: 'In progress' },
+            { value: 'Y', label: 'Complete' },
+          ]}
+        />
+        <FilterChip
+          label="Risk"
+          value={riskFilter != null ? String(riskFilter) : ''}
+          onChange={v => setRiskFilter(v ? Number(v) : null)}
+          options={[
+            ...(riskFilter != null && !risks.has(riskFilter) ? [{ value: String(riskFilter), label: `Risk #${riskFilter}` }] : []),
+            ...[...risks.values()].map(r => ({ value: String(r.uuid), label: `${r.referenceNumber ?? `#${r.uuid}`} · ${(r.statement ?? 'No statement recorded').slice(0, 60)}` })),
+          ]}
+        />
+        {filtered && (
+          <Button
+            variant="ghost"
+            onClick={() => {
+              setSearch('')
+              setEffFilter('')
+              setStatusFilter('')
+              setRiskFilter(null)
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
+        <span className="ml-auto text-caption text-muted-foreground tabular-nums">{loaded ? `${rows.length} of ${counts.total}` : ''}</span>
       </div>
 
-      {implQ.data && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {[
-            ['Applied controls', counts.total],
-            ['Effective', counts.effective],
-            ['Partially effective', counts.partial],
-            ['Ineffective', counts.ineffective],
-            ['Not tested / not assessed', counts.notAssessed],
-          ].map(([label, value]) => (
-            <div key={label} className="bg-white border border-slate-200 rounded p-3">
-              <span className="block text-[11px] text-slate-500">{label}</span>
-              <span className="text-lg font-semibold text-slate-900 tabular-nums">{value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="bg-white border border-slate-200 rounded">
-        <div className="p-3 border-b border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-3">
-          <div>
-            <label htmlFor="ctl-search" className={labelCls}>
-              Search
-            </label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-              <Input id="ctl-search" className="pl-8 h-9" placeholder="Control, risk, evidence…" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="ctl-eff" className={labelCls}>
-              Operating effectiveness
-            </label>
-            <select id="ctl-eff" className={selectCls} value={effFilter} onChange={e => setEffFilter(e.target.value)}>
-              <option value="">All</option>
-              {OPERATING_OPTIONS.map(o => (
-                <option key={o}>{o}</option>
-              ))}
-              <option value={NOT_ASSESSED}>Not assessed</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="ctl-status" className={labelCls}>
-              Assessment
-            </label>
-            <select id="ctl-status" className={selectCls} value={statusFilter} onChange={e => setStatusFilter(e.target.value as '' | 'Y' | 'N')}>
-              <option value="">All</option>
-              <option value="N">In progress</option>
-              <option value="Y">Complete</option>
-            </select>
-          </div>
-          <div>
-            <label htmlFor="ctl-risk-filter" className={labelCls}>
-              Risk
-            </label>
-            <select
-              id="ctl-risk-filter"
-              className={selectCls}
-              value={riskFilter ?? ''}
-              onChange={e => setRiskFilter(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">All risks</option>
-              {riskFilter != null && !risks.has(riskFilter) && <option value={riskFilter}>Risk #{riskFilter}</option>}
-              {[...risks.values()].map(r => (
-                <option key={r.uuid} value={r.uuid}>
-                  #{r.uuid} · {(r.statement ?? 'No statement').slice(0, 70)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
+      <Panel bodyClassName="p-0">
         <DataState
           query={[implQ, risksQ, libraryQ]}
           empty={rows.length === 0}
@@ -250,25 +250,26 @@ export function AssessmentscontrolsPage() {
           emptyDescription={filtered ? 'Clear the search or filters to see more.' : 'Apply a library control to a risk to start testing it.'}
           emptyAction={
             !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={openNew}>
-                <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+              <Button onClick={openNew}>
+                <Plus aria-hidden="true" />
                 New applied control
               </Button>
             ) : undefined
           }
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[980px]">
               <thead>
                 <tr>
-                  <th>Control</th>
+                  <th className="pl-6">Control</th>
                   <th>Risk</th>
-                  <th>Frequency</th>
                   <th>Design</th>
                   <th>Operating</th>
                   <th>Evidence</th>
-                  <th>Assessment</th>
-                  <th className="text-right">Actions</th>
+                  <th>Test</th>
+                  <th className="pr-6 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -277,61 +278,66 @@ export function AssessmentscontrolsPage() {
                   const { code, name } = controlName(c.control_id, library)
                   const riskId = numOrNull(c.identify_risk_uuid)
                   const risk = riskId != null ? risks.get(riskId) : undefined
+                  const ts = testStatus(c)
+                  const evidence = text(c.evidence_notes)
                   return (
                     <tr key={id ?? JSON.stringify(c)}>
-                      <td>
-                        <span className="font-medium text-slate-900 block">{name}</span>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          {code ?? DASH}
-                          {text(c.control_type) ? ` · ${text(c.control_type)}` : ''}
+                      <td className="max-w-[300px] py-2 pl-6">
+                        <span className="block truncate font-medium text-foreground" title={name}>
+                          {name}
+                        </span>
+                        <span className="block truncate font-mono text-caption text-muted-foreground">
+                          {[code ?? 'No code', text(c.control_type), text(c.control_frequency)].filter(Boolean).join(' · ')}
                         </span>
                       </td>
-                      <td className="max-w-[260px]">
+                      <td className="max-w-[280px] py-2">
                         {riskId != null ? (
-                          <Link href={`/rcsa/mitigation/${riskId}`} className="text-xs text-blue-700 hover:underline line-clamp-2">
-                            {riskLabel(risk, riskId)}
-                          </Link>
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            {risk && <BandBadge score={currentScore(risk)} compact />}
+                            <span className="min-w-0">
+                              <Link href={`/risks/${riskId}`} className="block truncate rounded-xs text-foreground hover:text-primary hover:underline focus-ring" title={riskLabel(risk, riskId)}>
+                                {riskLabel(risk, riskId)}
+                              </Link>
+                              <span className="block font-mono text-caption text-muted-foreground">{riskRefOf(risk, riskId)}</span>
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-xs text-slate-400">No risk linked</span>
+                          <span className="text-muted-foreground">No risk linked</span>
                         )}
-                        {risk && <BandBadge score={currentScore(risk)} className="mt-1" />}
-                      </td>
-                      <td className="text-slate-600 text-xs">{text(c.control_frequency) ?? DASH}</td>
-                      <td>
-                        <ValueChip value={c.control_design_effectiveness} />
                       </td>
                       <td>
-                        <ValueChip value={c.control_effectiveness_rating} />
+                        <EffectivenessChip value={c.control_design_effectiveness} />
                       </td>
-                      <td className="max-w-[220px]">
-                        <span className="line-clamp-2 text-xs text-slate-600">{text(c.evidence_notes) ?? DASH}</span>
+                      <td>
+                        <EffectivenessChip value={c.control_effectiveness_rating} />
                       </td>
-                      <td className="text-xs text-slate-600">{c.is_stage_complted === 'Y' ? 'Complete' : 'In progress'}</td>
-                      <td className="text-right whitespace-nowrap">
+                      <td className="max-w-[200px]">
+                        <span className={'block truncate ' + (evidence ? 'text-foreground-secondary' : 'text-muted-foreground')} title={evidence ?? undefined}>
+                          {evidence ?? 'No evidence recorded'}
+                        </span>
+                      </td>
+                      <td>
+                        <Chip tone={ts.tone === 'success' ? 'success' : ts.tone === 'info' ? 'info' : 'neutral'} icon={ts.tone === 'success' ? Check : ts.tone === 'info' ? Clock : Minus}>
+                          {ts.label.replace('Test ', '').replace(/^./, m => m.toUpperCase())}
+                        </Chip>
+                      </td>
+                      <td className="pr-6 text-right whitespace-nowrap">
                         {hasPermission('update') && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
                             aria-label={`Edit ${name}`}
                             onClick={() => {
                               setEditing(c)
                               setDialogOpen(true)
                             }}
                           >
-                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                            <Pencil aria-hidden="true" />
                           </Button>
                         )}
                         {hasPermission('delete') && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-red-600 hover:bg-red-50"
-                            aria-label={`Delete ${name}`}
-                            disabled={removing}
-                            onClick={() => handleDelete(c)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <Button variant="ghost" size="icon" className="hover:bg-status-danger-bg hover:text-status-danger-fg" aria-label={`Delete ${name}`} disabled={removing} onClick={() => handleDelete(c)}>
+                            <Trash2 aria-hidden="true" />
                           </Button>
                         )}
                       </td>
@@ -343,14 +349,9 @@ export function AssessmentscontrolsPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={rows.length} onPage={setPage} />
         </DataState>
-      </div>
+      </Panel>
 
-      <ControlImplementationDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        row={editing}
-        defaultRiskId={riskFilter}
-      />
+      <ControlImplementationDialog open={dialogOpen} onOpenChange={setDialogOpen} row={editing} defaultRiskId={riskFilter} />
     </div>
   )
 }

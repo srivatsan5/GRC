@@ -7,7 +7,8 @@
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2, Search } from 'lucide-react'
+import { Check, CircleCheck, Loader2, OctagonAlert, Search } from 'lucide-react'
+import { Chip } from '@/components/charter/primitives'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,10 +20,14 @@ import { DASH } from '@/lib/format'
 import { RiskSelect } from './risk-select'
 import {
   CONTROL_TYPE_OPTIONS,
-  EFFECTIVENESS_OPTIONS,
+  CheckboxField,
+  ChoiceGroup,
+  EFFECTIVENESS_CHOICES,
   FieldError,
+  FormSection,
   FREQUENCY_OPTIONS,
-  OPERATING_OPTIONS,
+  OPERATING_CHOICES,
+  helpCls,
   labelCls,
   numOrNull,
   rowId,
@@ -103,77 +108,105 @@ function LibraryControlPicker({
   return (
     <div>
       <label htmlFor="ctl-lib-search" className={labelCls}>
-        Library control *
+        Library control <span className="text-status-danger-fg" aria-hidden="true">*</span>
       </label>
       {value != null && (
-        <div className="mb-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900">
-          Selected:{' '}
-          <strong>
-            {selectedQ.data
-              ? `${text(selectedQ.data.control_code) ?? ''} ${text(selectedQ.data.control_name) ?? ''}`.trim()
-              : selectedQ.isError
-                ? `Control #${value} (not found in the library)`
-                : 'Loading…'}
-          </strong>
+        <div className="mb-2 flex items-center gap-3 rounded-md bg-accent px-3 py-2 shadow-[inset_3px_0_0_var(--primary)]">
+          <CircleCheck className="size-4 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0 text-body-sm">
+            <span className="text-muted-foreground">Selected </span>
+            {selectedQ.data ? (
+              <>
+                <span className="font-mono text-caption text-foreground-secondary">{text(selectedQ.data.control_code) ?? DASH}</span>{' '}
+                <span className="font-medium text-foreground">{text(selectedQ.data.control_name) ?? `Control #${value}`}</span>
+              </>
+            ) : selectedQ.isError ? (
+              <span className="text-foreground">Control #{value} (not found in the library)</span>
+            ) : (
+              <span className="text-muted-foreground">Loading…</span>
+            )}
+          </span>
         </div>
       )}
       <div className="relative">
-        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
         <Input
           id="ctl-lib-search"
+          type="search"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by code, name, owner or framework…"
-          className="pl-8 h-9 text-sm"
-          aria-describedby={error ? 'ctl-lib-error' : undefined}
+          className="pl-9"
+          aria-invalid={!!error}
+          aria-describedby={error ? 'ctl-lib-error' : 'ctl-lib-help'}
         />
       </div>
-      <div className="mt-2 max-h-48 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100" role="listbox" aria-label="Library controls">
+      <div className="mt-2 max-h-56 overflow-y-auto rounded-md bg-card shadow-[inset_0_0_0_1px_var(--border)]" role="listbox" aria-label="Library controls">
         {pageQ.isLoading ? (
-          <p className="p-3 text-xs text-slate-500">Loading library…</p>
+          <div className="space-y-2 p-3" aria-label="Loading library">
+            <span className="skeleton block h-4 w-3/4" />
+            <span className="skeleton block h-4 w-1/2" />
+          </div>
         ) : pageQ.isError ? (
-          <p className="p-3 text-xs text-red-600">{apiErrorMessage(pageQ.error)}</p>
+          <p className="flex items-center gap-2 p-3 text-body-sm text-status-danger-fg">
+            <OctagonAlert className="size-4" aria-hidden="true" />
+            {apiErrorMessage(pageQ.error)}
+          </p>
         ) : items.length === 0 ? (
-          <p className="p-3 text-xs text-slate-500">
-            {debounced ? 'No library controls match this search.' : 'The control library is empty. Add controls in the Control Library first.'}
+          <p className="p-3 text-body-sm text-muted-foreground">
+            {debounced ? 'No library controls match this search.' : 'The control library is empty. Add controls in the Control library first.'}
           </p>
         ) : (
-          items.map(c => {
-            const id = rowId(c)!
-            const selected = id === value
-            const retired = String(c.status ?? '').toLowerCase() === 'retired'
-            const applied = appliedIds.has(id) && !selected
-            return (
-              <button
-                type="button"
-                key={id}
-                role="option"
-                aria-selected={selected}
-                disabled={retired || applied}
-                onClick={() => onPick(c)}
-                className={cn(
-                  'w-full text-left px-3 py-2 text-xs hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed',
-                  selected && 'bg-blue-50',
-                )}
-              >
-                <span className="font-mono text-slate-500 mr-2">{text(c.control_code) ?? DASH}</span>
-                <span className="font-medium text-slate-900">{text(c.control_name) ?? `Control #${id}`}</span>
-                <span className="block text-[11px] text-slate-500">
-                  {[text(c.control_type), text(c.frequency), text(c.owner_name), text(c.status)].filter(Boolean).join(' · ') || DASH}
-                  {applied && ' · already applied to this risk'}
-                  {retired && ' · retired'}
-                </span>
-              </button>
-            )
-          })
+          <ul className="divide-y divide-border">
+            {items.map(c => {
+              const id = rowId(c)!
+              const selected = id === value
+              const retired = String(c.status ?? '').toLowerCase() === 'retired'
+              const applied = appliedIds.has(id) && !selected
+              const meta = [text(c.control_type), text(c.frequency), text(c.owner_name)].filter(Boolean).join(' · ')
+              return (
+                <li key={id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    disabled={retired || applied}
+                    onClick={() => onPick(c)}
+                    className={cn(
+                      'flex w-full items-center gap-3 px-3 py-2 text-left transition-colors duration-(--duration-fast) ease-out focus-ring hover:bg-hover disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:bg-transparent',
+                      selected && 'bg-accent shadow-[inset_3px_0_0_var(--primary)] hover:bg-accent',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-body-sm font-medium text-foreground">{text(c.control_name) ?? `Control #${id}`}</span>
+                      <span className="block truncate text-caption text-muted-foreground">
+                        <span className="font-mono">{text(c.control_code) ?? DASH}</span>
+                        {meta && ` · ${meta}`}
+                      </span>
+                    </span>
+                    {applied ? (
+                      <Chip tone="neutral" icon={Check}>Applied</Chip>
+                    ) : retired ? (
+                      <Chip tone="neutral" icon={null}>Retired</Chip>
+                    ) : selected ? (
+                      <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                    ) : null}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         )}
       </div>
-      {(pageQ.data?.total ?? 0) > items.length && (
-        <p className="mt-1 text-[11px] text-slate-500">
-          Showing {items.length} of {pageQ.data?.total}. Refine the search to find others.
+      {error ? (
+        <FieldError id="ctl-lib-error" message={error} />
+      ) : (
+        <p id="ctl-lib-help" className={helpCls}>
+          {(pageQ.data?.total ?? 0) > items.length
+            ? `Showing ${items.length} of ${pageQ.data?.total}. Refine the search to find others.`
+            : 'Retired controls and controls already applied to this risk cannot be chosen.'}
         </p>
       )}
-      <FieldError id="ctl-lib-error" message={error} />
     </div>
   )
 }
@@ -205,6 +238,9 @@ function initialState(row: Row | null | undefined, riskId: number | null | undef
 /** Keep a legacy value visible in a select even when it isn't one of the standard options. */
 function withCurrent(options: readonly string[], current: string): string[] {
   return current && !options.includes(current) ? [current, ...options] : [...options]
+}
+function withCurrentChoice<T extends { value: string; label: string }>(options: T[], current: string): { value: string; label: string }[] {
+  return current && !options.some(o => o.value === current) ? [...options, { value: current, label: current }] : options
 }
 
 export function ControlImplementationDialog({
@@ -306,107 +342,104 @@ export function ControlImplementationDialog({
 
   return (
     <Dialog open={open} onOpenChange={o => !saving && onOpenChange(o)}>
-      <DialogContent className="max-w-xl bg-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[620px]">
         <DialogHeader>
-          <DialogTitle className="text-base text-slate-900">{editing ? 'Edit applied control' : 'Apply a control'}</DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">
-            Link a control from the library to the risk and record how well it is designed and operating.
-          </DialogDescription>
+          <DialogTitle>{editing ? 'Edit applied control' : 'Apply a control'}</DialogTitle>
+          <DialogDescription>Link a control from the library to the risk and record how well it is designed and operating.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {riskId == null && <RiskSelect id="ctl-risk" value={form.riskId} onChange={v => set('riskId', v)} error={errors.risk} />}
+        <div className="space-y-5">
+          <FormSection title="Control">
+            {riskId == null && <RiskSelect id="ctl-risk" value={form.riskId} onChange={v => set('riskId', v)} error={errors.risk} />}
 
-          <LibraryControlPicker
-            value={form.controlId}
-            appliedIds={appliedIds}
-            error={errors.control}
-            onPick={c => {
-              setForm(f => ({
-                ...f,
-                controlId: rowId(c),
-                controlType: f.controlType || text(c.control_type) || '',
-                frequency: f.frequency || text(c.frequency) || '',
-              }))
-            }}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label htmlFor="ctl-type" className={labelCls}>
-                Control type
-              </label>
-              <select id="ctl-type" className={selectCls} value={form.controlType} onChange={e => set('controlType', e.target.value)}>
-                <option value="">Not set</option>
-                {withCurrent(CONTROL_TYPE_OPTIONS, form.controlType).map(o => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="ctl-frequency" className={labelCls}>
-                Frequency
-              </label>
-              <select id="ctl-frequency" className={selectCls} value={form.frequency} onChange={e => set('frequency', e.target.value)}>
-                <option value="">Not set</option>
-                {withCurrent(FREQUENCY_OPTIONS, form.frequency).map(o => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="ctl-design" className={labelCls}>
-                Design effectiveness
-              </label>
-              <select id="ctl-design" className={selectCls} value={form.design} onChange={e => set('design', e.target.value)}>
-                <option value="">Not assessed</option>
-                {withCurrent(EFFECTIVENESS_OPTIONS, form.design).map(o => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="ctl-operating" className={labelCls}>
-                Operating effectiveness (test result)
-              </label>
-              <select id="ctl-operating" className={selectCls} value={form.operating} onChange={e => set('operating', e.target.value)}>
-                <option value="">Not assessed</option>
-                {withCurrent(OPERATING_OPTIONS, form.operating).map(o => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="ctl-evidence" className={labelCls}>
-              Evidence notes
-            </label>
-            <Textarea
-              id="ctl-evidence"
-              rows={3}
-              value={form.evidence}
-              onChange={e => set('evidence', e.target.value)}
-              placeholder="What was tested, the sample, where the evidence is filed…"
-              aria-describedby={errors.evidence ? 'ctl-evidence-error' : undefined}
+            <LibraryControlPicker
+              value={form.controlId}
+              appliedIds={appliedIds}
+              error={errors.control}
+              onPick={c => {
+                setForm(f => ({
+                  ...f,
+                  controlId: rowId(c),
+                  controlType: f.controlType || text(c.control_type) || '',
+                  frequency: f.frequency || text(c.frequency) || '',
+                }))
+              }}
             />
-            <FieldError id="ctl-evidence-error" message={errors.evidence} />
-          </div>
 
-          <div className="flex items-center gap-2">
-            <input id="ctl-complete" type="checkbox" className="h-4 w-4" checked={form.complete} onChange={e => set('complete', e.target.checked)} />
-            <label htmlFor="ctl-complete" className="text-sm text-slate-700">
-              Assessment of this control is complete
-            </label>
-          </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="ctl-type" className={labelCls}>
+                  Control type
+                </label>
+                <select id="ctl-type" className={selectCls} value={form.controlType} onChange={e => set('controlType', e.target.value)}>
+                  <option value="">Not set</option>
+                  {withCurrent(CONTROL_TYPE_OPTIONS, form.controlType).map(o => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="ctl-frequency" className={labelCls}>
+                  Frequency
+                </label>
+                <select id="ctl-frequency" className={selectCls} value={form.frequency} onChange={e => set('frequency', e.target.value)}>
+                  <option value="">Not set</option>
+                  {withCurrent(FREQUENCY_OPTIONS, form.frequency).map(o => (
+                    <option key={o}>{o}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Effectiveness">
+            <ChoiceGroup
+              legend="Design effectiveness"
+              name="ctl-design"
+              value={form.design}
+              onChange={v => set('design', v)}
+              options={withCurrentChoice(EFFECTIVENESS_CHOICES, form.design)}
+              help="Would the control mitigate the risk if it operated as designed?"
+            />
+            <ChoiceGroup
+              legend="Operating effectiveness (test result)"
+              name="ctl-operating"
+              value={form.operating}
+              onChange={v => set('operating', v)}
+              options={withCurrentChoice(OPERATING_CHOICES, form.operating)}
+              help="The result of the latest test of the control in operation."
+            />
+            <div>
+              <label htmlFor="ctl-evidence" className={labelCls}>
+                Evidence notes
+              </label>
+              <Textarea
+                id="ctl-evidence"
+                rows={3}
+                value={form.evidence}
+                onChange={e => set('evidence', e.target.value)}
+                placeholder="What was tested, the sample, where the evidence is filed…"
+                aria-invalid={!!errors.evidence}
+                aria-describedby={errors.evidence ? 'ctl-evidence-error' : 'ctl-evidence-help'}
+              />
+              {errors.evidence ? (
+                <FieldError id="ctl-evidence-error" message={errors.evidence} />
+              ) : (
+                <p id="ctl-evidence-help" className={helpCls}>
+                  {form.evidence.length} / 4000 characters
+                </p>
+              )}
+            </div>
+            <CheckboxField id="ctl-complete" checked={form.complete} onChange={v => set('complete', v)} label="Assessment of this control is complete" help="Marks the test as finished for this cycle." />
+          </FormSection>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" aria-hidden="true" />}
+            {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
             {editing ? 'Save changes' : 'Apply control'}
           </Button>
         </DialogFooter>

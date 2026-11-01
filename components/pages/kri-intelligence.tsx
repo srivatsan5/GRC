@@ -1,59 +1,68 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
-import Link from 'next/link'
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Minus, ClipboardPlus, History, Download, Search } from 'lucide-react'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+/**
+ * /kri — Key risk indicators as cards in the dashboard's breach-tile language: latest reading as a serif
+ * figure, status pill with icon, direction-aware delta, and a trend over shaded threshold zones.
+ * Breaches are the loud cards (critical wash + keyline). History opens in the detail sheet.
+ */
+import React, { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { ArrowDownRight, ArrowUpRight, ClipboardPlus, Download, History, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState, EmptyState } from '@/components/data-state'
+import { CountUp, Facts, PageHeader, Person, SearchField, ViewTabs } from '@/components/charter/primitives'
 import { useDeleteRow } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
-import { formatDate, formatNumber, toDateInput } from '@/lib/format'
-import { kriLight, type KriDefinition, type KriLight } from '@/lib/kri'
+import { DASH, formatDate, toDateInput } from '@/lib/format'
+import { LIGHT_STYLES, kriLight, type KriDefinition, type KriLight } from '@/lib/kri'
+import { exportCsv } from '@/components/controls/form-bits'
+import { Checkbox } from '@/components/governance/form'
 import { cn } from '@/lib/utils'
-import { Stat, exportCsv, selectClass } from '@/components/controls/form-bits'
-import {
-  DIRECTION_LABELS,
-  KRI_READINGS,
-  KriDefinitionDialog,
-  LightBadge,
-  RecordReadingDialog,
-  formatValue,
-  thresholdText,
-  useDeleteKri,
-  useKriData,
-  type KriWithReadings,
-} from '@/components/kri/kri-shared'
-
-const LINE_COLOR: Record<KriLight, string> = { GREEN: '#059669', AMBER: '#d97706', RED: '#dc2626' }
+import { KriNav } from '@/components/kri/kri-nav'
+import { KriDelta, KriTrendChart, LightPill, ThresholdStrip, fmt, zoneLabels, LIGHT_ICON, LIGHT_VAR } from '@/components/kri/kri-visuals'
+import { DIRECTION_LABELS, KRI_READINGS, KriDefinitionDialog, RecordReadingDialog, useDeleteKri, useKriData, type KriWithReadings } from '@/components/kri/kri-shared'
 
 type LightFilter = 'all' | KriLight | 'none'
+const SEVERITY: Record<string, number> = { RED: 0, AMBER: 1, GREEN: 2, none: 3 }
+
+/** Figure colour per light (text tokens that pass AA on the card/wash). */
+const FIGURE_TONE: Record<KriLight, string> = { RED: 'text-risk-critical-text', AMBER: 'text-kri-amber-fg', GREEN: 'text-foreground' }
 
 export function KriIntelligencePage() {
   const { hasPermission } = useAuth()
+  const params = useSearchParams()
   const { data, queries, defsQ } = useKriData()
   const deleteKri = useDeleteKri()
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => params.get('q') ?? '')
   const [lightFilter, setLightFilter] = useState<LightFilter>('all')
   const [showInactive, setShowInactive] = useState(false)
   const [editing, setEditing] = useState<KriDefinition | 'new' | null>(null)
   const [recording, setRecording] = useState<KriDefinition | null>(null)
-  const [history, setHistory] = useState<KriWithReadings | null>(null)
+  const [history, setHistory] = useState<number | null>(null)
+
+  // The ⌘K palette links to /kri?q=…; follow it when the param changes while on the page.
+  const q = params.get('q')
+  useEffect(() => {
+    if (q != null) setSearch(q)
+  }, [q])
+
+  const pool = useMemo(() => data.filter(d => showInactive || d.kri.active), [data, showInactive])
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase()
-    return data.filter(d => {
-      if (!showInactive && !d.kri.active) return false
-      if (lightFilter === 'none' ? d.light != null : lightFilter !== 'all' && d.light !== lightFilter) return false
-      if (term && ![d.kri.code, d.kri.name, d.kri.owner, d.kri.category].some(v => v?.toLowerCase().includes(term))) return false
-      return true
-    })
-  }, [data, search, lightFilter, showInactive])
+    return pool
+      .filter(d => {
+        if (lightFilter === 'none' ? d.light != null : lightFilter !== 'all' && d.light !== lightFilter) return false
+        if (term && ![d.kri.code, d.kri.name, d.kri.owner, d.kri.category].some(v => v?.toLowerCase().includes(term))) return false
+        return true
+      })
+      .sort((a, b) => SEVERITY[a.light ?? 'none']! - SEVERITY[b.light ?? 'none']!)
+  }, [pool, search, lightFilter])
 
   const totals = useMemo(() => {
     const active = data.filter(d => d.kri.active)
@@ -63,8 +72,20 @@ export function KriIntelligencePage() {
       amber: active.filter(d => d.light === 'AMBER').length,
       red: active.filter(d => d.light === 'RED').length,
       none: active.filter(d => d.light == null).length,
+      readings: active.reduce((n, d) => n + d.readings.length, 0),
     }
   }, [data])
+
+  const tabCounts = useMemo(
+    () => ({
+      all: pool.length,
+      RED: pool.filter(d => d.light === 'RED').length,
+      AMBER: pool.filter(d => d.light === 'AMBER').length,
+      GREEN: pool.filter(d => d.light === 'GREEN').length,
+      none: pool.filter(d => d.light == null).length,
+    }),
+    [pool],
+  )
 
   const handleExport = () => {
     const rows = data.flatMap(d =>
@@ -75,104 +96,128 @@ export function KriIntelligencePage() {
 
   const readingCount = data.reduce((n, d) => n + d.readings.length, 0)
   const filtering = Boolean(search.trim()) || lightFilter !== 'all'
-  const latestOf = useMemo(() => (history ? data.find(d => d.kri.uuid === history.kri.uuid) ?? null : null), [history, data])
+  const historyItem = useMemo(() => (history != null ? data.find(d => d.kri.uuid === history) ?? null : null), [history, data])
+  const canRecord = hasPermission('create')
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Key Risk Indicators</h1>
-          <p className="text-xs text-slate-500">
-            Current values are the latest recorded reading.{' '}
-            <Link href="/kri/matrix" className="text-blue-700 hover:underline">
-              Readings matrix
-            </Link>{' '}
-            ·{' '}
-            <Link href="/kri/configuration" className="text-blue-700 hover:underline">
-              Threshold configuration
-            </Link>
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={readingCount === 0}>
-            <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-            Export readings
-          </Button>
-          {hasPermission('create') && (
-            <Button onClick={() => setEditing('new')} size="sm">
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              New indicator
+      <PageHeader
+        eyebrow="Analytics · Key risk indicators"
+        title="Key risk indicators"
+        description="Each indicator’s latest recorded reading against its thresholds, with the trend behind it."
+        actions={
+          <>
+            <Button variant="secondary" onClick={handleExport} disabled={readingCount === 0}>
+              <Download aria-hidden="true" />
+              Export readings
             </Button>
-          )}
-        </div>
-      </div>
+            {hasPermission('create') && (
+              <Button onClick={() => setEditing('new')}>
+                <Plus aria-hidden="true" />
+                New indicator
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <KriNav />
 
       <DataState
         query={queries}
         empty={(defsQ.data?.length ?? 0) === 0}
-        emptyTitle="No key risk indicators defined yet"
-        emptyDescription="Define an indicator with thresholds, then record readings to track it."
+        emptyTitle="No key risk indicators yet"
+        emptyDescription="Define an indicator with its amber and red thresholds, then record readings to track it against appetite."
         emptyAction={
           hasPermission('create') ? (
-            <Button size="sm" onClick={() => setEditing('new')}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-              New indicator
+            <Button onClick={() => setEditing('new')}>
+              <Plus aria-hidden="true" />
+              Define the first indicator
             </Button>
           ) : undefined
         }
       >
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <Stat label="Active indicators" value={totals.total} />
-          <Stat label="Green" value={totals.green} tone="green" />
-          <Stat label="Amber warnings" value={totals.amber} tone="amber" />
-          <Stat label="Red breaches" value={totals.red} tone="red" />
-          <Stat label="No reading yet" value={totals.none} />
-        </div>
+        <section aria-label="Indicator summary" className="surface-panel grid grid-cols-2 overflow-hidden lg:grid-cols-4">
+          <SummaryCell label="Active indicators" value={totals.total} context={`${totals.readings} reading${totals.readings === 1 ? '' : 's'} recorded`} />
+          <SummaryCell
+            label="Breach"
+            light="RED"
+            value={totals.red}
+            tone={totals.red > 0 ? 'text-risk-critical-text' : undefined}
+            context={totals.red > 0 ? 'Latest reading past the red threshold' : 'No indicator in breach'}
+            onClick={totals.red > 0 ? () => setLightFilter('RED') : undefined}
+          />
+          <SummaryCell
+            label="Warning"
+            light="AMBER"
+            value={totals.amber}
+            tone={totals.amber > 0 ? 'text-kri-amber-fg' : undefined}
+            context={totals.amber > 0 ? 'Between amber and red' : 'None between amber and red'}
+            onClick={totals.amber > 0 ? () => setLightFilter('AMBER') : undefined}
+          />
+          <SummaryCell
+            label="Within appetite"
+            light="GREEN"
+            value={totals.green}
+            context={totals.none > 0 ? `${totals.none} without a reading yet` : `${totals.green} of ${totals.total} indicators`}
+          />
+        </section>
 
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end justify-between">
-          <div className="relative w-full sm:w-72">
-            <label htmlFor="kri-search" className="sr-only">
-              Search indicators
-            </label>
-            <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-            <Input id="kri-search" placeholder="Search code, name, owner, category…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-xs bg-white" />
-          </div>
-          <div className="flex items-end gap-3">
-            <label className="flex items-center gap-1.5 text-xs text-slate-600 pb-1.5" htmlFor="kri-show-inactive">
-              <input id="kri-show-inactive" type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
-              Show inactive
-            </label>
-            <div>
-              <label htmlFor="kri-light-filter" className="block text-[11px] text-slate-500 mb-0.5">
-                Status
-              </label>
-              <select id="kri-light-filter" className={`${selectClass} w-40`} value={lightFilter} onChange={e => setLightFilter(e.target.value as LightFilter)}>
-                <option value="all">All statuses</option>
-                <option value="GREEN">Green</option>
-                <option value="AMBER">Amber</option>
-                <option value="RED">Red</option>
-                <option value="none">No reading</option>
-              </select>
-            </div>
+        <div className="space-y-4">
+          <ViewTabs<LightFilter>
+            label="Filter by status"
+            value={lightFilter}
+            onChange={setLightFilter}
+            views={[
+              { value: 'all', label: 'All', count: tabCounts.all },
+              { value: 'RED', label: 'Breach', count: tabCounts.RED },
+              { value: 'AMBER', label: 'Warning', count: tabCounts.AMBER },
+              { value: 'GREEN', label: 'Within appetite', count: tabCounts.GREEN },
+              { value: 'none', label: 'No reading', count: tabCounts.none },
+            ]}
+          />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <SearchField value={search} onChange={setSearch} label="Search indicators" placeholder="Code, name, owner, category…" />
+            <Checkbox id="kri-show-inactive" label="Show inactive" checked={showInactive} onChange={setShowInactive} />
+            <span className="text-caption text-muted-foreground sm:ml-auto">
+              {visible.length} of {pool.length} shown{lightFilter === 'all' ? ' · breaches first' : ''}
+            </span>
           </div>
         </div>
 
         {visible.length === 0 ? (
-          <div className="bg-white rounded border border-slate-200">
-            <EmptyState title={filtering ? 'No indicators match these filters' : 'No active indicators'} compact />
+          <div className="surface-panel">
+            <EmptyState
+              title={filtering ? 'No indicators match' : 'No active indicators'}
+              description={filtering ? 'Try another status or clear the search.' : 'Every indicator is inactive. Show inactive ones to review them.'}
+              action={
+                filtering ? (
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setSearch('')
+                      setLightFilter('all')
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                ) : undefined
+              }
+              compact
+            />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {visible.map(d => (
               <KriCard
                 key={d.kri.uuid}
                 item={d}
-                canRecord={hasPermission('create')}
+                canRecord={canRecord}
                 canEdit={hasPermission('update')}
                 canDelete={hasPermission('delete')}
                 deleting={deleteKri.pending}
                 onRecord={() => setRecording(d.kri)}
-                onHistory={() => setHistory(d)}
+                onHistory={() => setHistory(d.kri.uuid)}
                 onEdit={() => setEditing(d.kri)}
                 onDelete={() => deleteKri.run(d.kri)}
               />
@@ -183,29 +228,70 @@ export function KriIntelligencePage() {
 
       {editing && <KriDefinitionDialog initial={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />}
       {recording && <RecordReadingDialog kri={recording} onClose={() => setRecording(null)} />}
-      {history && latestOf && <HistoryDialog item={latestOf} canDelete={hasPermission('delete')} onClose={() => setHistory(null)} />}
+      <HistorySheet
+        item={historyItem}
+        canDelete={hasPermission('delete')}
+        canRecord={canRecord}
+        canEdit={hasPermission('update')}
+        onRecord={kri => setRecording(kri)}
+        onEdit={kri => setEditing(kri)}
+        onClose={() => setHistory(null)}
+      />
     </div>
   )
 }
 
-function Trend({ item }: { item: KriWithReadings }) {
-  const { latest, previous, kri } = item
-  if (!latest || !previous) return null
-  const delta = latest.value - previous.value
-  if (delta === 0)
+function SummaryCell({
+  label,
+  value,
+  context,
+  light,
+  tone,
+  onClick,
+}: {
+  label: string
+  value: number
+  context: string
+  light?: KriLight
+  tone?: string
+  onClick?: () => void
+}) {
+  const Icon = light ? LIGHT_ICON[light] : null
+  const body = (
+    <>
+      <p className="label-caps flex items-center gap-1.5">
+        {Icon && <Icon className={cn('size-3.5', LIGHT_STYLES[light!].text)} aria-hidden="true" />}
+        {label}
+      </p>
+      <p className={cn('figure text-figure text-foreground', tone)}>
+        <CountUp value={value} />
+      </p>
+      <p className="text-body-sm text-muted-foreground">{context}</p>
+    </>
+  )
+  const cls = 'flex min-w-0 flex-col gap-2 border-border px-6 py-5 [&:nth-child(n+3)]:border-t lg:[&:nth-child(n+3)]:border-t-0 [&:nth-child(even)]:border-l lg:[&:not(:first-child)]:border-l'
+  if (onClick)
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-        <Minus className="w-3 h-3" aria-hidden="true" /> No change since {formatDate(previous.date)}
-      </span>
+      <button type="button" onClick={onClick} className={cn(cls, 'text-left transition-colors duration-(--duration-fast) ease-out hover:bg-hover focus-ring')}>
+        {body}
+      </button>
     )
-  const worse = kri.direction === 'HIGHER_WORSE' ? delta > 0 : delta < 0
-  const Icon = delta > 0 ? TrendingUp : TrendingDown
+  return <div className={cls}>{body}</div>
+}
+
+function Meta({ kri }: { kri: KriDefinition }) {
+  const DirIcon = kri.direction === 'HIGHER_WORSE' ? ArrowUpRight : ArrowDownRight
   return (
-    <span className={cn('inline-flex items-center gap-1 text-[11px]', worse ? 'text-red-700' : 'text-emerald-700')}>
-      <Icon className="w-3 h-3" aria-hidden="true" />
-      {delta > 0 ? '+' : ''}
-      {formatNumber(delta, 4)} vs {formatDate(previous.date)} ({worse ? 'worsening' : 'improving'})
-    </span>
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-muted-foreground">
+      <span>{kri.owner ?? 'No owner'}</span>
+      <span aria-hidden="true">·</span>
+      <span>{kri.frequency ?? 'Frequency not set'}</span>
+      <span aria-hidden="true">·</span>
+      <span className="inline-flex items-center gap-1">
+        <DirIcon className="size-3.5" aria-hidden="true" />
+        {DIRECTION_LABELS[kri.direction]}
+      </span>
+    </p>
   )
 }
 
@@ -230,87 +316,108 @@ function KriCard({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const { kri, readings, latest, light } = item
-  const color = light ? LINE_COLOR[light] : '#64748b'
-  const chartData = readings.map(r => ({ date: r.date, label: formatDate(r.date, { month: 'short', year: '2-digit' }), value: r.value }))
+  const { kri, readings, latest, previous, light } = item
+  const breach = light === 'RED'
+  const warn = light === 'AMBER'
+  const labels = zoneLabels(kri)
+  const zoneOrder: KriLight[] = kri.direction === 'HIGHER_WORSE' ? ['GREEN', 'AMBER', 'RED'] : ['RED', 'AMBER', 'GREEN']
 
   return (
     <article
       aria-labelledby={`kri-${kri.uuid}-name`}
-      className={cn('p-4 bg-white rounded border space-y-3', light === 'RED' ? 'border-red-300' : light === 'AMBER' ? 'border-amber-300' : 'border-slate-200')}
+      className={cn(
+        'flex min-w-0 flex-col gap-4 rounded-lg p-5 sm:p-6',
+        breach
+          ? 'bg-risk-critical-bg shadow-[inset_0_0_0_1px_var(--risk-critical-text)]'
+          : warn
+            ? 'bg-card shadow-[inset_0_0_0_1px_var(--kri-amber),var(--elevation-panel)]'
+            : 'surface-panel',
+        !kri.active && 'opacity-80',
+      )}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] text-slate-500">{kri.code}</span>
-            {kri.category && <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 rounded border border-slate-200">{kri.category}</span>}
-            {!kri.active && <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 rounded border border-slate-200">Inactive</span>}
-          </div>
-          <h2 id={`kri-${kri.uuid}-name`} className="text-xs font-semibold text-slate-900 mt-1">
-            {kri.name}
-          </h2>
-          <p className="text-[11px] text-slate-500">
-            Owner: {kri.owner ?? 'Unassigned'} · {kri.frequency ?? 'Frequency not set'} · {DIRECTION_LABELS[kri.direction]}
-          </p>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <LightPill light={light} solid />
+          <span className="font-mono text-caption text-muted-foreground">{kri.code}</span>
+          {kri.category && <span className="text-caption text-muted-foreground">· {kri.category}</span>}
+          {!kri.active && <span className="rounded-xs bg-muted px-1.5 text-caption text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">Inactive</span>}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {canEdit && (
-            <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7 text-slate-600" aria-label={`Edit ${kri.code}`}>
-              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-            </Button>
-          )}
-          {canDelete && (
-            <Button variant="ghost" size="icon" onClick={onDelete} disabled={deleting} className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label={`Delete ${kri.code}`}>
-              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-            </Button>
-          )}
-        </div>
+        {(canEdit || canDelete) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="-mt-1.5 -mr-2 size-8" aria-label={`More actions for ${kri.code}`}>
+                <MoreHorizontal aria-hidden="true" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canEdit && (
+                <DropdownMenuItem onSelect={onEdit}>
+                  <Pencil aria-hidden="true" /> Edit indicator
+                </DropdownMenuItem>
+              )}
+              {canEdit && canDelete && <DropdownMenuSeparator />}
+              {canDelete && (
+                <DropdownMenuItem variant="destructive" disabled={deleting} onSelect={onDelete}>
+                  <Trash2 aria-hidden="true" /> Delete indicator
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-bold text-slate-900 tabular-nums">{latest ? formatNumber(latest.value, 4) : '—'}</span>
-            {latest && kri.unit && <span className="text-xs text-slate-500">{kri.unit}</span>}
-          </div>
-          <div className="text-[11px] text-slate-500">{latest ? `Latest reading ${formatDate(latest.date)}` : 'No readings recorded yet'}</div>
-          <Trend item={item} />
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-1">
+        <div className="min-w-0 space-y-1">
+          <h2 id={`kri-${kri.uuid}-name`} className="font-display text-section text-foreground">
+            {kri.name}
+          </h2>
+          <Meta kri={kri} />
         </div>
-        <LightBadge light={light} />
+        <div className="flex flex-col items-end gap-1 text-right">
+          <p className={cn('figure text-figure leading-none', light ? FIGURE_TONE[light] : 'text-muted-foreground')}>
+            {latest ? fmt(latest.value) : DASH}
+            {latest && kri.unit && <span className="ml-1 font-sans text-caption text-muted-foreground">{kri.unit}</span>}
+          </p>
+          <KriDelta kri={kri} latest={latest} previous={previous} />
+        </div>
       </div>
 
       {readings.length > 0 ? (
-        <div className="h-28 w-full" role="img" aria-label={`${kri.name}: ${readings.length} readings from ${formatDate(readings[0]!.date)} to ${formatDate(latest!.date)}`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" />
-              <XAxis dataKey="label" tick={{ fontSize: 9 }} stroke="#94a3b8" axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9 }} stroke="#94a3b8" axisLine={false} tickLine={false} width={32} domain={['auto', 'auto']} />
-              <Tooltip
-                contentStyle={{ fontSize: '11px', borderRadius: '4px' }}
-                labelFormatter={(_, payload) => formatDate(payload?.[0]?.payload?.date)}
-                formatter={(v: number) => [formatValue(v, kri.unit), 'Value']}
-              />
-              {kri.amber != null && <ReferenceLine y={kri.amber} stroke="#d97706" strokeDasharray="3 3" />}
-              {kri.red != null && <ReferenceLine y={kri.red} stroke="#dc2626" strokeDasharray="3 3" />}
-              <Line type="monotone" dataKey="value" stroke={color} strokeWidth={2} dot={{ r: 2.5, fill: color }} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className={cn(breach && '-mx-1 rounded-md bg-card px-1 pt-1')}>
+          <KriTrendChart kri={kri} readings={readings} />
         </div>
       ) : (
-        <div className="h-28 flex items-center justify-center rounded border border-dashed border-slate-200 text-[11px] text-slate-400">No history to chart yet</div>
+        <div className="flex h-[132px] flex-col items-center justify-center gap-1 rounded-md bg-surface-sunken text-center shadow-[inset_0_0_0_1px_var(--border)]">
+          <p className="text-body-sm text-foreground-secondary">No readings recorded yet</p>
+          <p className="text-caption text-muted-foreground">The trend appears after the first reading.</p>
+        </div>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500 pt-2 border-t border-slate-100">
-        <span>{thresholdText(kri)}</span>
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={onHistory} disabled={readings.length === 0}>
-            <History className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-            History ({readings.length})
+      {labels.length > 0 ? (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-foreground-secondary tabular-nums" aria-label="Thresholds">
+          {labels.map((l, i) => (
+            <li key={l} className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true" className="size-2.5 rounded-xs" style={{ background: LIGHT_VAR[zoneOrder[i]!].solid }} />
+              {l}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-caption text-muted-foreground">Thresholds not set</p>
+      )}
+
+      <div className={cn('mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-4', breach && 'border-risk-critical-border')}>
+        <span className="text-caption text-muted-foreground tabular-nums">
+          {latest ? `Read ${formatDate(latest.date)}` : 'Never read'} · {readings.length} reading{readings.length === 1 ? '' : 's'}
+        </span>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" className="h-8 px-3" onClick={onHistory} aria-label={`History of ${kri.code}`}>
+            <History aria-hidden="true" />
+            History
           </Button>
           {canRecord && (
-            <Button size="sm" className="h-7 px-2 text-xs" onClick={onRecord}>
-              <ClipboardPlus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+            <Button variant={breach ? 'primary' : 'secondary'} className="h-8 px-3" onClick={onRecord} aria-label={`Record a reading for ${kri.code}`}>
+              <ClipboardPlus aria-hidden="true" />
               Record reading
             </Button>
           )}
@@ -320,13 +427,27 @@ function KriCard({
   )
 }
 
-function HistoryDialog({ item, canDelete, onClose }: { item: KriWithReadings; canDelete: boolean; onClose: () => void }) {
+function HistorySheet({
+  item,
+  canDelete,
+  canRecord,
+  canEdit,
+  onRecord,
+  onEdit,
+  onClose,
+}: {
+  item: KriWithReadings | null
+  canDelete: boolean
+  canRecord: boolean
+  canEdit: boolean
+  onRecord: (kri: KriDefinition) => void
+  onEdit: (kri: KriDefinition) => void
+  onClose: () => void
+}) {
   const confirm = useConfirm()
   const del = useDeleteRow(KRI_READINGS)
-  const { kri } = item
-  const rows = [...item.readings].reverse()
 
-  const remove = async (uuid: number, date: string) => {
+  const remove = async (kri: KriDefinition, uuid: number, date: string) => {
     const ok = await confirm({ title: 'Delete this reading?', description: `The ${formatDate(date)} reading for ${kri.code} will be removed.`, confirmLabel: 'Delete reading', tone: 'danger' })
     if (!ok) return
     try {
@@ -338,56 +459,142 @@ function HistoryDialog({ item, canDelete, onClose }: { item: KriWithReadings; ca
   }
 
   return (
-    <Dialog open onOpenChange={o => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-sm">Reading history · {kri.code}</DialogTitle>
-          <DialogDescription className="text-xs">
-            {kri.name}. {thresholdText(kri)}
-          </DialogDescription>
-        </DialogHeader>
-        {rows.length === 0 ? (
-          <EmptyState title="No readings" compact />
-        ) : (
-          <table className="enterprise-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th className="text-right">Value</th>
-                <th>Status when recorded</th>
-                <th>Notes</th>
-                {canDelete && <th className="text-right">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.uuid}>
-                  <td className="whitespace-nowrap">{formatDate(r.date)}</td>
-                  <td className="text-right tabular-nums">{formatValue(r.value, kri.unit)}</td>
-                  <td>
-                    <LightBadge light={r.light ?? kriLight(r.value, kri)} />
-                  </td>
-                  <td className="text-slate-600">{r.notes ?? '—'}</td>
-                  {canDelete && (
-                    <td className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-red-600 hover:bg-red-50"
-                        onClick={() => remove(r.uuid, r.date)}
-                        disabled={del.isPending}
-                        aria-label={`Delete reading of ${formatDate(r.date)}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                      </Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <Sheet open={item != null} onOpenChange={o => !o && onClose()}>
+      <SheetContent aria-describedby={item ? `kri-sheet-${item.kri.uuid}-desc` : undefined}>
+        {item && <HistoryBody item={item} canDelete={canDelete} busy={del.isPending} onDelete={(uuid, date) => remove(item.kri, uuid, date)} />}
+        {item && (canEdit || canRecord) && (
+          <SheetFooter className="justify-between">
+            <span className="hidden text-caption text-muted-foreground sm:inline">Changes are logged to the audit trail</span>
+            <div className="ml-auto flex gap-2">
+              {canEdit && (
+                <Button variant="secondary" onClick={() => onEdit(item.kri)}>
+                  <Pencil aria-hidden="true" />
+                  Edit
+                </Button>
+              )}
+              {canRecord && (
+                <Button onClick={() => onRecord(item.kri)}>
+                  <ClipboardPlus aria-hidden="true" />
+                  Record reading
+                </Button>
+              )}
+            </div>
+          </SheetFooter>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function HistoryBody({ item, canDelete, busy, onDelete }: { item: KriWithReadings; canDelete: boolean; busy: boolean; onDelete: (uuid: number, date: string) => void }) {
+  const { kri, readings, latest, previous, light } = item
+  const rows = [...readings].reverse()
+  return (
+    <>
+      <SheetHeader className="gap-3 border-b pr-14">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-mono text-caption text-muted-foreground">{kri.code}</span>
+          <LightPill light={light} solid />
+        </div>
+        <SheetTitle className="text-title leading-tight">{kri.name}</SheetTitle>
+        <SheetDescription id={`kri-sheet-${kri.uuid}-desc`}>{kri.description ?? 'Reading history and thresholds for this indicator.'}</SheetDescription>
+      </SheetHeader>
+      <div className="flex-1 space-y-6 overflow-y-auto px-6 py-5">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
+          <Facts
+            items={[
+              { label: 'Owner', value: <Person name={kri.owner} /> },
+              { label: 'Category', value: kri.category ?? DASH },
+              { label: 'Frequency', value: kri.frequency ?? DASH },
+              { label: 'Direction', value: DIRECTION_LABELS[kri.direction] },
+            ]}
+          />
+          <div className="flex flex-col items-end gap-1 text-right">
+            <span className="label-caps">Latest</span>
+            <p className={cn('figure text-figure leading-none', light ? FIGURE_TONE[light] : 'text-muted-foreground')}>
+              {latest ? fmt(latest.value) : DASH}
+              {latest && kri.unit && <span className="ml-1 font-sans text-caption text-muted-foreground">{kri.unit}</span>}
+            </p>
+            <KriDelta kri={kri} latest={latest} previous={previous} />
+          </div>
+        </div>
+
+        <ThresholdStrip kri={kri} value={latest?.value} />
+
+        {readings.length > 0 && (
+          <section aria-labelledby={`kri-sheet-${kri.uuid}-trend`} className="space-y-2">
+            <h3 id={`kri-sheet-${kri.uuid}-trend`} className="font-display text-section text-foreground">
+              Trend
+            </h3>
+            <KriTrendChart kri={kri} readings={readings} height={200} />
+          </section>
+        )}
+
+        <section aria-labelledby={`kri-sheet-${kri.uuid}-hist`} className="space-y-3">
+          <h3 id={`kri-sheet-${kri.uuid}-hist`} className="flex items-baseline justify-between font-display text-section text-foreground">
+            Readings
+            <span className="font-sans text-caption text-muted-foreground">{rows.length} recorded</span>
+          </h3>
+          {rows.length === 0 ? (
+            <EmptyState title="No readings yet" description="Record the first reading to start the history." compact />
+          ) : (
+            <div className="relative -mx-6 overflow-x-auto border-y">
+              <table className="enterprise-table">
+                <thead>
+                  <tr>
+                    <th className="pl-6">Date</th>
+                    <th data-numeric className="text-right">
+                      Value
+                    </th>
+                    <th data-numeric className="text-right">
+                      Change
+                    </th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    {canDelete && (
+                      <th className="pr-6 text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => {
+                    const prev = rows[i + 1]
+                    const delta = prev ? r.value - prev.value : null
+                    const worse = delta != null && (kri.direction === 'HIGHER_WORSE' ? delta > 0 : delta < 0)
+                    return (
+                      <tr key={r.uuid}>
+                        <td className="pl-6 whitespace-nowrap tabular-nums">{formatDate(r.date)}</td>
+                        <td data-numeric className="text-right font-medium tabular-nums">
+                          {fmt(r.value)}
+                        </td>
+                        <td data-numeric className={cn('text-right tabular-nums', delta == null || delta === 0 ? 'text-muted-foreground' : worse ? 'text-status-danger-fg' : 'text-status-success-fg')}>
+                          {delta == null ? DASH : delta === 0 ? '0' : `${delta > 0 ? '+' : '−'}${fmt(Math.abs(delta))}`}
+                        </td>
+                        <td>
+                          <LightPill light={r.light ?? kriLight(r.value, kri)} />
+                        </td>
+                        <td className="max-w-[180px] truncate text-foreground-secondary" title={r.notes ?? undefined}>
+                          {r.notes ?? DASH}
+                        </td>
+                        {canDelete && (
+                          <td className="pr-6 text-right">
+                            <Button variant="ghost" size="icon" className="size-8 text-status-danger-fg" onClick={() => onDelete(r.uuid, r.date)} disabled={busy} aria-label={`Delete reading of ${formatDate(r.date)}`}>
+                              <Trash2 aria-hidden="true" />
+                            </Button>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="text-caption text-muted-foreground">Status shows the light recorded with each reading; change is against the reading before it.</p>
+        </section>
+      </div>
+    </>
   )
 }

@@ -9,22 +9,22 @@
  *   Not started everything else
  * Plans are created and edited on /monitoring/action-plan; this board is read-only.
  */
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Search } from 'lucide-react'
-import { Input } from '@/components/ui/input'
+import { Circle, CircleCheck, CircleDashed, Clock, ListChecks } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { DueChip, Meter, PageHeader, Person, SearchField } from '@/components/charter/primitives'
 import { DataState } from '@/components/data-state'
 import { useRows, type Row } from '@/lib/data'
 import { toRisk, type Risk } from '@/lib/risk'
-import { DASH, daysUntil, formatDate, formatPct } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { daysUntil, formatDate, formatPct } from '@/lib/format'
 
 type Stage = 'Not started' | 'In progress' | 'Overdue' | 'Done'
-const STAGES: { id: Stage; tone: string; dot: string }[] = [
-  { id: 'Not started', tone: 'text-slate-700', dot: 'bg-slate-400' },
-  { id: 'In progress', tone: 'text-blue-800', dot: 'bg-blue-600' },
-  { id: 'Overdue', tone: 'text-red-800', dot: 'bg-red-600' },
-  { id: 'Done', tone: 'text-emerald-800', dot: 'bg-emerald-600' },
+const STAGES: { id: Stage; icon: React.ComponentType<{ className?: string }>; iconClass: string; hint: string }[] = [
+  { id: 'Not started', icon: Circle, iconClass: 'text-muted-foreground', hint: 'No progress or actual start yet' },
+  { id: 'In progress', icon: CircleDashed, iconClass: 'text-status-info-fg', hint: 'Under way, within the target date' },
+  { id: 'Overdue', icon: Clock, iconClass: 'text-status-danger-fg', hint: 'Past the target end, not complete' },
+  { id: 'Done', icon: CircleCheck, iconClass: 'text-status-success-fg', hint: '100%, an actual end date, or marked complete' },
 ]
 
 interface Plan {
@@ -70,6 +70,11 @@ export function RiskResponsePage() {
   const plansQ = useRows('per_trn_risk_monitoring')
   const risksQ = useRows('per_trn_identify_risk')
   const [search, setSearch] = useState('')
+  // ?q= deep link (read after mount to keep server and client markup identical)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('q')
+    if (q) setSearch(q)
+  }, [])
 
   const risksById = useMemo(() => new Map<number, Risk>((risksQ.data ?? []).map(r => toRisk(r)).map(r => [r.uuid, r])), [risksQ.data])
   const plans = useMemo(() => (plansQ.data ?? []).map(toPlan), [plansQ.data])
@@ -90,17 +95,23 @@ export function RiskResponsePage() {
     return m
   }, [filtered])
 
+  const total = plans.length
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Treatment pipeline</h1>
-          <p className="text-xs text-slate-500">Action plans grouped by progress and due date. Create and edit plans under Action plans.</p>
-        </div>
-        <Link href="/monitoring/action-plan" className="inline-flex items-center h-7 px-2.5 text-xs rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
-          Manage action plans
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Treatment"
+        title="Treatment pipeline"
+        description="Every action plan, grouped by its progress and due date. Create and edit plans under Action plans."
+        actions={
+          <Button asChild variant="secondary">
+            <Link href="/monitoring/action-plan">
+              <ListChecks aria-hidden="true" />
+              Manage action plans
+            </Link>
+          </Button>
+        }
+      />
 
       <DataState
         query={[plansQ, risksQ]}
@@ -108,50 +119,53 @@ export function RiskResponsePage() {
         emptyTitle="No action plans yet"
         emptyDescription="Action plans recorded against risks will appear here, grouped by progress."
         emptyAction={
-          <Link href="/monitoring/action-plan" className="text-xs text-blue-800 hover:underline">
-            Go to action plans
-          </Link>
+          <Button asChild>
+            <Link href="/monitoring/action-plan">Go to action plans</Link>
+          </Button>
         }
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative w-full sm:w-72">
-            <label htmlFor="rr-search" className="sr-only">
-              Search action plans
-            </label>
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-            <Input id="rr-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search title, owner or risk…" className="h-8 pl-8 text-xs" />
+        <div className="space-y-6">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <SearchField value={search} onChange={setSearch} label="Search action plans" placeholder="Search title, owner or risk…" />
+            <ul className="flex flex-wrap items-baseline gap-x-6 gap-y-1 text-body-sm text-foreground-secondary sm:ml-auto" aria-label="Plans per stage">
+              {STAGES.map(s => (
+                <li key={s.id}>
+                  <span className={'figure mr-1.5 text-figure-sm ' + (s.id === 'Overdue' && byStage.get(s.id)!.length > 0 ? 'text-status-danger-fg' : 'text-foreground')}>{byStage.get(s.id)!.length}</span>
+                  {s.id.toLowerCase()}
+                </li>
+              ))}
+              {search && <li className="text-caption text-muted-foreground">of {total} plans</li>}
+            </ul>
           </div>
-          <ul className="flex flex-wrap gap-3 text-xs text-slate-600">
-            {STAGES.map(s => (
-              <li key={s.id}>
-                {s.id}: <span className="font-semibold tabular-nums text-slate-900">{byStage.get(s.id)!.length}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
-          {STAGES.map(s => {
-            const list = byStage.get(s.id)!
-            return (
-              <section key={s.id} aria-labelledby={`rr-col-${s.id}`} className="bg-slate-50 rounded border border-slate-200 p-3 space-y-2">
-                <h2 id={`rr-col-${s.id}`} className={cn('flex items-center gap-1.5 text-xs font-semibold', s.tone)}>
-                  <span className={cn('h-2 w-2 rounded-full', s.dot)} aria-hidden="true" />
-                  {s.id}
-                  <span className="ml-auto font-normal text-slate-500 tabular-nums">{list.length}</span>
-                </h2>
-                {list.length === 0 ? (
-                  <p className="py-4 text-center text-[11px] text-slate-400">None</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {list.map(p => (
-                      <PlanCard key={p.uuid} plan={p} risk={p.riskUuid != null ? risksById.get(p.riskUuid) : undefined} />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            )
-          })}
+          <div>
+            <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {STAGES.map(s => {
+                const list = byStage.get(s.id)!
+                const Icon = s.icon
+                return (
+                  <section key={s.id} aria-labelledby={`rr-col-${s.id}`} className="flex min-h-48 flex-col rounded-xl bg-surface-sunken p-2 shadow-[inset_0_0_0_1px_var(--border)]">
+                    <header className="flex items-center gap-2 px-2 pt-1.5 pb-3" title={s.hint}>
+                      <Icon className={'size-4 ' + s.iconClass} aria-hidden="true" />
+                      <h2 id={`rr-col-${s.id}`} className="font-sans text-body-sm font-semibold text-foreground">
+                        {s.id}
+                      </h2>
+                      <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-card px-1.5 text-caption tabular-nums text-foreground-secondary shadow-[inset_0_0_0_1px_var(--border)]">{list.length}</span>
+                    </header>
+                    {list.length === 0 ? (
+                      <p className="mx-1 flex flex-1 items-center justify-center rounded-lg border border-dashed border-border-strong px-3 py-8 text-center text-caption text-muted-foreground">{search ? 'No matching plans' : 'No plans at this stage'}</p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {list.map(p => (
+                          <PlanCard key={p.uuid} plan={p} risk={p.riskUuid != null ? risksById.get(p.riskUuid) : undefined} />
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                )
+              })}
+            </div>
+          </div>
         </div>
       </DataState>
     </div>
@@ -159,43 +173,30 @@ export function RiskResponsePage() {
 }
 
 function PlanCard({ plan: p, risk }: { plan: Plan; risk?: Risk }) {
-  const due =
-    p.stage === 'Done'
-      ? p.actualEnd
-        ? `Finished ${formatDate(p.actualEnd)}`
-        : `Due ${formatDate(p.plannedEnd)}`
-      : p.daysLeft == null
-        ? 'No due date'
-        : p.daysLeft < 0
-          ? `${-p.daysLeft} day${p.daysLeft === -1 ? '' : 's'} overdue (due ${formatDate(p.plannedEnd)})`
-          : p.daysLeft === 0
-            ? 'Due today'
-            : `Due ${formatDate(p.plannedEnd)} · ${p.daysLeft} day${p.daysLeft === 1 ? '' : 's'} left`
+  const title = p.title ?? `Action plan #${p.uuid}`
   return (
-    <li className="bg-white rounded border border-slate-200 p-3 space-y-2 text-xs">
-      <p className="font-semibold text-slate-900">{p.title ?? `Action plan #${p.uuid}`}</p>
-      {p.riskUuid != null && (
-        <p className="text-[11px] text-slate-600">
-          Risk:{' '}
-          <Link href={`/rcsa/mitigation/${p.riskUuid}`} className="text-blue-800 hover:underline">
-            {risk ? (risk.referenceNumber ? `${risk.referenceNumber} — ` : '') + (risk.statement ?? `Risk #${risk.uuid}`) : `Risk #${p.riskUuid}`}
+    <li className="surface-raised space-y-3 rounded-lg p-3.5 transition-shadow duration-(--duration-fast) ease-out hover:shadow-popover">
+      <div className="space-y-1">
+        <Link href={`/monitoring/action-plan?id=${p.uuid}`} className="block rounded-xs text-body-sm font-medium text-foreground hover:text-primary hover:underline focus-ring">
+          {title}
+        </Link>
+        {p.riskUuid != null ? (
+          <Link href={`/risks/${p.riskUuid}`} className="group flex min-w-0 items-baseline gap-1.5 rounded-xs text-caption focus-ring" title={risk?.statement ?? undefined}>
+            <span className="shrink-0 font-mono text-muted-foreground">{risk?.referenceNumber ?? `#${p.riskUuid}`}</span>
+            <span className="truncate text-foreground-secondary group-hover:text-primary group-hover:underline">{risk ? risk.statement ?? 'No statement recorded' : 'Risk not found'}</span>
           </Link>
-        </p>
-      )}
-      <p className="text-[11px] text-slate-500">Owner: {p.owner ?? DASH}</p>
-      <p className={cn('text-[11px]', p.stage === 'Overdue' ? 'text-red-700 font-medium' : 'text-slate-500')}>{due}</p>
-      <div className="flex items-center gap-2">
-        <div
-          className="h-1.5 flex-1 rounded-full bg-slate-100 overflow-hidden"
-          role="progressbar"
-          aria-label="Completion"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={p.pct ?? undefined}
-        >
-          <div className={cn('h-full rounded-full', p.stage === 'Done' ? 'bg-emerald-500' : p.stage === 'Overdue' ? 'bg-red-500' : 'bg-blue-600')} style={{ width: `${p.pct ?? 0}%` }} />
-        </div>
-        <span className="text-[11px] tabular-nums text-slate-600 w-9 text-right">{formatPct(p.pct)}</span>
+        ) : (
+          <p className="text-caption text-muted-foreground">No risk linked</p>
+        )}
+      </div>
+      <Person name={p.owner} />
+      <div className="flex items-center gap-2.5">
+        <Meter value={p.pct} label={`${title} completion`} tone={p.stage === 'Done' ? 'bg-status-success' : 'bg-primary'} />
+        <span className="w-9 shrink-0 text-right text-caption font-medium tabular-nums text-foreground">{formatPct(p.pct)}</span>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <DueChip date={p.plannedEnd} done={p.stage === 'Done'} doneLabel={p.actualEnd ? `Finished ${formatDate(p.actualEnd)}` : 'Done'} />
+        {p.stage !== 'Done' && p.plannedEnd && p.daysLeft != null && p.daysLeft <= 14 && <span className="text-caption tabular-nums text-muted-foreground">Due {formatDate(p.plannedEnd)}</span>}
       </div>
     </li>
   )

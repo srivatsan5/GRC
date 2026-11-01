@@ -13,7 +13,8 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { toDateInput } from '@/lib/format'
 import { RiskSelect } from './risk-select'
-import { FieldError, labelCls, numOrNull, rowId, text } from './shared'
+import { Meter } from '@/components/charter/primitives'
+import { CheckboxField, FieldError, FormSection, helpCls, labelCls, numOrNull, rowId, text } from './shared'
 
 export const MONITORING = 'per_trn_risk_monitoring'
 
@@ -163,91 +164,105 @@ export function ActionPlanDialog({
     </div>
   )
 
+  const pctNum = form.complete ? 100 : form.pct === '' ? null : Number(form.pct)
+  const pctValid = pctNum != null && Number.isFinite(pctNum) && pctNum >= 0 && pctNum <= 100
+
   return (
     <Dialog open={open} onOpenChange={o => !saving && onOpenChange(o)}>
-      <DialogContent className="max-w-xl bg-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[620px]">
         <DialogHeader>
-          <DialogTitle className="text-base text-slate-900">{editing ? 'Edit action plan' : 'New action plan'}</DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">An action that treats a risk, with an owner, target dates and progress.</DialogDescription>
+          <DialogTitle>{editing ? 'Edit action plan' : 'New action plan'}</DialogTitle>
+          <DialogDescription>An action that treats a risk, with an owner, target dates and progress.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="ap-title" className={labelCls}>
-              Title *
-            </label>
-            <Input
-              id="ap-title"
-              value={form.title}
-              onChange={e => set('title', e.target.value)}
-              aria-invalid={!!errors.title}
-              aria-describedby={errors.title ? 'ap-title-error' : undefined}
-            />
-            <FieldError id="ap-title-error" message={errors.title} />
-          </div>
-
-          {riskId == null && <RiskSelect id="ap-risk" value={form.riskId} onChange={v => set('riskId', v)} error={errors.risk} />}
-
-          <div>
-            <label htmlFor="ap-goal" className={labelCls}>
-              Goal
-            </label>
-            <Textarea id="ap-goal" rows={2} value={form.goal} onChange={e => set('goal', e.target.value)} />
-          </div>
-          <div>
-            <label htmlFor="ap-root" className={labelCls}>
-              Root cause
-            </label>
-            <Textarea id="ap-root" rows={2} value={form.rootCause} onChange={e => set('rootCause', e.target.value)} />
-          </div>
-          <div>
-            <label htmlFor="ap-owner" className={labelCls}>
-              Owner
-            </label>
-            <Input id="ap-owner" value={form.owner} onChange={e => set('owner', e.target.value)} placeholder="Person or team responsible" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {dateField('estStart', 'Planned start')}
-            {dateField('estEnd', 'Target end')}
-            {dateField('actStart', 'Actual start')}
-            {dateField('actEnd', 'Actual end')}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+        <div className="space-y-5">
+          <FormSection title="Action">
             <div>
-              <label htmlFor="ap-pct" className={labelCls}>
-                Completion (%)
+              <label htmlFor="ap-title" className={labelCls}>
+                Title <span className="text-status-danger-fg" aria-hidden="true">*</span>
               </label>
               <Input
-                id="ap-pct"
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={form.complete ? '100' : form.pct}
-                disabled={form.complete}
-                onChange={e => set('pct', e.target.value)}
-                aria-invalid={!!errors.pct}
-                aria-describedby={errors.pct ? 'ap-pct-error' : undefined}
+                id="ap-title"
+                value={form.title}
+                onChange={e => set('title', e.target.value)}
+                placeholder="e.g. Automate the daily reconciliation"
+                aria-invalid={!!errors.title}
+                aria-required="true"
+                aria-describedby={errors.title ? 'ap-title-error' : undefined}
               />
-              <FieldError id="ap-pct-error" message={errors.pct} />
+              <FieldError id="ap-title-error" message={errors.title} />
             </div>
-            <div className="flex items-center gap-2 pb-2">
-              <input id="ap-complete" type="checkbox" className="h-4 w-4" checked={form.complete} onChange={e => set('complete', e.target.checked)} />
-              <label htmlFor="ap-complete" className="text-sm text-slate-700">
-                Mark as complete
+
+            {riskId == null && <RiskSelect id="ap-risk" value={form.riskId} onChange={v => set('riskId', v)} error={errors.risk} />}
+
+            <div>
+              <label htmlFor="ap-owner" className={labelCls}>
+                Owner
               </label>
+              <Input id="ap-owner" value={form.owner} onChange={e => set('owner', e.target.value)} placeholder="Person or team responsible" />
             </div>
-          </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="ap-goal" className={labelCls}>
+                  Goal
+                </label>
+                <Textarea id="ap-goal" rows={2} value={form.goal} onChange={e => set('goal', e.target.value)} placeholder="What does done look like?" />
+              </div>
+              <div>
+                <label htmlFor="ap-root" className={labelCls}>
+                  Root cause
+                </label>
+                <Textarea id="ap-root" rows={2} value={form.rootCause} onChange={e => set('rootCause', e.target.value)} placeholder="Why the risk exists" />
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Schedule">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {dateField('estStart', 'Planned start')}
+              {dateField('estEnd', 'Target end')}
+              {dateField('actStart', 'Actual start')}
+              {dateField('actEnd', 'Actual end')}
+            </div>
+            <p className={helpCls}>Overdue is worked out from the target end date; an actual end date marks the plan complete.</p>
+          </FormSection>
+
+          <FormSection title="Progress">
+            <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-[160px_minmax(0,1fr)]">
+              <div>
+                <label htmlFor="ap-pct" className={labelCls}>
+                  Completion (%)
+                </label>
+                <Input
+                  id="ap-pct"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={form.complete ? '100' : form.pct}
+                  disabled={form.complete}
+                  onChange={e => set('pct', e.target.value)}
+                  aria-invalid={!!errors.pct}
+                  aria-describedby={errors.pct ? 'ap-pct-error' : undefined}
+                  className="tabular-nums"
+                />
+                <FieldError id="ap-pct-error" message={errors.pct} />
+              </div>
+              <div className="space-y-3 sm:pt-[30px]">
+                <Meter value={pctValid ? pctNum : null} label="Completion preview" tone={pctValid && pctNum! >= 100 ? 'bg-status-success' : 'bg-primary'} />
+                <CheckboxField id="ap-complete" checked={form.complete} onChange={v => set('complete', v)} label="Mark as complete" help="Sets completion to 100%." />
+              </div>
+            </div>
+          </FormSection>
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" aria-hidden="true" />}
+            {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
             {editing ? 'Save changes' : 'Create action plan'}
           </Button>
         </DialogFooter>

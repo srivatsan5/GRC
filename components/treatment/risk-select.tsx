@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useMemo, useState } from 'react'
+import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useRows } from '@/lib/data'
 import { toRisk } from '@/lib/risk'
@@ -40,18 +41,28 @@ export function RiskSelect({
   return (
     <div>
       <label htmlFor={id} className={labelCls}>
-        {label}
+        {label.endsWith(' *') ? (
+          <>
+            {label.slice(0, -2)} <span className="text-status-danger-fg" aria-hidden="true">*</span>
+          </>
+        ) : (
+          label
+        )}
       </label>
-      <div className="space-y-1.5">
-        <Input
-          id={`${id}-filter`}
-          aria-label="Filter risks"
-          placeholder={risksQ.isLoading ? 'Loading risks…' : 'Type to filter risks…'}
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          disabled={disabled || risksQ.isLoading}
-          className="h-8 text-xs"
-        />
+      <div className="grid gap-2 sm:grid-cols-[200px_minmax(0,1fr)]">
+        <div className="relative">
+          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+          <Input
+            id={`${id}-filter`}
+            type="search"
+            aria-label="Filter risks"
+            placeholder={risksQ.isLoading ? 'Loading risks…' : 'Filter risks…'}
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            disabled={disabled || risksQ.isLoading}
+            className="pl-9"
+          />
+        </div>
         <select
           id={id}
           className={selectCls}
@@ -64,7 +75,7 @@ export function RiskSelect({
           <option value="">{risksQ.isError ? 'Could not load risks' : 'Select a risk…'}</option>
           {shown.map(r => (
             <option key={r.uuid} value={r.uuid}>
-              #{r.uuid} · {(r.statement ?? 'No statement').slice(0, 90)}
+              {r.referenceNumber ?? `#${r.uuid}`} · {(r.statement ?? 'No statement recorded').slice(0, 90)}
             </option>
           ))}
         </select>

@@ -15,9 +15,12 @@ import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useCreateRow, useDeleteRow, useRows, useUpdateRow, fetchAllRows, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { DASH, daysUntil, formatNumber } from '@/lib/format'
-import { LIGHT_STYLES, kriLight, thresholdProblem, toKri, toReading, type KriDefinition, type KriDirection, type KriLight, type KriReading } from '@/lib/kri'
-import { cn } from '@/lib/utils'
-import { Field, selectClass, textOrNull } from '@/components/controls/form-bits'
+import { kriLight, thresholdProblem, toKri, toReading, type KriDefinition, type KriDirection, type KriLight, type KriReading } from '@/lib/kri'
+import { Field, FieldError, Select } from '@/components/governance/form'
+import { LightPill, ThresholdStrip } from '@/components/kri/kri-visuals'
+
+/** Empty string → null, otherwise trimmed text. */
+const textOrNull = (v: string) => (v.trim() === '' ? null : v.trim())
 
 export const KRI_DEFS = 'erm_mst_kri_definition'
 export const KRI_READINGS = 'erm_trn_kri_readings'
@@ -67,15 +70,9 @@ export function useKriData() {
   return { defsQ, readingsQ, data, queries: [defsQ, readingsQ] }
 }
 
-export function LightBadge({ light, className }: { light: KriLight | null; className?: string }) {
-  if (!light) return <span className={cn('inline-flex items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500', className)}>No reading</span>
-  const s = LIGHT_STYLES[light]
-  return (
-    <span className={cn('inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium', s.bg, s.text, s.border, className)}>
-      <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} aria-hidden="true" />
-      {light === 'GREEN' ? 'Green' : light === 'AMBER' ? 'Amber' : 'Red'} · {s.label}
-    </span>
-  )
+/** Traffic-light status pill (icon + word). Kept as the shared name used across the KRI pages. */
+export function LightBadge({ light, solid, className }: { light: KriLight | null; solid?: boolean; className?: string }) {
+  return <LightPill light={light} solid={solid} className={className} />
 }
 
 /** "Amber ≥ 8 · Red ≥ 12" (or ≤ for lower-is-worse). */
@@ -215,55 +212,55 @@ export function KriDefinitionDialog({ initial, onClose }: { initial: KriDefiniti
 
   return (
     <Dialog open onOpenChange={o => !o && !busy && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-sm">{initial ? `Edit ${initial.code}` : 'New key risk indicator'}</DialogTitle>
-          <DialogDescription className="text-xs">Fields marked * are required.</DialogDescription>
+          <DialogTitle>{initial ? `Edit ${initial.code}` : 'New key risk indicator'}</DialogTitle>
+          <DialogDescription>Define what is measured, who owns it and where it turns amber and red. Fields marked * are required.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-3 text-xs" noValidate>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <form onSubmit={submit} className="space-y-4" noValidate>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field id="kri-kri_code" label="KRI code" required error={errors.kri_code}>
-              <Input id="kri-kri_code" value={draft.kri_code} onChange={set('kri_code')} placeholder="e.g. KRI-IT-001" className="h-8 text-xs" {...inv('kri_code')} />
+              <Input id="kri-kri_code" value={draft.kri_code} onChange={set('kri_code')} placeholder="e.g. KRI-IT-001" className="font-mono" {...inv('kri_code')} />
             </Field>
             <Field id="kri-owner_name" label="Owner">
-              <Input id="kri-owner_name" value={draft.owner_name} onChange={set('owner_name')} className="h-8 text-xs" />
+              <Input id="kri-owner_name" value={draft.owner_name} onChange={set('owner_name')} />
             </Field>
           </div>
           <Field id="kri-kri_name" label="Indicator name" required error={errors.kri_name}>
-            <Input id="kri-kri_name" value={draft.kri_name} onChange={set('kri_name')} className="h-8 text-xs" {...inv('kri_name')} />
+            <Input id="kri-kri_name" value={draft.kri_name} onChange={set('kri_name')} {...inv('kri_name')} />
           </Field>
           <Field id="kri-kri_description" label="Description">
-            <Textarea id="kri-kri_description" value={draft.kri_description} onChange={set('kri_description')} rows={2} className="text-xs" />
+            <Textarea id="kri-kri_description" value={draft.kri_description} onChange={set('kri_description')} rows={2} />
           </Field>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field id="kri-kri_category" label="Category">
-              <Input id="kri-kri_category" value={draft.kri_category} onChange={set('kri_category')} className="h-8 text-xs" />
+              <Input id="kri-kri_category" value={draft.kri_category} onChange={set('kri_category')} />
             </Field>
             <Field id="kri-unit_of_measure" label="Unit of measure">
-              <Input id="kri-unit_of_measure" value={draft.unit_of_measure} onChange={set('unit_of_measure')} placeholder="e.g. %, count, hrs/month" className="h-8 text-xs" />
+              <Input id="kri-unit_of_measure" value={draft.unit_of_measure} onChange={set('unit_of_measure')} placeholder="%, count, hrs/mo" />
             </Field>
-            <Field id="kri-measurement_frequency" label="Measurement frequency">
-              <select id="kri-measurement_frequency" className={selectClass} value={draft.measurement_frequency} onChange={set('measurement_frequency')}>
+            <Field id="kri-measurement_frequency" label="Frequency">
+              <Select id="kri-measurement_frequency" value={draft.measurement_frequency} onChange={set('measurement_frequency')}>
                 <option value="">Not set</option>
                 {freqOptions.map(f => (
                   <option key={f}>{f}</option>
                 ))}
-              </select>
+              </Select>
             </Field>
           </div>
           <ThresholdFields draft={draft} set={set} errors={errors} idPrefix="kri" />
-          <Field id="kri-is_active" label="Status">
-            <select id="kri-is_active" className={`${selectClass} sm:w-48`} value={draft.is_active} onChange={set('is_active')}>
+          <Field id="kri-is_active" label="Status" className="sm:w-56">
+            <Select id="kri-is_active" value={draft.is_active} onChange={set('is_active')}>
               <option value="Y">Active</option>
               <option value="N">Inactive</option>
-            </select>
+            </Select>
           </Field>
-          <DialogFooter className="pt-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={busy}>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={busy}>
-              {busy ? 'Saving…' : 'Save KRI'}
+            <Button type="submit" disabled={busy}>
+              {busy ? 'Saving…' : initial ? 'Save changes' : 'Create indicator'}
             </Button>
           </DialogFooter>
         </form>
@@ -272,7 +269,7 @@ export function KriDefinitionDialog({ initial, onClose }: { initial: KriDefiniti
   )
 }
 
-/** Direction + green/amber/red inputs, with the order-check message. */
+/** Direction + green/amber/red inputs, the order-check message and a live threshold-strip preview. */
 export function ThresholdFields({
   draft,
   set,
@@ -285,32 +282,41 @@ export function ThresholdFields({
   idPrefix: string
 }) {
   const op = draft.direction === 'HIGHER_WORSE' ? '≥' : '≤'
+  const live = validateThresholds(draft)
+  const ok = Object.keys(live).length === 0
   return (
-    <fieldset className="space-y-2 rounded border border-slate-200 p-3">
-      <legend className="px-1 text-xs font-medium text-slate-700">Thresholds</legend>
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <Field id={`${idPrefix}-direction`} label="Direction" required>
-          <select id={`${idPrefix}-direction`} className={selectClass} value={draft.direction} onChange={set('direction')}>
+    <fieldset className="space-y-4 rounded-lg bg-surface-sunken p-4 shadow-[inset_0_0_0_1px_var(--border)]">
+      <legend className="sr-only">Thresholds</legend>
+      <p className="label-caps" aria-hidden="true">
+        Thresholds
+      </p>
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <Field id={`${idPrefix}-direction`} label="Direction" required className="col-span-2 sm:col-span-1">
+          <Select id={`${idPrefix}-direction`} value={draft.direction} onChange={set('direction')}>
             <option value="HIGHER_WORSE">{DIRECTION_LABELS.HIGHER_WORSE}</option>
             <option value="LOWER_WORSE">{DIRECTION_LABELS.LOWER_WORSE}</option>
-          </select>
+          </Select>
         </Field>
-        <Field id={`${idPrefix}-green_threshold`} label="Green (target)" required error={errors.green_threshold}>
-          <Input id={`${idPrefix}-green_threshold`} type="number" step="any" value={draft.green_threshold} onChange={set('green_threshold')} className="h-8 text-xs" aria-invalid={!!errors.green_threshold || !!errors.thresholds} />
+        <Field id={`${idPrefix}-green_threshold`} label="Green target" required error={errors.green_threshold}>
+          <Input id={`${idPrefix}-green_threshold`} type="number" step="any" inputMode="decimal" value={draft.green_threshold} onChange={set('green_threshold')} className="tabular-nums" aria-invalid={!!errors.green_threshold || !!errors.thresholds} />
         </Field>
-        <Field id={`${idPrefix}-amber_threshold`} label={`Amber (${op})`} required error={errors.amber_threshold}>
-          <Input id={`${idPrefix}-amber_threshold`} type="number" step="any" value={draft.amber_threshold} onChange={set('amber_threshold')} className="h-8 text-xs" aria-invalid={!!errors.amber_threshold || !!errors.thresholds} />
+        <Field id={`${idPrefix}-amber_threshold`} label={`Amber ${op}`} required error={errors.amber_threshold}>
+          <Input id={`${idPrefix}-amber_threshold`} type="number" step="any" inputMode="decimal" value={draft.amber_threshold} onChange={set('amber_threshold')} className="tabular-nums" aria-invalid={!!errors.amber_threshold || !!errors.thresholds} />
         </Field>
-        <Field id={`${idPrefix}-red_threshold`} label={`Red (${op})`} required error={errors.red_threshold}>
-          <Input id={`${idPrefix}-red_threshold`} type="number" step="any" value={draft.red_threshold} onChange={set('red_threshold')} className="h-8 text-xs" aria-invalid={!!errors.red_threshold || !!errors.thresholds} />
+        <Field id={`${idPrefix}-red_threshold`} label={`Red ${op}`} required error={errors.red_threshold}>
+          <Input id={`${idPrefix}-red_threshold`} type="number" step="any" inputMode="decimal" value={draft.red_threshold} onChange={set('red_threshold')} className="tabular-nums" aria-invalid={!!errors.red_threshold || !!errors.thresholds} />
         </Field>
       </div>
       {errors.thresholds ? (
-        <p role="alert" className="text-[11px] text-red-600">
-          {errors.thresholds}
-        </p>
+        <FieldError>{errors.thresholds}</FieldError>
+      ) : ok ? (
+        <ThresholdStrip
+          kri={{ amber: Number(draft.amber_threshold), red: Number(draft.red_threshold), green: Number(draft.green_threshold), direction: draft.direction }}
+          value={null}
+          ring="var(--surface-sunken)"
+        />
       ) : (
-        <p className="text-[11px] text-slate-500">
+        <p className="text-caption text-muted-foreground">
           A reading turns amber at the amber value and red at the red value ({draft.direction === 'HIGHER_WORSE' ? 'or above' : 'or below'}).
         </p>
       )}
@@ -369,32 +375,38 @@ export function RecordReadingDialog({ kri, onClose }: { kri: KriDefinition; onCl
     <Dialog open onOpenChange={o => !o && !create.isPending && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-sm">Record reading · {kri.code}</DialogTitle>
-          <DialogDescription className="text-xs">
-            {kri.name}. {thresholdText(kri)}
-            {kri.unit ? ` (${kri.unit})` : ''}.
+          <p className="font-mono text-caption text-muted-foreground">{kri.code}</p>
+          <DialogTitle>Record a reading</DialogTitle>
+          <DialogDescription>
+            {kri.name}
+            {kri.unit ? ` · ${kri.unit}` : ''}
+            {kri.frequency ? ` · ${kri.frequency}` : ''}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={submit} className="space-y-3 text-xs" noValidate>
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={submit} className="space-y-4" noValidate>
+          <div className="grid grid-cols-2 gap-4">
             <Field id="reading-value" label={`Value${kri.unit ? ` (${kri.unit})` : ''}`} required error={errors.value}>
-              <Input id="reading-value" type="number" step="any" value={value} onChange={e => setValue(e.target.value)} className="h-8 text-xs" aria-invalid={!!errors.value} />
+              <Input id="reading-value" type="number" step="any" inputMode="decimal" autoFocus value={value} onChange={e => setValue(e.target.value)} className="tabular-nums" aria-invalid={!!errors.value} />
             </Field>
             <Field id="reading-date" label="Reading date" required error={errors.date}>
-              <Input id="reading-date" type="date" value={date} onChange={e => setDate(e.target.value)} className="h-8 text-xs" aria-invalid={!!errors.date} />
+              <Input id="reading-date" type="date" value={date} onChange={e => setDate(e.target.value)} aria-invalid={!!errors.date} />
             </Field>
           </div>
-          <Field id="reading-notes" label="Notes" hint="Explain a breach or the context of this reading">
-            <Textarea id="reading-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} className="text-xs" />
-          </Field>
-          <div className="flex items-center gap-2 text-xs text-slate-600" aria-live="polite">
-            Resulting status: {num == null ? <span className="text-slate-400">enter a value</span> : preview ? <LightBadge light={preview} /> : <span className="text-slate-500">thresholds not set, no status</span>}
+          <div className="space-y-3 rounded-lg bg-surface-sunken p-4 shadow-[inset_0_0_0_1px_var(--border)]" aria-live="polite">
+            <div className="flex items-center justify-between gap-3">
+              <span className="label-caps">Resulting status</span>
+              {num == null ? <span className="text-caption text-muted-foreground">Enter a value</span> : preview ? <LightBadge light={preview} solid /> : <span className="text-caption text-muted-foreground">Thresholds not set</span>}
+            </div>
+            <ThresholdStrip kri={kri} value={num != null && Number.isFinite(num) ? num : null} ring="var(--surface-sunken)" />
           </div>
-          <DialogFooter className="pt-2 border-t border-slate-200">
-            <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={create.isPending}>
+          <Field id="reading-notes" label="Notes" hint={preview === 'RED' ? 'Explain the breach and what is being done about it.' : 'Context for this reading (optional).'}>
+            <Textarea id="reading-notes" value={notes} onChange={e => setNotes(e.target.value)} rows={2} />
+          </Field>
+          <DialogFooter className="border-t pt-4">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={create.isPending}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={create.isPending}>
+            <Button type="submit" disabled={create.isPending}>
               {create.isPending ? 'Saving…' : 'Record reading'}
             </Button>
           </DialogFooter>

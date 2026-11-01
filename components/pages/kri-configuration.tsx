@@ -1,22 +1,27 @@
 'use client'
 
 /**
- * /kri/configuration — a focused thresholds editor for KRI definitions.
+ * /kri/configuration — a focused thresholds editor for KRI definitions, with inline validation and a
+ * live threshold-strip preview of where the latest reading would fall.
  * Full definition editing (names, owners, descriptions) lives on /kri.
  */
 import React, { useState } from 'react'
 import Link from 'next/link'
-import { Save, RotateCcw, SlidersHorizontal } from 'lucide-react'
+import { RotateCcw, Save } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
+import { Callout, PageHeader, Panel } from '@/components/charter/primitives'
 import { useUpdateRow } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { kriLight, type KriDirection } from '@/lib/kri'
-import { selectClass } from '@/components/controls/form-bits'
-import { DIRECTION_LABELS, KRI_DEFS, LightBadge, formatValue, useKriData, validateThresholds, type KriWithReadings } from '@/components/kri/kri-shared'
+import { cn } from '@/lib/utils'
+import { FieldError, Select } from '@/components/governance/form'
+import { KriNav } from '@/components/kri/kri-nav'
+import { LightPill, ThresholdStrip, fmt } from '@/components/kri/kri-visuals'
+import { DIRECTION_LABELS, KRI_DEFS, useKriData, validateThresholds, type KriWithReadings } from '@/components/kri/kri-shared'
 
 export function KriconfigurationPage() {
   const { hasPermission } = useAuth()
@@ -25,59 +30,61 @@ export function KriconfigurationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-            <SlidersHorizontal className="w-4 h-4 text-slate-500" aria-hidden="true" />
-            KRI threshold configuration
-          </h1>
-          <p className="text-xs text-slate-500">
-            Set the direction and the green / amber / red thresholds of each indicator. To add indicators or change their details, use{' '}
-            <Link href="/kri" className="text-blue-700 hover:underline">
-              Key Risk Indicators
-            </Link>
-            .
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Analytics · Key risk indicators"
+        title="Thresholds"
+        description="Set the direction and the green, amber and red thresholds of each indicator. The strip previews where the latest reading falls."
+      />
+      <KriNav />
 
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
-        <DataState
-          query={queries}
-          empty={(defsQ.data?.length ?? 0) === 0}
-          emptyTitle="No KRI definitions yet"
-          emptyDescription="Create indicators on the Key Risk Indicators page first."
-          emptyAction={
-            <Button asChild size="sm" variant="outline">
-              <Link href="/kri">Go to Key Risk Indicators</Link>
-            </Button>
-          }
-        >
-          <div className="overflow-x-auto">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Indicator</th>
-                  <th>Direction</th>
-                  <th>Green (target)</th>
-                  <th>Amber</th>
-                  <th>Red</th>
-                  <th>Latest reading</th>
-                  <th>Status with these thresholds</th>
-                  {canEdit && <th className="text-right">Actions</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map(d => (
-                  <ThresholdRow key={d.kri.uuid} item={d} canEdit={canEdit} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </DataState>
-      </div>
-      <p className="text-[11px] text-slate-500">
-        Changing thresholds doesn’t rewrite the status stored on past readings; it changes how the latest value is assessed from now on.
+      {!canEdit && <Callout tone="info">You can review thresholds here. Your role can view them but not change them.</Callout>}
+
+      <Panel bodyClassName="p-0" title="Indicator thresholds" meta={`${data.length} indicator${data.length === 1 ? '' : 's'}`}>
+        <div className="pt-4">
+          <DataState
+            query={queries}
+            empty={(defsQ.data?.length ?? 0) === 0}
+            emptyTitle="No indicators yet"
+            emptyDescription="Create indicators on the Indicators page first."
+            emptyAction={
+              <Button asChild variant="secondary">
+                <Link href="/kri">Go to indicators</Link>
+              </Button>
+            }
+          >
+            <div className="relative overflow-x-auto border-t">
+              <table className="enterprise-table">
+                <thead>
+                  <tr>
+                    <th className="min-w-[220px] pl-6">Indicator</th>
+                    <th>Direction</th>
+                    <th>Green target</th>
+                    <th>Amber</th>
+                    <th>Red</th>
+                    <th className="min-w-[220px]">Preview with latest reading</th>
+                    {canEdit && (
+                      <th className="pr-6 text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.map(d => (
+                    <ThresholdRow key={d.kri.uuid} item={d} canEdit={canEdit} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </DataState>
+        </div>
+      </Panel>
+      <p className="text-caption text-muted-foreground">
+        Changing thresholds doesn’t rewrite the status stored on past readings; it changes how the latest value is assessed from now on. Edit names and owners on{' '}
+        <Link href="/kri" className="text-primary hover:underline focus-ring rounded-xs">
+          Indicators
+        </Link>
+        .
       </p>
     </div>
   )
@@ -99,9 +106,13 @@ function ThresholdRow({ item, canEdit }: { item: KriWithReadings; canEdit: boole
     setErrors({})
   }
 
-  const nums = { green: Number(draft.green_threshold), amber: draft.amber_threshold === '' ? null : Number(draft.amber_threshold), red: draft.red_threshold === '' ? null : Number(draft.red_threshold) }
-  const previewOk = Object.keys(validateThresholds(draft)).length === 0
+  // Inline validation as you type (order + numbers); the save button re-validates.
+  const live = validateThresholds(draft)
+  const previewOk = Object.keys(live).length === 0
+  const shown: Record<string, string | undefined> = dirty ? { ...live, ...errors } : errors
+  const nums = { green: Number(draft.green_threshold), amber: Number(draft.amber_threshold), red: Number(draft.red_threshold) }
   const preview = latest && previewOk ? kriLight(latest.value, { amber: nums.amber, red: nums.red, direction: draft.direction }) : null
+  const before = latest ? kriLight(latest.value, kri) : null
 
   const save = async () => {
     const e = validateThresholds(draft)
@@ -121,70 +132,108 @@ function ThresholdRow({ item, canEdit }: { item: KriWithReadings; canEdit: boole
   const id = (k: string) => `thr-${kri.uuid}-${k}`
   const op = draft.direction === 'HIGHER_WORSE' ? '≥' : '≤'
   const numInput = (k: 'green_threshold' | 'amber_threshold' | 'red_threshold', label: string) => (
-    <td>
+    <td className="py-3 align-top">
       <label htmlFor={id(k)} className="sr-only">
         {label} threshold for {kri.code}
       </label>
-      <div className="flex items-center gap-1">
-        {k !== 'green_threshold' && <span className="text-slate-400 text-[11px]" aria-hidden="true">{op}</span>}
+      <div className="flex items-center gap-1.5">
+        <span className="w-3 text-caption text-muted-foreground" aria-hidden="true">
+          {k === 'green_threshold' ? '' : op}
+        </span>
         <Input
           id={id(k)}
           type="number"
           step="any"
+          inputMode="decimal"
           value={draft[k]}
           onChange={set(k)}
           disabled={!canEdit}
-          className="h-7 w-24 text-xs"
-          aria-invalid={!!errors[k] || !!errors.thresholds}
+          className="h-8 w-20 tabular-nums"
+          aria-invalid={!!shown[k] || !!shown.thresholds}
+          aria-describedby={shown[k] ? `${id(k)}-error` : shown.thresholds ? id('order-error') : undefined}
         />
       </div>
-      {errors[k] && <p className="text-[11px] text-red-600 mt-0.5">{errors[k]}</p>}
+      {shown[k] && (
+        <FieldError id={`${id(k)}-error`} className="ml-[18px]">
+          {shown[k]}
+        </FieldError>
+      )}
     </td>
   )
 
   return (
     <>
-      <tr>
-        <td>
-          <div className="font-mono text-[11px] text-slate-500">{kri.code}</div>
-          <div className="font-medium text-slate-900">{kri.name}</div>
-          <div className="text-[11px] text-slate-500">
-            {kri.unit ?? 'No unit'}
+      <tr aria-selected={dirty || undefined}>
+        <td className={cn('py-3 pl-6 align-top', dirty && 'shadow-[inset_3px_0_0_var(--primary)]')}>
+          <span className="block truncate font-medium text-foreground" title={kri.name}>
+            {kri.name}
+          </span>
+          <span className="block truncate font-mono text-caption text-muted-foreground">
+            {kri.code} · {kri.unit ?? 'No unit'}
             {!kri.active && ' · Inactive'}
-          </div>
+          </span>
         </td>
-        <td>
+        <td className="py-3 align-top">
           <label htmlFor={id('direction')} className="sr-only">
             Direction for {kri.code}
           </label>
-          <select id={id('direction')} className={`${selectClass} w-36`} value={draft.direction} onChange={set('direction')} disabled={!canEdit}>
+          <Select id={id('direction')} wrapperClassName="w-[156px]" className="h-8" value={draft.direction} onChange={set('direction')} disabled={!canEdit}>
             <option value="HIGHER_WORSE">{DIRECTION_LABELS.HIGHER_WORSE}</option>
             <option value="LOWER_WORSE">{DIRECTION_LABELS.LOWER_WORSE}</option>
-          </select>
+          </Select>
         </td>
         {numInput('green_threshold', 'Green')}
         {numInput('amber_threshold', 'Amber')}
         {numInput('red_threshold', 'Red')}
-        <td className="tabular-nums whitespace-nowrap">{latest ? formatValue(latest.value, kri.unit) : <span className="text-slate-400">No readings</span>}</td>
-        <td>{latest ? previewOk ? <LightBadge light={preview} /> : <span className="text-[11px] text-slate-400">Fix thresholds to preview</span> : <LightBadge light={null} />}</td>
+        <td className="py-3 align-top">
+          {previewOk ? (
+            <div className="space-y-2 pt-2">
+              <ThresholdStrip kri={{ amber: nums.amber, red: nums.red, green: nums.green, direction: draft.direction }} value={latest?.value} labels={false} />
+              <div className="flex flex-wrap items-center gap-2 text-caption text-muted-foreground tabular-nums">
+                <LightPill light={latest ? preview : null} />
+                {latest ? (
+                  <span>
+                    {fmt(latest.value)}
+                    {kri.unit ? ` ${kri.unit}` : ''}
+                    {dirty && before !== preview && before ? ` · was ${before === 'RED' ? 'Breach' : before === 'AMBER' ? 'Warning' : 'Within appetite'}` : ''}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <p className="pt-1.5 text-caption text-muted-foreground">Fix the thresholds to preview</p>
+          )}
+        </td>
         {canEdit && (
-          <td className="text-right whitespace-nowrap">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setDraft(original); setErrors({}) }} disabled={!dirty || update.isPending} aria-label={`Undo changes to ${kri.code}`}>
-              <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
-            </Button>
-            <Button size="sm" className="h-7 px-2 text-xs ml-1" onClick={save} disabled={!dirty || update.isPending}>
-              <Save className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-              {update.isPending ? 'Saving…' : 'Save'}
-            </Button>
+          <td className="py-3 pr-6 text-right align-top whitespace-nowrap">
+            <div className="inline-flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                onClick={() => {
+                  setDraft(original)
+                  setErrors({})
+                }}
+                disabled={!dirty || update.isPending}
+                aria-label={`Undo changes to ${kri.code}`}
+              >
+                <RotateCcw aria-hidden="true" />
+              </Button>
+              <Button className="h-8 px-3" variant={dirty ? 'primary' : 'secondary'} onClick={save} disabled={!dirty || update.isPending || !previewOk}>
+                <Save aria-hidden="true" />
+                {update.isPending ? 'Saving…' : 'Save'}
+              </Button>
+            </div>
           </td>
         )}
       </tr>
-      {errors.thresholds && (
+      {shown.thresholds && (
         <tr>
-          <td colSpan={canEdit ? 8 : 7} className="!pt-0">
-            <p role="alert" className="text-[11px] text-red-600">
-              {kri.code}: {errors.thresholds}
-            </p>
+          <td colSpan={canEdit ? 7 : 6} className="pl-6 !pt-0">
+            <FieldError id={id('order-error')} className="mt-0">
+              {kri.code}: {shown.thresholds}
+            </FieldError>
           </td>
         </tr>
       )}

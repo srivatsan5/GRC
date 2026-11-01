@@ -3,31 +3,19 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { Download, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Download, KanbanSquare, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
+import { DueChip, FilterChip, PageHeader, Panel, Person, SearchField, ViewTabs } from '@/components/charter/primitives'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
 import { useRows, type Row } from '@/lib/data'
 import { recordAudit } from '@/lib/auditLog'
 import { toRisk, type Risk } from '@/lib/risk'
-import { DASH, formatDate } from '@/lib/format'
-import { cn } from '@/lib/utils'
+import { formatDate } from '@/lib/format'
 import { ActionPlanDialog, MONITORING, useDeleteActionPlan } from '@/components/treatment/action-plan-dialog'
-import {
-  ActionStatusBadge,
-  ProgressBar,
-  actionStatus,
-  downloadCsv,
-  labelCls,
-  numOrNull,
-  pageSlice,
-  riskLabel,
-  rowId,
-  selectCls,
-  text,
-} from '@/components/treatment/shared'
+import { ProgressBar, actionStatus, downloadCsv, numOrNull, pageSlice, riskLabel, riskRefOf, rowId, text } from '@/components/treatment/shared'
 
 const PAGE_SIZE = 25
 type Tab = 'all' | 'open' | 'overdue' | 'completed'
@@ -56,7 +44,7 @@ export function MonitoringactionplanPage() {
   const { remove, isPending: removing } = useDeleteActionPlan()
 
   const [tab, setTab] = useState<Tab>('all')
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(params.get('q') ?? '')
   const [riskFilter, setRiskFilter] = useState<number | null>(numOrNull(params.get('riskId')))
   const [page, setPage] = useState(1)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -132,161 +120,157 @@ export function MonitoringactionplanPage() {
   }
 
   const filtered = !!search || riskFilter != null || tab !== 'all'
+  const loaded = !!(plansQ.data && risksQ.data)
+  const canCreate = hasPermission('create')
+  const newButton = canCreate ? (
+    <Button onClick={openNew}>
+      <Plus aria-hidden="true" />
+      New action plan
+    </Button>
+  ) : undefined
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Action plans</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Treatment actions for risks: owner, target dates and progress.</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={exportCsv} disabled={shown.length === 0}>
-            <Download className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-            Export CSV
-          </Button>
-          {hasPermission('create') && (
-            <Button size="sm" onClick={openNew}>
-              <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-              New action plan
+      <LifecycleStepper current="monitoring" />
+
+      <PageHeader
+        eyebrow="RCSA · Step 5 · Treatment"
+        title="Action plans"
+        description="Treatment actions for risks: owner, target dates and progress."
+        actions={
+          <>
+            <Button asChild variant="secondary">
+              <Link href="/risk-response">
+                <KanbanSquare aria-hidden="true" />
+                Pipeline view
+              </Link>
+            </Button>
+            <Button variant="secondary" onClick={exportCsv} disabled={shown.length === 0}>
+              <Download aria-hidden="true" />
+              Export CSV
+            </Button>
+            {newButton}
+          </>
+        }
+      />
+
+      <div className="space-y-4">
+        <ViewTabs<Tab> label="Filter by status" value={tab} onChange={setTab} views={TABS.map(t => ({ value: t.id, label: t.label, count: plansQ.data ? tabCounts[t.id] : null }))} />
+        <div className="flex flex-wrap items-center gap-2">
+          <SearchField value={search} onChange={setSearch} label="Search action plans" placeholder="Title, goal, root cause, owner, risk…" />
+          <FilterChip
+            label="Risk"
+            value={riskFilter != null ? String(riskFilter) : ''}
+            onChange={v => setRiskFilter(v ? Number(v) : null)}
+            options={[
+              ...(riskFilter != null && !risks.has(riskFilter) ? [{ value: String(riskFilter), label: `Risk #${riskFilter}` }] : []),
+              ...[...risks.values()].map(r => ({ value: String(r.uuid), label: `${r.referenceNumber ?? `#${r.uuid}`} · ${(r.statement ?? 'No statement recorded').slice(0, 60)}` })),
+            ]}
+          />
+          {(search || riskFilter != null) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSearch('')
+                setRiskFilter(null)
+              }}
+            >
+              Clear filters
             </Button>
           )}
+          <span className="ml-auto text-caption tabular-nums text-muted-foreground">{loaded ? `${shown.length} of ${plans.length}` : ''}</span>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded">
-        <div role="tablist" aria-label="Filter by status" className="flex gap-1 border-b border-slate-200 px-3 pt-2">
-          {TABS.map(t => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                'px-3 py-2 text-xs font-medium border-b-2 -mb-px',
-                tab === t.id ? 'border-blue-700 text-blue-800' : 'border-transparent text-slate-600 hover:text-slate-900',
-              )}
-            >
-              {t.label}
-              {plansQ.data && <span className="ml-1 text-slate-400 tabular-nums">({tabCounts[t.id]})</span>}
-            </button>
-          ))}
-        </div>
-
-        <div className="p-3 border-b border-slate-200 grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-2">
-            <label htmlFor="ap-search" className={labelCls}>
-              Search
-            </label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-              <Input id="ap-search" className="pl-8 h-9" placeholder="Title, goal, root cause, owner, risk…" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label htmlFor="ap-risk-filter" className={labelCls}>
-              Risk
-            </label>
-            <select id="ap-risk-filter" className={selectCls} value={riskFilter ?? ''} onChange={e => setRiskFilter(e.target.value ? Number(e.target.value) : null)}>
-              <option value="">All risks</option>
-              {riskFilter != null && !risks.has(riskFilter) && <option value={riskFilter}>Risk #{riskFilter}</option>}
-              {[...risks.values()].map(r => (
-                <option key={r.uuid} value={r.uuid}>
-                  #{r.uuid} · {(r.statement ?? 'No statement').slice(0, 70)}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
+      <Panel bodyClassName="p-0">
         <DataState
           query={[plansQ, risksQ]}
           empty={shown.length === 0}
           emptyTitle={filtered ? 'No action plans match' : 'No action plans yet'}
           emptyDescription={filtered ? 'Change the tab, search or risk filter.' : 'Create an action plan for a risk that needs treatment.'}
-          emptyAction={
-            !filtered && hasPermission('create') ? (
-              <Button size="sm" onClick={openNew}>
-                <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-                New action plan
-              </Button>
-            ) : undefined
-          }
+          emptyAction={!filtered ? newButton : undefined}
         >
           <div className="overflow-x-auto">
-            <table className="enterprise-table">
+            <table className="enterprise-table min-w-[900px]">
               <thead>
                 <tr>
-                  <th>Action plan</th>
+                  <th className="pl-6">Action plan</th>
                   <th>Risk</th>
                   <th>Owner</th>
-                  <th>Planned</th>
-                  <th>Actual</th>
-                  <th>Progress</th>
-                  <th>Status</th>
-                  <th className="text-right">Actions</th>
+                  <th>Schedule</th>
+                  <th>Progress &amp; due</th>
+                  <th className="pr-6 text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {pageSlice(shown, page, PAGE_SIZE).map(p => {
                   const id = rowId(p)
                   const rid = numOrNull(p.identify_risk_uuid)
+                  const risk = rid != null ? risks.get(rid) : undefined
                   const title = text(p.monitoring_title) ?? `Action plan #${id}`
+                  const st = actionStatus(p)
+                  const focused = id === focusId
+                  const sub = text(p.monitoring_goal) ?? (text(p.root_cause) ? `Root cause: ${text(p.root_cause)}` : null)
                   return (
-                    <tr key={id ?? JSON.stringify(p)} className={id === focusId ? 'bg-blue-50/50' : undefined}>
-                      <td className="max-w-[280px]">
-                        <span className="font-medium text-slate-900 block">{title}</span>
-                        {text(p.monitoring_goal) && <span className="text-[11px] text-slate-500 line-clamp-2">{text(p.monitoring_goal)}</span>}
-                        {text(p.root_cause) && <span className="text-[11px] text-slate-400 line-clamp-1">Root cause: {text(p.root_cause)}</span>}
+                    <tr key={id ?? JSON.stringify(p)} aria-selected={focused || undefined}>
+                      <td className={'max-w-[250px] py-2 pl-6 ' + (focused ? 'shadow-[inset_3px_0_0_var(--primary)]' : '')}>
+                        <span className="block truncate font-medium text-foreground" title={title}>
+                          {title}
+                        </span>
+                        <span className="block truncate text-caption text-muted-foreground" title={sub ?? undefined}>
+                          {sub ?? 'No goal recorded'}
+                        </span>
                       </td>
-                      <td className="max-w-[220px]">
+                      <td className="max-w-[210px] py-2">
                         {rid != null ? (
-                          <Link href={`/rcsa/mitigation/${rid}`} className="text-xs text-blue-700 hover:underline line-clamp-2">
-                            {riskLabel(risks.get(rid), rid)}
-                          </Link>
+                          <>
+                            <Link href={`/risks/${rid}`} className="block truncate rounded-xs text-foreground hover:text-primary hover:underline focus-ring" title={riskLabel(risk, rid)}>
+                              {riskLabel(risk, rid)}
+                            </Link>
+                            <span className="block font-mono text-caption text-muted-foreground">{riskRefOf(risk, rid)}</span>
+                          </>
                         ) : (
-                          <span className="text-xs text-slate-400">No risk linked</span>
+                          <span className="text-muted-foreground">No risk linked</span>
                         )}
                       </td>
-                      <td className="text-xs text-slate-600">{text(p.mitigation_owner) ?? DASH}</td>
-                      <td className="text-xs text-slate-600 whitespace-nowrap">
-                        {formatDate(text(p.estimated_start_date))} – {formatDate(text(p.estimated_end_date))}
+                      <td className="max-w-[150px]">
+                        <Person name={text(p.mitigation_owner)} />
                       </td>
-                      <td className="text-xs text-slate-600 whitespace-nowrap">
-                        {formatDate(text(p.actual_start_date))} – {formatDate(text(p.actual_end_date))}
+                      <td className="py-2 whitespace-nowrap">
+                        <span className="block tabular-nums text-foreground-secondary">
+                          {formatDate(text(p.estimated_start_date), { day: 'numeric', month: 'short' })} – {formatDate(text(p.estimated_end_date), { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </span>
+                        <span className="block text-caption tabular-nums text-muted-foreground">
+                          {text(p.actual_start_date) || text(p.actual_end_date)
+                            ? `Actual ${formatDate(text(p.actual_start_date), { day: 'numeric', month: 'short' })} – ${text(p.actual_end_date) ? formatDate(text(p.actual_end_date), { day: 'numeric', month: 'short', year: 'numeric' }) : 'ongoing'}`
+                            : 'No actual dates yet'}
+                        </span>
                       </td>
-                      <td>
-                        <ProgressBar value={numOrNull(p.completion_pct)} />
+                      <td className="py-2 whitespace-nowrap">
+                        <span className="flex flex-col items-start gap-1.5">
+                          <ProgressBar value={numOrNull(p.completion_pct)} />
+                          <DueChip date={text(p.estimated_end_date)} done={st === 'Completed'} doneLabel="Completed" />
+                        </span>
                       </td>
-                      <td>
-                        <ActionStatusBadge row={p} />
-                      </td>
-                      <td className="text-right whitespace-nowrap">
+                      <td className="pr-6 text-right whitespace-nowrap">
                         {hasPermission('update') && (
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
                             aria-label={`Edit ${title}`}
                             onClick={() => {
                               setEditing(p)
                               setDialogOpen(true)
                             }}
                           >
-                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                            <Pencil aria-hidden="true" />
                           </Button>
                         )}
                         {hasPermission('delete') && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-red-600 hover:bg-red-50"
-                            aria-label={`Delete ${title}`}
-                            disabled={removing}
-                            onClick={() => remove(p)}
-                          >
-                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          <Button variant="ghost" size="icon" className="hover:bg-status-danger-bg hover:text-status-danger-fg" aria-label={`Delete ${title}`} disabled={removing} onClick={() => remove(p)}>
+                            <Trash2 aria-hidden="true" />
                           </Button>
                         )}
                       </td>
@@ -298,7 +282,7 @@ export function MonitoringactionplanPage() {
           </div>
           <Pager page={page} pageSize={PAGE_SIZE} total={shown.length} onPage={setPage} />
         </DataState>
-      </div>
+      </Panel>
 
       <ActionPlanDialog open={dialogOpen} onOpenChange={setDialogOpen} row={editing} defaultRiskId={riskFilter} />
     </div>

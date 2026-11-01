@@ -1,32 +1,55 @@
 'use client'
 
-/** Residual likelihood / impact for a risk (PATCH per_trn_identify_risk), with inherent vs residual and the real reduction. */
-import React, { useEffect, useState } from 'react'
+/**
+ * Inherent → residual (Charter hero). Residual likelihood / impact for a risk (PATCH per_trn_identify_risk),
+ * shown against the inherent rating on a single-risk movement matrix, with the real reduction as a serif figure.
+ * Editors can pick a cell on the matrix or use the two fields; nothing is saved until "Save residual rating".
+ */
+import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Loader2, Lock, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { BandBadge } from '@/components/band-badge'
+import { RiskHeatmap, type CellRef } from '@/components/charter/heatmap'
+import { Chip } from '@/components/charter/primitives'
 import { useUpdateRow } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { IMPACT_LABELS, LIKELIHOOD_LABELS, type Risk } from '@/lib/risk'
-import { DASH } from '@/lib/format'
-import { labelCls, selectCls } from './shared'
+import { cn } from '@/lib/utils'
+import { FieldError, labelCls, selectCls } from './shared'
 
 const RISK = 'per_trn_identify_risk'
 
-export function ResidualRating({ risk, canEdit }: { risk: Risk; canEdit: boolean }) {
+/** RiskHeatmap size="sm": collapse the (invisible) axis-caption cell so it doesn't add ~70 px under the small grid. */
+const HEATMAP_SM_FIX = 'w-full max-w-[240px] [&>div:first-child>div:nth-child(3)]:h-0 [&>div:first-child>div:nth-child(3)]:overflow-hidden'
+
+function lxi(l: number | null, i: number | null): string | null {
+  return l != null && i != null ? `${LIKELIHOOD_LABELS[l - 1]} × ${IMPACT_LABELS[i - 1]}` : null
+}
+
+export function ResidualRating({ risk, canEdit, className, title = 'Inherent → residual' }: { risk: Risk; canEdit: boolean; className?: string; title?: React.ReactNode }) {
   const update = useUpdateRow(RISK)
   const [l, setL] = useState('')
   const [i, setI] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  const savedL = risk.residualLikelihood != null ? String(risk.residualLikelihood) : ''
+  const savedI = risk.residualImpact != null ? String(risk.residualImpact) : ''
   useEffect(() => {
-    setL(risk.residualLikelihood != null ? String(risk.residualLikelihood) : '')
-    setI(risk.residualImpact != null ? String(risk.residualImpact) : '')
-  }, [risk.residualLikelihood, risk.residualImpact])
+    setL(savedL)
+    setI(savedI)
+  }, [savedL, savedI])
 
-  const dirty = l !== (risk.residualLikelihood != null ? String(risk.residualLikelihood) : '') || i !== (risk.residualImpact != null ? String(risk.residualImpact) : '')
-  const draftScore = l && i ? Number(l) * Number(i) : null
+  const dirty = l !== savedL || i !== savedI
+  const dl = l ? Number(l) : null
+  const di = i ? Number(i) : null
+  const draftScore = dl != null && di != null ? dl * di : null
+
+  // The matrix shows the draft so the movement updates as the editor chooses.
+  const draft = useMemo<Risk>(() => ({ ...risk, residualLikelihood: dl, residualImpact: di, residualScore: draftScore }), [risk, dl, di, draftScore])
+  const hasInherent = risk.inherentScore != null
+  const mode = hasInherent && draftScore != null ? 'movement' : draftScore != null ? 'residual' : 'inherent'
+  const selected: CellRef | null = dl != null && di != null ? { l: dl, i: di } : null
 
   const save = async () => {
     if ((l === '') !== (i === '')) {
@@ -46,93 +69,169 @@ export function ResidualRating({ risk, canEdit }: { risk: Risk; canEdit: boolean
   }
 
   const inherent = risk.inherentScore
-  const residual = risk.residualScore
-  const reduction = inherent != null && residual != null ? inherent - residual : null
+  const reduction = inherent != null && draftScore != null ? inherent - draftScore : null
+  const headingId = `residual-heading-${risk.uuid}`
 
   return (
-    <section className="bg-white rounded border border-slate-200 p-5 space-y-4" aria-labelledby="residual-heading">
-      <div>
-        <h2 id="residual-heading" className="text-sm font-semibold text-slate-900">
-          Residual rating
+    <section className={cn('surface-panel @container min-w-0', className)} aria-labelledby={headingId}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-6 pt-5">
+        <h2 id={headingId} className="font-display text-section text-foreground">
+          {title}
         </h2>
-        <p className="text-xs text-slate-500 mt-0.5">The rating that remains once the controls below are in place.</p>
+        <span className="text-caption text-muted-foreground">The rating that remains once the controls are in place</span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3 bg-slate-50 rounded border border-slate-200">
-          <span className="text-[11px] text-slate-500 block mb-1">Inherent</span>
-          <BandBadge score={inherent} />
-          <span className="block text-[11px] text-slate-500 mt-1">
-            {risk.inherentLikelihood != null && risk.inherentImpact != null
-              ? `${LIKELIHOOD_LABELS[risk.inherentLikelihood - 1]} × ${IMPACT_LABELS[risk.inherentImpact - 1]}`
-              : 'Rate the inherent risk in the assessment step first.'}
-          </span>
+      <div className="grid gap-x-8 gap-y-6 px-6 pt-5 pb-6 @xl:grid-cols-[240px_minmax(0,1fr)] @4xl:grid-cols-[240px_minmax(0,1fr)_minmax(220px,0.8fr)]">
+        <div className="min-w-0">
+          <RiskHeatmap
+            risks={[draft]}
+            mode={mode}
+            size="sm"
+            showDetail={false}
+            selected={selected}
+            onSelect={
+              canEdit
+                ? cell => {
+                    setError(null)
+                    setL(cell ? String(cell.l) : '')
+                    setI(cell ? String(cell.i) : '')
+                  }
+                : undefined
+            }
+            className={HEATMAP_SM_FIX}
+          />
+          {canEdit && <p className="mt-2 text-caption text-muted-foreground">Pick a cell to set the residual rating.</p>}
         </div>
-        <div className="p-3 bg-slate-50 rounded border border-slate-200">
-          <span className="text-[11px] text-slate-500 block mb-1">Residual</span>
-          <BandBadge score={residual} />
-          <span className="block text-[11px] text-slate-500 mt-1">
-            {risk.residualLikelihood != null && risk.residualImpact != null
-              ? `${LIKELIHOOD_LABELS[risk.residualLikelihood - 1]} × ${IMPACT_LABELS[risk.residualImpact - 1]}`
-              : 'Not rated yet'}
-          </span>
-        </div>
-        <div className="p-3 bg-slate-50 rounded border border-slate-200">
-          <span className="text-[11px] text-slate-500 block mb-1">Reduction (inherent − residual)</span>
-          <span className="text-base font-semibold text-slate-900 tabular-nums">
-            {reduction == null ? DASH : reduction > 0 ? `${reduction} points lower` : reduction < 0 ? `${-reduction} points higher` : 'No change'}
-          </span>
+
+        <dl className="flex min-w-0 flex-col justify-center divide-y divide-border self-center">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pb-3.5">
+            <dt className="min-w-0">
+              <span className="label-caps block">Inherent</span>
+              <span className="text-body-sm text-foreground-secondary">{lxi(risk.inherentLikelihood, risk.inherentImpact) ?? 'Not rated yet'}</span>
+            </dt>
+            <dd>
+              <BandBadge score={inherent} kind="Inherent" rateHref={hasInherent ? undefined : '/assessments/inherent'} />
+            </dd>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pt-3.5">
+            <dt className="min-w-0">
+              <span className="label-caps block">Residual</span>
+              <span className="text-body-sm text-foreground-secondary">{lxi(dl, di) ?? 'Not rated yet'}</span>
+            </dt>
+            <dd className="flex items-center gap-2">
+              {dirty && (
+                <Chip tone="info" icon={null}>
+                  Unsaved
+                </Chip>
+              )}
+              <BandBadge score={draftScore} kind="Residual" />
+            </dd>
+          </div>
+        </dl>
+
+        <div className="flex min-w-0 flex-col justify-center gap-1 border-border border-t pt-5 @xl:col-span-2 @4xl:col-span-1 @4xl:border-t-0 @4xl:border-l @4xl:pt-0 @4xl:pl-8" aria-live="polite">
+          <span className="label-caps">Reduction</span>
           {reduction == null ? (
-            <span className="block text-[11px] text-slate-500 mt-1">Shown once both ratings exist.</span>
-          ) : reduction < 0 ? (
-            <span className="block text-[11px] text-amber-700 mt-1">Residual is higher than inherent — check the ratings.</span>
-          ) : null}
+            <>
+              <span className="figure text-figure-lg text-muted-foreground" aria-hidden="true">
+                —
+              </span>
+              <span className="text-body-sm text-muted-foreground">
+                {hasInherent ? 'Shown once a residual rating is set.' : 'Rate the inherent risk first to measure the effect of controls.'}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className={'figure text-figure-lg ' + (reduction > 0 ? 'text-status-success-fg' : reduction < 0 ? 'text-status-danger-fg' : 'text-foreground')}>
+                {reduction < 0 ? '+' : ''}
+                {Math.abs(reduction)}
+              </span>
+              <span className="flex items-center gap-1.5 text-body-sm text-foreground-secondary">
+                {reduction > 0 ? (
+                  <ArrowDown className="size-3.5 text-status-success-fg" aria-hidden="true" />
+                ) : reduction < 0 ? (
+                  <ArrowUp className="size-3.5 text-status-danger-fg" aria-hidden="true" />
+                ) : null}
+                {reduction > 0
+                  ? `point${reduction === 1 ? '' : 's'} lower after controls`
+                  : reduction < 0
+                    ? `point${reduction === -1 ? '' : 's'} higher than inherent: check the ratings`
+                    : 'No change from the inherent rating'}
+              </span>
+            </>
+          )}
         </div>
       </div>
 
       {canEdit ? (
-        <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
-          <div>
-            <label htmlFor="res-likelihood" className={labelCls}>
-              Residual likelihood
-            </label>
-            <select id="res-likelihood" className={selectCls} value={l} onChange={e => setL(e.target.value)}>
-              <option value="">Not rated</option>
-              {LIKELIHOOD_LABELS.map((lab, idx) => (
-                <option key={lab} value={idx + 1}>
-                  {idx + 1} – {lab}
-                </option>
-              ))}
-            </select>
+        <div className="rounded-b-lg border-t bg-surface-sunken/60 px-6 py-4">
+          <div className="grid grid-cols-1 items-end gap-3 @xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div className="min-w-0">
+              <label htmlFor={`res-likelihood-${risk.uuid}`} className={labelCls}>
+                Residual likelihood
+              </label>
+              <select
+                id={`res-likelihood-${risk.uuid}`}
+                className={selectCls}
+                value={l}
+                onChange={e => setL(e.target.value)}
+                aria-invalid={!!error && l === ''}
+                aria-describedby={error ? `res-error-${risk.uuid}` : undefined}
+              >
+                <option value="">Not rated</option>
+                {LIKELIHOOD_LABELS.map((lab, idx) => (
+                  <option key={lab} value={idx + 1}>
+                    {idx + 1} · {lab}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-0">
+              <label htmlFor={`res-impact-${risk.uuid}`} className={labelCls}>
+                Residual impact
+              </label>
+              <select
+                id={`res-impact-${risk.uuid}`}
+                className={selectCls}
+                value={i}
+                onChange={e => setI(e.target.value)}
+                aria-invalid={!!error && i === ''}
+                aria-describedby={error ? `res-error-${risk.uuid}` : undefined}
+              >
+                <option value="">Not rated</option>
+                {IMPACT_LABELS.map((lab, idx) => (
+                  <option key={lab} value={idx + 1}>
+                    {idx + 1} · {lab}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setL(savedL)
+                  setI(savedI)
+                  setError(null)
+                }}
+                disabled={!dirty || update.isPending}
+              >
+                <RotateCcw aria-hidden="true" />
+                Reset
+              </Button>
+              <Button onClick={save} disabled={!dirty || update.isPending}>
+                {update.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+                Save residual rating
+              </Button>
+            </div>
           </div>
-          <div>
-            <label htmlFor="res-impact" className={labelCls}>
-              Residual impact
-            </label>
-            <select id="res-impact" className={selectCls} value={i} onChange={e => setI(e.target.value)}>
-              <option value="">Not rated</option>
-              {IMPACT_LABELS.map((lab, idx) => (
-                <option key={lab} value={idx + 1}>
-                  {idx + 1} – {lab}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            {dirty && draftScore != null && <BandBadge score={draftScore} />}
-            <Button size="sm" onClick={save} disabled={!dirty || update.isPending}>
-              {update.isPending && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" aria-hidden="true" />}
-              Save residual rating
-            </Button>
-          </div>
-          {error && (
-            <p role="alert" className="sm:col-span-3 text-[11px] text-red-600">
-              {error}
-            </p>
-          )}
+          <FieldError id={`res-error-${risk.uuid}`} message={error ?? undefined} />
         </div>
       ) : (
-        <p className="text-xs text-slate-500">You have read-only access to this rating.</p>
+        <p className="flex items-center gap-2 border-t px-6 py-3 text-caption text-muted-foreground">
+          <Lock className="size-3.5" aria-hidden="true" />
+          You have read-only access to this rating.
+        </p>
       )}
     </section>
   )

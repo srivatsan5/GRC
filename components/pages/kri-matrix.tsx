@@ -1,19 +1,23 @@
 'use client'
 
-/** /kri/matrix — each KRI against its last six recorded readings, coloured by traffic light. */
+/** /kri/matrix — each KRI against its last six recorded readings, cells tinted by traffic light (icon + value). */
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Download, Search } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { DataState, EmptyState } from '@/components/data-state'
-import { formatDate, formatNumber, toDateInput } from '@/lib/format'
+import { PageHeader, Panel, SearchField } from '@/components/charter/primitives'
+import { formatDate, toDateInput } from '@/lib/format'
 import { LIGHT_STYLES, kriLight, type KriLight, type KriReading } from '@/lib/kri'
 import { cn } from '@/lib/utils'
 import { exportCsv } from '@/components/controls/form-bits'
-import { DIRECTION_LABELS, LightBadge, thresholdText, useKriData } from '@/components/kri/kri-shared'
+import { Checkbox } from '@/components/governance/form'
+import { KriNav } from '@/components/kri/kri-nav'
+import { LIGHT_ICON, LIGHT_VAR, LightPill, fmt } from '@/components/kri/kri-visuals'
+import { DIRECTION_LABELS, thresholdText, useKriData } from '@/components/kri/kri-shared'
 
 const SLOTS = 6
+const slotLabel = (i: number) => (i === SLOTS - 1 ? 'Latest' : i === SLOTS - 2 ? 'Previous' : `−${SLOTS - 1 - i}`)
 
 export function KrimatrixPage() {
   const { data, queries, defsQ } = useKriData()
@@ -45,114 +49,124 @@ export function KrimatrixPage() {
     )
   }
 
+  const breaches = rows.reduce((n, d) => n + d.slots.filter(r => r && lightOf(r, d) === 'RED').length, 0)
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">KRI readings matrix</h1>
-          <p className="text-xs text-slate-500">
-            Each indicator’s last {SLOTS} recorded readings, oldest to latest, coloured by the traffic light recorded with the reading. Record readings on{' '}
-            <Link href="/kri" className="text-blue-700 hover:underline">
-              Key Risk Indicators
-            </Link>
-            .
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleExport} disabled={rows.length === 0}>
-          <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-          Export CSV
-        </Button>
+      <PageHeader
+        eyebrow="Analytics · Key risk indicators"
+        title="Readings matrix"
+        description={`Each indicator’s last ${SLOTS} recorded readings, oldest to latest, tinted by the status recorded with each reading.`}
+        actions={
+          <Button variant="secondary" onClick={handleExport} disabled={rows.length === 0}>
+            <Download aria-hidden="true" />
+            Export CSV
+          </Button>
+        }
+      />
+      <KriNav />
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <SearchField value={search} onChange={setSearch} label="Search indicators" placeholder="Code, name, owner, category…" />
+        <Checkbox id="kri-matrix-inactive" label="Show inactive" checked={showInactive} onChange={setShowInactive} />
+        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-foreground-secondary sm:ml-auto" aria-label="Legend">
+          {(['GREEN', 'AMBER', 'RED'] as const).map(l => (
+            <li key={l} className="inline-flex items-center gap-1.5">
+              <span className="size-2.5 rounded-xs" style={{ background: LIGHT_VAR[l].solid }} aria-hidden="true" />
+              {LIGHT_STYLES[l].label}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <label htmlFor="kri-matrix-search" className="sr-only">
-            Search indicators
-          </label>
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
-          <Input id="kri-matrix-search" placeholder="Search code, name, owner, category…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-xs bg-white" />
-        </div>
-        <div className="flex items-center gap-4">
-          <ul className="flex items-center gap-3 text-[11px] text-slate-600" aria-label="Legend">
-            {(['GREEN', 'AMBER', 'RED'] as const).map(l => (
-              <li key={l} className="flex items-center gap-1">
-                <span className={cn('h-2.5 w-2.5 rounded-sm', LIGHT_STYLES[l].dot)} aria-hidden="true" />
-                {LIGHT_STYLES[l].label}
-              </li>
-            ))}
-          </ul>
-          <label className="flex items-center gap-1.5 text-xs text-slate-600" htmlFor="kri-matrix-inactive">
-            <input id="kri-matrix-inactive" type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
-            Show inactive
-          </label>
-        </div>
-      </div>
-
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
-        <DataState query={queries} empty={(defsQ.data?.length ?? 0) === 0} emptyTitle="No KRI definitions yet" emptyDescription="Define indicators and record readings on the Key Risk Indicators page.">
-          {rows.length === 0 ? (
-            <EmptyState title="No indicators match" compact />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="enterprise-table">
-                <thead>
-                  <tr>
-                    <th className="min-w-[220px]">Indicator</th>
-                    {Array.from({ length: SLOTS }, (_, i) => (
-                      <th key={i} className="text-center">
-                        {i === SLOTS - 1 ? 'Latest' : `−${SLOTS - 1 - i}`}
-                      </th>
-                    ))}
-                    <th>Current status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(d => (
-                    <tr key={d.kri.uuid}>
-                      <th scope="row" className="text-left font-normal">
-                        <div className="font-mono text-[11px] text-slate-500">{d.kri.code}</div>
-                        <div className="font-medium text-slate-900">{d.kri.name}</div>
-                        <div className="text-[11px] text-slate-500">
-                          {d.kri.unit ?? 'No unit'} · {DIRECTION_LABELS[d.kri.direction]}
-                          {!d.kri.active && ' · Inactive'}
-                        </div>
-                        <div className="text-[10px] text-slate-400">{thresholdText(d.kri)}</div>
-                      </th>
-                      {d.slots.map((r, i) => {
-                        if (!r)
+      <Panel bodyClassName="p-0" title="Last six readings" meta={`${rows.length} indicator${rows.length === 1 ? '' : 's'} · ${breaches} breach reading${breaches === 1 ? '' : 's'} shown`}>
+        <div className="pt-4">
+          <DataState
+            query={queries}
+            empty={(defsQ.data?.length ?? 0) === 0}
+            emptyTitle="No indicators yet"
+            emptyDescription="Define indicators and record readings on the Indicators page."
+            emptyAction={
+              <Button variant="secondary" asChild>
+                <Link href="/kri">Go to indicators</Link>
+              </Button>
+            }
+          >
+            {rows.length === 0 ? (
+              <EmptyState title="No indicators match" description="Clear the search or show inactive indicators." compact />
+            ) : (
+              <div className="relative overflow-x-auto border-t">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th className="min-w-[260px] pl-6">Indicator</th>
+                      {Array.from({ length: SLOTS }, (_, i) => (
+                        <th key={i} className={cn('text-center', i === SLOTS - 1 && 'text-foreground')}>
+                          {slotLabel(i)}
+                        </th>
+                      ))}
+                      <th className="pr-6">Current status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(d => (
+                      <tr key={d.kri.uuid}>
+                        <td className="max-w-[320px] pl-6">
+                          <span className="block truncate font-medium text-foreground" title={d.kri.name}>
+                            {d.kri.name}
+                          </span>
+                          <span className="block truncate font-mono text-caption text-muted-foreground" title={thresholdText(d.kri)}>
+                            {d.kri.code} · {d.kri.unit ?? 'No unit'} · {DIRECTION_LABELS[d.kri.direction]}
+                            {!d.kri.active && ' · Inactive'}
+                          </span>
+                        </td>
+                        {d.slots.map((r, i) => {
+                          if (!r)
+                            return (
+                              <td key={`empty-${i}`} className="px-1.5 py-1.5 text-center">
+                                <span className="flex h-12 min-w-[84px] items-center justify-center rounded-sm text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+                                  <span className="sr-only">No reading</span>
+                                  <span aria-hidden="true">—</span>
+                                </span>
+                              </td>
+                            )
+                          const l = lightOf(r, d)
+                          const st = l ? LIGHT_STYLES[l] : null
+                          const Icon = l ? LIGHT_ICON[l] : null
+                          const latest = i === SLOTS - 1
                           return (
-                            <td key={i} className="text-center text-slate-300">
-                              <span className="sr-only">No reading</span>
-                              <span aria-hidden="true">—</span>
+                            <td key={r.uuid} className="px-1.5 py-1.5 text-center">
+                              <span
+                                className={cn(
+                                  'flex h-12 min-w-[84px] flex-col items-center justify-center rounded-sm px-2',
+                                  st ? [st.bg, st.text] : 'bg-muted text-foreground-secondary',
+                                  latest && l === 'RED' && 'shadow-[inset_0_0_0_1px_var(--risk-critical-text)]',
+                                )}
+                                title={r.notes ?? undefined}
+                              >
+                                <span className="inline-flex items-center gap-1 text-body-sm font-semibold tabular-nums">
+                                  {Icon && <Icon className="size-3.5" aria-hidden="true" />}
+                                  {fmt(r.value)}
+                                </span>
+                                <span className="text-[11px] leading-4 opacity-80 tabular-nums">{formatDate(r.date, { day: 'numeric', month: 'short', year: '2-digit' })}</span>
+                                <span className="sr-only">{l ? `, ${LIGHT_STYLES[l].label}` : ', no status'}</span>
+                              </span>
                             </td>
                           )
-                        const l = lightOf(r, d)
-                        const st = l ? LIGHT_STYLES[l] : null
-                        return (
-                          <td key={r.uuid} className="text-center p-1">
-                            <div
-                              className={cn('rounded border px-2 py-1.5', st ? [st.bg, st.border, st.text] : 'bg-slate-50 border-slate-200 text-slate-600')}
-                              title={r.notes ?? undefined}
-                            >
-                              <div className="text-xs font-semibold tabular-nums">{formatNumber(r.value, 4)}</div>
-                              <div className="text-[10px] opacity-80">{formatDate(r.date)}</div>
-                              <span className="sr-only">{l ? `, ${LIGHT_STYLES[l].label}` : ', no status'}</span>
-                            </div>
-                          </td>
-                        )
-                      })}
-                      <td>
-                        <LightBadge light={d.light} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </DataState>
-      </div>
-      <p className="text-[11px] text-slate-500">Current status applies today’s thresholds to the latest reading; cell colours show the status recorded at the time of each reading.</p>
+                        })}
+                        <td className="pr-6">
+                          <LightPill light={d.light} solid />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </DataState>
+        </div>
+      </Panel>
+      <p className="text-caption text-muted-foreground">Current status applies today’s thresholds to the latest reading; cell tints show the status recorded at the time of each reading.</p>
     </div>
   )
 }

@@ -2,19 +2,22 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
-import { ChevronDown, ChevronRight, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Check, ChevronRight, ChevronsDownUp, ChevronsUpDown, Clock, Loader2, Minus, Pause, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
+import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
+import { Chip, DueChip, Meter, PageHeader, Panel, SearchField } from '@/components/charter/primitives'
 import { DataState } from '@/components/data-state'
 import { useCreateRow, useDeleteRow, useRows, useUpdateRow, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
-import { daysUntil, formatDate, toDateInput } from '@/lib/format'
-import { cn } from '@/lib/utils'
-import { FieldError, ProgressBar, labelCls, numOrNull, rowId, selectCls, text } from '@/components/treatment/shared'
+import { DASH, daysUntil, formatDate, toDateInput } from '@/lib/format'
+import { CheckboxField, FieldError, FormSection, helpCls, labelCls, numOrNull, rowId, selectCls, text } from '@/components/treatment/shared'
+
+const INDENT = 28
 
 const PLANS = 'per_trn_mitigation_plans'
 const STATUS_OPTIONS = ['Not Started', 'In Progress', 'On Hold', 'Completed', 'Cancelled'] as const
@@ -27,13 +30,14 @@ interface Node {
 
 const isDone = (r: Row) => String(r.overall_status ?? '').trim().toLowerCase() === 'completed'
 
-function statusTone(v: unknown) {
-  const s = String(v ?? '').trim().toLowerCase()
-  if (s === 'completed') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-  if (s === 'in progress') return 'border-blue-200 bg-blue-50 text-blue-700'
-  if (s === 'on hold') return 'border-amber-200 bg-amber-50 text-amber-700'
-  if (s === 'cancelled') return 'border-slate-200 bg-slate-100 text-slate-500'
-  return 'border-slate-200 bg-slate-50 text-slate-600'
+function StatusChip({ value }: { value: unknown }) {
+  const label = text(value)
+  const s = (label ?? '').toLowerCase()
+  if (s === 'completed') return <Chip tone="success" icon={Check}>Completed</Chip>
+  if (s === 'in progress') return <Chip tone="info" icon={Clock}>In progress</Chip>
+  if (s === 'on hold') return <Chip tone="warning" icon={Pause}>On hold</Chip>
+  if (s === 'cancelled') return <Chip tone="neutral" icon={X}>Cancelled</Chip>
+  return <Chip tone="neutral" icon={Minus}>{label ?? 'No status'}</Chip>
 }
 
 function buildTree(rows: Row[]): { roots: Node[]; byId: Map<number, Node> } {
@@ -185,102 +189,116 @@ function PlanDialog({
 
   return (
     <Dialog open={open} onOpenChange={o => !saving && onOpenChange(o)}>
-      <DialogContent className="max-w-xl bg-white max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[620px]">
         <DialogHeader>
-          <DialogTitle className="text-base text-slate-900">{selfId != null ? 'Edit mitigation plan' : 'New mitigation plan'}</DialogTitle>
-          <DialogDescription className="text-xs text-slate-500">Plans can be nested: choose a parent plan to make this a sub-plan.</DialogDescription>
+          <DialogTitle>{selfId != null ? 'Edit mitigation plan' : parentId != null ? 'New sub-plan' : 'New mitigation plan'}</DialogTitle>
+          <DialogDescription>Plans can be nested: choose a parent plan to make this a sub-plan.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="mp-statement" className={labelCls}>
-              Plan statement *
-            </label>
-            <Textarea
-              id="mp-statement"
-              rows={2}
-              value={form.statement}
-              onChange={e => set('statement', e.target.value)}
-              aria-invalid={!!errors.statement}
-              aria-describedby={errors.statement ? 'mp-statement-error' : undefined}
-            />
-            <FieldError id="mp-statement-error" message={errors.statement} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-5">
+          <FormSection title="Plan">
             <div>
-              <label htmlFor="mp-parent" className={labelCls}>
-                Parent plan
+              <label htmlFor="mp-statement" className={labelCls}>
+                Plan statement <span className="text-status-danger-fg" aria-hidden="true">*</span>
               </label>
-              <select id="mp-parent" className={selectCls} value={form.parent} onChange={e => set('parent', e.target.value)}>
-                <option value="">None (top level)</option>
-                {parentOptions.map(o => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="mp-type" className={labelCls}>
-                Plan type
-              </label>
-              <Input id="mp-type" value={form.type} onChange={e => set('type', e.target.value)} placeholder="e.g. Remediation, Programme, Task" />
-            </div>
-            <div>
-              <label htmlFor="mp-start" className={labelCls}>
-                Start date
-              </label>
-              <Input id="mp-start" type="date" value={form.start} onChange={e => set('start', e.target.value)} />
-            </div>
-            <div>
-              <label htmlFor="mp-end" className={labelCls}>
-                End date
-              </label>
-              <Input
-                id="mp-end"
-                type="date"
-                value={form.end}
-                onChange={e => set('end', e.target.value)}
-                aria-invalid={!!errors.end}
-                aria-describedby={errors.end ? 'mp-end-error' : undefined}
+              <Textarea
+                id="mp-statement"
+                rows={2}
+                value={form.statement}
+                onChange={e => set('statement', e.target.value)}
+                aria-required="true"
+                aria-invalid={!!errors.statement}
+                aria-describedby={errors.statement ? 'mp-statement-error' : undefined}
               />
-              <FieldError id="mp-end-error" message={errors.end} />
+              <FieldError id="mp-statement-error" message={errors.statement} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="mp-parent" className={labelCls}>
+                  Parent plan
+                </label>
+                <select id="mp-parent" className={selectCls} value={form.parent} onChange={e => set('parent', e.target.value)} aria-describedby="mp-parent-help">
+                  <option value="">None (top level)</option>
+                  {parentOptions.map(o => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <p id="mp-parent-help" className={helpCls}>
+                  A plan can’t sit under itself or its own sub-plans.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="mp-type" className={labelCls}>
+                  Plan type
+                </label>
+                <Input id="mp-type" value={form.type} onChange={e => set('type', e.target.value)} placeholder="e.g. Remediation, Programme, Task" />
+              </div>
             </div>
             <div>
-              <label htmlFor="mp-status" className={labelCls}>
-                Overall status
+              <label htmlFor="mp-activities" className={labelCls}>
+                Activities
               </label>
-              <select id="mp-status" className={selectCls} value={form.status} onChange={e => set('status', e.target.value)}>
-                {statusOptions.map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
+              <Textarea id="mp-activities" rows={3} value={form.activities} onChange={e => set('activities', e.target.value)} placeholder="The steps this plan involves" />
             </div>
-            <div className="flex items-center gap-2 pt-5">
-              <input id="mp-active" type="checkbox" className="h-4 w-4" checked={form.active} onChange={e => set('active', e.target.checked)} />
-              <label htmlFor="mp-active" className="text-sm text-slate-700">
-                Active
+          </FormSection>
+
+          <FormSection title="Schedule & status">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="mp-start" className={labelCls}>
+                  Start date
+                </label>
+                <Input id="mp-start" type="date" value={form.start} onChange={e => set('start', e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="mp-end" className={labelCls}>
+                  End date
+                </label>
+                <Input
+                  id="mp-end"
+                  type="date"
+                  value={form.end}
+                  onChange={e => set('end', e.target.value)}
+                  aria-invalid={!!errors.end}
+                  aria-describedby={errors.end ? 'mp-end-error' : undefined}
+                />
+                <FieldError id="mp-end-error" message={errors.end} />
+              </div>
+              <div>
+                <label htmlFor="mp-status" className={labelCls}>
+                  Overall status
+                </label>
+                <select id="mp-status" className={selectCls} value={form.status} onChange={e => set('status', e.target.value)}>
+                  {statusOptions.map(s => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:pt-[30px]">
+                <CheckboxField id="mp-active" checked={form.active} onChange={v => set('active', v)} label="Active" help="Inactive plans can be hidden from the tree." />
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Approval">
+            <div>
+              <label htmlFor="mp-approval" className={labelCls}>
+                Approval details
               </label>
+              <Textarea id="mp-approval" rows={2} value={form.approval} onChange={e => set('approval', e.target.value)} disabled={!canApprove} aria-describedby="mp-approval-help" />
+              <p id="mp-approval-help" className={helpCls}>
+                {canApprove ? 'Recorded against the plan; only approvers can change it.' : 'Only Risk Managers and Administrators can edit approval details.'}
+              </p>
             </div>
-          </div>
-          <div>
-            <label htmlFor="mp-activities" className={labelCls}>
-              Activities
-            </label>
-            <Textarea id="mp-activities" rows={3} value={form.activities} onChange={e => set('activities', e.target.value)} />
-          </div>
-          <div>
-            <label htmlFor="mp-approval" className={labelCls}>
-              Approval details {!canApprove && '(approvers only)'}
-            </label>
-            <Textarea id="mp-approval" rows={2} value={form.approval} onChange={e => set('approval', e.target.value)} disabled={!canApprove} />
-          </div>
+          </FormSection>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="secondary" onClick={() => onOpenChange(false)} disabled={saving}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={saving}>
-            {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" aria-hidden="true" />}
+            {saving && <Loader2 className="animate-spin" aria-hidden="true" />}
             {selfId != null ? 'Save changes' : 'Create plan'}
           </Button>
         </DialogFooter>
@@ -340,83 +358,122 @@ export function MonitoringactionshierarchyPage() {
   const total = tree.byId.size
   const completed = [...tree.byId.values()].filter(n => isDone(n.row)).length
 
+  const canWrite = hasPermission('create') || hasPermission('update') || hasPermission('delete')
+  // Desktop columns (lg+): plan · status · sub-plans · due · actions. Below lg the cells stack.
+  const gridStyle = { ['--tree-cols' as string]: `minmax(0,1fr) 130px 200px 150px${canWrite ? ' 112px' : ''}` } as React.CSSProperties
+
   const renderNode = (node: Node, depth: number): React.ReactNode => {
     if (!visible(node)) return null
     const r = node.row
     const desc = descendants(node)
     const doneDesc = desc.filter(d => isDone(d.row)).length
     const isOpen = expanded.has(node.id) || (!!term && node.children.some(visible))
-    const due = daysUntil(text(r.plan_end_date))
-    const overdue = !isDone(r) && due != null && due < 0 && String(r.overall_status ?? '').toLowerCase() !== 'cancelled'
+    const cancelled = String(r.overall_status ?? '').trim().toLowerCase() === 'cancelled'
     const title = text(r.plan_statement) ?? `Plan #${node.id}`
+    const inactive = r.is_active === 'N'
+    const indent = 24 + depth * INDENT
     return (
       <li key={node.id}>
-        <div className={cn('flex flex-wrap items-center gap-3 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50', r.is_active === 'N' && 'opacity-70')} style={{ paddingLeft: 12 + depth * 24 }}>
-          {node.children.length ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={() => toggle(node.id)}
-              aria-expanded={isOpen}
-              aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
-            >
-              {isOpen ? <ChevronDown className="w-4 h-4" aria-hidden="true" /> : <ChevronRight className="w-4 h-4" aria-hidden="true" />}
-            </Button>
-          ) : (
-            <span className="w-6" aria-hidden="true" />
-          )}
-          <div className="flex-1 min-w-[200px]">
-            <span className="text-sm font-medium text-slate-900">{title}</span>
-            <span className="block text-[11px] text-slate-500">
-              {[text(r.plan_type), `${formatDate(text(r.plan_start_date))} – ${formatDate(text(r.plan_end_date))}`, r.is_active === 'N' ? 'Inactive' : null]
-                .filter(Boolean)
-                .join(' · ')}
-            </span>
-          </div>
-          <span className={cn('inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium', statusTone(r.overall_status))}>
-            {text(r.overall_status) ?? 'No status'}
-          </span>
-          {overdue && <span className="inline-flex items-center rounded border px-1.5 py-0.5 text-[11px] font-medium border-red-200 bg-red-50 text-red-700">Overdue</span>}
-          <div className="w-44">
-            {desc.length ? (
-              <>
-                <ProgressBar value={(doneDesc / desc.length) * 100} />
-                <span className="block text-[10px] text-slate-500">
-                  {doneDesc} of {desc.length} sub-plan{desc.length === 1 ? '' : 's'} completed
-                </span>
-              </>
-            ) : (
-              <span className="text-[11px] text-slate-400">No sub-plans</span>
-            )}
-          </div>
-          <div className="flex items-center gap-0.5">
-            {hasPermission('create') && (
-              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Add sub-plan to ${title}`} onClick={() => {
-                  setExpanded(prev => new Set(prev).add(node.id))
-                  setDialog({ open: true, row: null, parentId: node.id })
-                }}>
-                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-              </Button>
-            )}
-            {hasPermission('update') && (
-              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Edit ${title}`} onClick={() => setDialog({ open: true, row: r, parentId: null })}>
-                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-              </Button>
-            )}
-            {hasPermission('delete') && (
+        <div className="relative flex flex-wrap items-center gap-x-3 gap-y-2 lg:grid lg:grid-cols-(--tree-cols) lg:gap-x-6 border-b py-3 pr-6 transition-colors duration-(--duration-fast) ease-out hover:bg-hover " style={{ paddingLeft: indent, ...gridStyle }}>
+          {/* hairline guides for each ancestor level */}
+          {Array.from({ length: depth }, (_, k) => (
+            <span key={k} aria-hidden="true" className="absolute inset-y-0 w-px bg-border-strong" style={{ left: 24 + k * INDENT + 14 }} />
+          ))}
+          {depth > 0 && <span aria-hidden="true" className="absolute top-1/2 h-px w-3 bg-border-strong" style={{ left: 24 + (depth - 1) * INDENT + 14 }} />}
+
+          <div className="flex w-full min-w-0 items-start gap-2 lg:col-start-1 lg:row-start-1 lg:w-auto">
+            {node.children.length ? (
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-red-600 hover:bg-red-50"
-                aria-label={`Delete ${title}`}
-                disabled={del.isPending}
-                onClick={() => handleDelete(node)}
+                className="relative z-[1] -my-0.5 size-7 shrink-0 bg-card"
+                onClick={() => toggle(node.id)}
+                aria-expanded={isOpen}
+                aria-label={`${isOpen ? 'Collapse' : 'Expand'} ${title}`}
               >
-                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                <ChevronRight className={'transition-transform duration-(--duration-fast) ease-out ' + (isOpen ? 'rotate-90' : '')} aria-hidden="true" />
+              </Button>
+            ) : (
+              <span className="relative z-[1] inline-flex size-7 shrink-0 items-center justify-center" aria-hidden="true">
+                <span className="size-1.5 rounded-full bg-border-strong" />
+              </span>
+            )}
+            <div className="min-w-0">
+              <p className={'text-body font-medium ' + (inactive ? 'text-muted-foreground' : 'text-foreground')}>{title}</p>
+              <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-caption text-muted-foreground">
+                {text(r.plan_type) && <span>{text(r.plan_type)}</span>}
+                {text(r.plan_type) && <span aria-hidden="true">·</span>}
+                <span className="tabular-nums">
+                  {formatDate(text(r.plan_start_date))} – {formatDate(text(r.plan_end_date))}
+                </span>
+                {node.children.length > 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>
+                      {node.children.length} sub-plan{node.children.length === 1 ? '' : 's'}
+                    </span>
+                  </>
+                )}
+                {inactive && (
+                  <Chip tone="neutral" icon={null} className="ml-1">
+                    Inactive
+                  </Chip>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pl-9 lg:contents">
+          <div className="lg:col-start-2 lg:row-start-1">
+            <StatusChip value={r.overall_status} />
+          </div>
+
+          <div className={'lg:col-start-4 lg:row-start-1 ' + (isDone(r) ? 'max-lg:hidden' : '')}>
+            {cancelled ? <span className="text-caption text-muted-foreground">{DASH}</span> : <DueChip date={text(r.plan_end_date)} done={isDone(r)} doneLabel="Completed" />}
+          </div>
+
+          </div>
+
+          <div className={'order-last w-full pl-9 lg:order-none lg:col-start-3 lg:row-start-1 lg:w-auto lg:pl-0 ' + (desc.length ? '' : 'max-lg:hidden')}>
+            {desc.length ? (
+              <div className="max-w-64 space-y-1">
+                <Meter value={(doneDesc / desc.length) * 100} label={`${doneDesc} of ${desc.length} sub-plans completed`} tone={doneDesc === desc.length ? 'bg-status-success' : 'bg-primary'} />
+                <p className="text-caption tabular-nums text-muted-foreground">
+                  {doneDesc} of {desc.length} sub-plan{desc.length === 1 ? '' : 's'} done
+                </p>
+              </div>
+            ) : (
+              <span className="text-caption text-muted-foreground">No sub-plans</span>
+            )}
+          </div>
+
+          {canWrite && (
+          <div className="ml-auto flex items-center gap-0.5 lg:col-start-5 lg:row-start-1 lg:ml-0 lg:justify-end">
+            {hasPermission('create') && (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`Add sub-plan to ${title}`}
+                onClick={() => {
+                  setExpanded(prev => new Set(prev).add(node.id))
+                  setDialog({ open: true, row: null, parentId: node.id })
+                }}
+              >
+                <Plus aria-hidden="true" />
+              </Button>
+            )}
+            {hasPermission('update') && (
+              <Button variant="ghost" size="icon" aria-label={`Edit ${title}`} onClick={() => setDialog({ open: true, row: r, parentId: null })}>
+                <Pencil aria-hidden="true" />
+              </Button>
+            )}
+            {hasPermission('delete') && (
+              <Button variant="ghost" size="icon" className="hover:bg-status-danger-bg hover:text-status-danger-fg" aria-label={`Delete ${title}`} disabled={del.isPending} onClick={() => handleDelete(node)}>
+                <Trash2 aria-hidden="true" />
               </Button>
             )}
           </div>
+          )}
         </div>
         {isOpen && node.children.length > 0 && <ul>{node.children.map(c => renderNode(c, depth + 1))}</ul>}
       </li>
@@ -424,56 +481,65 @@ export function MonitoringactionshierarchyPage() {
   }
 
   const anyVisible = tree.roots.some(visible)
+  const all = [...tree.byId.values()]
+  const overdue = all.filter(n => {
+    const d = daysUntil(text(n.row.plan_end_date))
+    return !isDone(n.row) && d != null && d < 0 && String(n.row.overall_status ?? '').toLowerCase() !== 'cancelled'
+  }).length
+  const newTop = () => setDialog({ open: true, row: null, parentId: null })
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Mitigation plan hierarchy</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            Parent plans and their sub-plans.{' '}
-            {plansQ.data && total > 0 && (
-              <>
-                {completed} of {total} plan{total === 1 ? '' : 's'} completed.
-              </>
-            )}
-          </p>
-        </div>
-        {hasPermission('create') && (
-          <Button size="sm" onClick={() => setDialog({ open: true, row: null, parentId: null })}>
-            <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-            New plan
+      <LifecycleStepper current="monitoring" />
+
+      <PageHeader
+        eyebrow="RCSA · Step 5 · Treatment"
+        title="Mitigation plan hierarchy"
+        description="Programmes and their sub-plans, with status, progress of the plans beneath and due dates."
+        actions={
+          hasPermission('create') ? (
+            <Button onClick={newTop}>
+              <Plus aria-hidden="true" />
+              New plan
+            </Button>
+          ) : undefined
+        }
+      />
+
+      {plansQ.data && total > 0 && (
+        <p className="flex flex-wrap items-baseline gap-x-8 gap-y-2 text-body-sm text-foreground-secondary">
+          <span>
+            <span className="figure mr-1.5 text-figure-sm text-foreground">{total}</span>plans · {tree.roots.length} top level
+          </span>
+          <span>
+            <span className="figure mr-1.5 text-figure-sm text-foreground">{completed}</span>completed
+          </span>
+          <span>
+            <span className={'figure mr-1.5 text-figure-sm ' + (overdue ? 'text-status-danger-fg' : 'text-foreground')}>{overdue}</span>
+            <span className={overdue ? 'text-status-danger-fg' : undefined}>overdue</span>
+          </span>
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchField value={search} onChange={setSearch} label="Search plans" placeholder="Statement, type, activities, status…" />
+        <label className="inline-flex h-control cursor-pointer items-center gap-2 rounded-md px-3 text-body-sm text-foreground hover:bg-hover">
+          <input type="checkbox" className="size-4 accent-primary" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
+          Show inactive plans
+        </label>
+        <div className="ml-auto flex gap-2">
+          <Button variant="ghost" onClick={expandAll} disabled={!total}>
+            <ChevronsUpDown aria-hidden="true" />
+            Expand all
           </Button>
-        )}
+          <Button variant="ghost" onClick={() => setExpanded(new Set())} disabled={!total}>
+            <ChevronsDownUp aria-hidden="true" />
+            Collapse all
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded">
-        <div className="p-3 border-b border-slate-200 flex flex-col md:flex-row md:items-end gap-3">
-          <div className="flex-1">
-            <label htmlFor="mp-search" className={labelCls}>
-              Search
-            </label>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-              <Input id="mp-search" className="pl-8 h-9" placeholder="Statement, type, activities, status…" value={search} onChange={e => setSearch(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 h-9">
-            <input id="mp-inactive" type="checkbox" className="h-4 w-4" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
-            <label htmlFor="mp-inactive" className="text-xs text-slate-700">
-              Show inactive plans
-            </label>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="h-9" onClick={expandAll} disabled={!total}>
-              Expand all
-            </Button>
-            <Button variant="outline" size="sm" className="h-9" onClick={() => setExpanded(new Set())} disabled={!total}>
-              Collapse all
-            </Button>
-          </div>
-        </div>
-
+      <Panel bodyClassName="p-0">
         <DataState
           query={plansQ}
           empty={!anyVisible}
@@ -481,24 +547,27 @@ export function MonitoringactionshierarchyPage() {
           emptyDescription={total === 0 ? 'Create a top-level plan, then add sub-plans under it.' : 'Clear the search or show inactive plans.'}
           emptyAction={
             total === 0 && hasPermission('create') ? (
-              <Button size="sm" onClick={() => setDialog({ open: true, row: null, parentId: null })}>
-                <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+              <Button onClick={newTop}>
+                <Plus aria-hidden="true" />
                 New plan
               </Button>
             ) : undefined
           }
         >
-          <ul aria-label="Mitigation plans">{tree.roots.map(n => renderNode(n, 0))}</ul>
+          <div className="hidden items-center gap-x-6 border-b border-border-strong py-0 pr-6 pl-6 lg:grid lg:grid-cols-(--tree-cols)" style={{ height: 'var(--row-height-header)', ...gridStyle }} aria-hidden="true">
+            <span className="label-caps">Plan</span>
+            <span className="label-caps">Status</span>
+            <span className="label-caps">Sub-plans</span>
+            <span className="label-caps">Due</span>
+            {canWrite && <span />}
+          </div>
+          <ul aria-label="Mitigation plans">
+            {tree.roots.map(n => renderNode(n, 0))}
+          </ul>
         </DataState>
-      </div>
+      </Panel>
 
-      <PlanDialog
-        open={dialog.open}
-        onOpenChange={o => setDialog(d => ({ ...d, open: o }))}
-        row={dialog.row}
-        parentId={dialog.parentId}
-        tree={tree}
-      />
+      <PlanDialog open={dialog.open} onOpenChange={o => setDialog(d => ({ ...d, open: o }))} row={dialog.row} parentId={dialog.parentId} tree={tree} />
     </div>
   )
 }

@@ -24,7 +24,6 @@ import {
   Headline,
   HeadlineCell,
   LifecycleChip,
-  Muted,
   NameCell,
   RatingDots,
   RowActions,

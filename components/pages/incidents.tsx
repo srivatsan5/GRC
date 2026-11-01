@@ -151,11 +151,6 @@ export function IncidentsPage() {
   const del = useDeleteRow(TABLE, { alsoInvalidate: [LINKS] })
 
   const all = useMemo(() => allQ.data ?? [], [allQ.data])
-  const linkCount = useMemo(() => {
-    const m = new Map<number, number>()
-    for (const l of linksQ.data ?? []) m.set(Number(l.incident_uuid), (m.get(Number(l.incident_uuid)) ?? 0) + 1)
-    return m
-  }, [linksQ.data])
 
   const stats = useMemo(() => {
     const open = all.filter(i => !isResolved(i.status))
@@ -214,7 +209,7 @@ export function IncidentsPage() {
       'Incident',
     )
 
-  const items = pageQ.data?.items ?? []
+  const items = useMemo(() => pageQ.data?.items ?? [], [pageQ.data])
   const filtered = !!debounced.trim() || status !== 'All' || severity !== 'All'
   const canCreate = hasPermission('create')
   const loadingAll = allQ.isLoading

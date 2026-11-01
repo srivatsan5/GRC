@@ -115,7 +115,7 @@ export function WorkflowPage() {
   const allQ = useQuery({ queryKey: ['workflow', 'all'], queryFn: () => workflowApi.list({}) })
   const query = tab === 'to-decide' ? toDecideQ : tab === 'submitted' ? submittedQ : allQ
 
-  const tabItems = query.data?.items ?? []
+  const tabItems = useMemo(() => query.data?.items ?? [], [query.data])
   const items = useMemo(
     () => tabItems.filter(i => (!statusFilter || i.status === statusFilter) && (!typeFilter || i.request_type === typeFilter)),
     [tabItems, statusFilter, typeFilter],

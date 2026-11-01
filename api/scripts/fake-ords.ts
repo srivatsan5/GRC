@@ -37,8 +37,8 @@ for (const [table, rows] of Object.entries(demoRows())) {
   fake.seed(table.toLowerCase(), resolved)
 }
 
-// Seed the risk register with the real row shapes captured in probe_risks.json (if present).
-const probe = new URL('../../probe_risks.json', import.meta.url)
+// Seed the risk register with real row shapes captured from the database (fixtures/risk-register-sample.json).
+const probe = new URL('./fixtures/risk-register-sample.json', import.meta.url)
 if (existsSync(probe)) {
   const data = JSON.parse(readFileSync(probe, 'utf8')) as { items?: Record<string, unknown>[] }
   fake.seed('per_trn_identify_risk', (data.items ?? []).map(({ links: _l, ...row }) => row))

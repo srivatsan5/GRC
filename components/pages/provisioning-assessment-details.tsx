@@ -50,7 +50,7 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
   const filter = { assessment_cycle_uuid: cycleId }
   const allRisks = useRows(RISK_TABLE, { filter, enabled: validId })
   const pageQ = useRowPage(RISK_TABLE, { page, pageSize: PAGE_SIZE, sort: sort.sort, order: sort.order, filter }, { enabled: validId })
-  const items = pageQ.data?.items ?? []
+  const items = useMemo(() => pageQ.data?.items ?? [], [pageQ.data])
   const ids = useMemo(() => items.map(r => Number(r.uuid)).filter(Number.isFinite), [items])
   const controls = useRows(CONTROL_TABLE, {
     filter: { identify_risk_uuid: ids },
@@ -121,6 +121,9 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
     </Button>
   ) : null
 
+  // Before any early return: hooks must run in the same order on every render.
+  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
+
   if (!validId) {
     return (
       <div className="space-y-6">
@@ -144,7 +147,6 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
   const statsLoading = allRisks.isLoading
   const hc = summary.high + summary.critical
 
-  useClampPage(page, pageQ.data?.total, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

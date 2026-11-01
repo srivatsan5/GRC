@@ -305,7 +305,10 @@ export function RiskIdentificationPage() {
   const togglePage = (on: boolean) =>
     setSelected(s => {
       const n = new Set(s)
-      for (const id of pageIds) on ? n.add(id) : n.delete(id)
+      for (const id of pageIds) {
+        if (on) n.add(id)
+        else n.delete(id)
+      }
       return n
     })
   const rowById = (id: number) => items.find(r => Number(r.uuid) === id) ?? all.data?.find(r => Number(r.uuid) === id)

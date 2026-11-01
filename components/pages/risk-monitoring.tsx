@@ -157,6 +157,9 @@ export function RiskMonitoringPage() {
     }
   }
 
+  // Before any early return: hooks must run in the same order on every render.
+  useClampPage(page, shown.length, PAGE_SIZE, setPage)
+
   const stepper = <LifecycleStepper current="monitoring" />
 
   if (assessmentParam && cycleId == null) {
@@ -184,7 +187,6 @@ export function RiskMonitoringPage() {
     </Button>
   )
 
-  useClampPage(page, shown.length, PAGE_SIZE, setPage)
 
   return (
     <div className="space-y-6">

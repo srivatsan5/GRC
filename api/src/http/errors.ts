@@ -49,7 +49,7 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     res.status(status).json({ error: { code: 'BAD_REQUEST', message: status === 413 ? 'Request body too large' : 'Malformed request' } })
     return
   }
-  log.error('unhandled error', err, { requestId: req.id, method: req.method, path: req.path, user: req.user?.id ?? null })
+  log.error('unhandled error', err, { requestId: req.id, method: req.method, path: req.originalUrl.split('?')[0], user: req.user?.id ?? null })
   // The reference lets support find this exact failure in the logs.
   res.status(500).json({ error: { code: 'INTERNAL', message: 'Something went wrong. Please try again.', requestId: req.id } })
 }

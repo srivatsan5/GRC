@@ -231,6 +231,13 @@ export function AuditTrailPage() {
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     autoResetPageIndex: false,
+    // Search every field of an entry, including the record id ("View in audit trail" links search by id).
+    globalFilterFn: (row, _columnId, value) => {
+      const q = String(value ?? '').trim().toLowerCase()
+      if (!q) return true
+      const e = row.original
+      return [e.actor_name, e.actor_email, e.actor_role, e.action, actionMeta(e.action).label, e.entity, e.entity_id, e.description, e.result].some(v => v != null && String(v).toLowerCase().includes(q))
+    },
   })
 
   const shownTotal = table.getFilteredRowModel().rows.length

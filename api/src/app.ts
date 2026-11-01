@@ -96,7 +96,7 @@ const requestLogger: express.RequestHandler = (req, res, next) => {
   const start = process.hrtime.bigint()
   res.on('finish', () => {
     const ms = Number(process.hrtime.bigint() - start) / 1e6
-    const fields = { requestId: req.id, method: req.method, path: req.path, status: res.statusCode, ms: Math.round(ms), user: req.user?.id ?? null, ip: req.ip }
+    const fields = { requestId: req.id, method: req.method, path: req.originalUrl.split('?')[0], status: res.statusCode, ms: Math.round(ms), user: req.user?.id ?? null, ip: req.ip }
     if (res.statusCode >= 500) log.warn('request failed', fields)
     else log.info('request', fields)
   })

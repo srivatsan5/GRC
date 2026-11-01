@@ -40,14 +40,15 @@ export function useDensity(): [Density, (d: Density) => void] {
     return () => window.removeEventListener(EVENT, onChange)
   }, [user?.id])
 
+  const userId = user?.id
   const setDensity = useCallback(
     (d: Density) => {
-      try { localStorage.setItem(key(user?.id), d) } catch { /* private mode */ }
+      try { localStorage.setItem(key(userId), d) } catch { /* private mode */ }
       apply(d)
       setDensityState(d)
       window.dispatchEvent(new Event(EVENT))
     },
-    [user?.id],
+    [userId],
   )
   return [density, setDensity]
 }

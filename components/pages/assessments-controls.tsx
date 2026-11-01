@@ -16,7 +16,6 @@ import { useRows, type Row } from '@/lib/data'
 import { apiErrorMessage } from '@/lib/apiClient'
 import { recordAudit } from '@/lib/auditLog'
 import { currentScore, toRisk, type Risk } from '@/lib/risk'
-import { DASH } from '@/lib/format'
 import { ControlImplementationDialog, useRemoveAppliedControl } from '@/components/treatment/control-dialog'
 import {
   EffectivenessChip,

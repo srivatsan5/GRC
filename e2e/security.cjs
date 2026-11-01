@@ -36,7 +36,8 @@ const check = (name, ok, extra = '') => { results.push(`${ok ? 'PASS' : 'FAIL'} 
   const sess = cookies.find(c => c.name === 'pericope_session');
   check('session cookie is httpOnly', !!sess && sess.httpOnly, sess ? `sameSite=${sess.sameSite}` : 'missing');
   check('session token not readable from JS', !(await p.evaluate(() => document.cookie)).includes('pericope_session'));
-  const activeRisks = await p.locator('a:has-text("Active risks")').first().innerText();
+  await p.waitForTimeout(1500); // headline figures count up
+  const activeRisks = await p.locator('section[aria-label="Headline figures"] > div').first().innerText();
   check('dashboard shows risks loaded through API from DB', /\b2[0-9]\b|\b[1-9][0-9]\b/.test(activeRisks), activeRisks.replace(/\n/g, ' | '));
 
   // 4. Create a user through the UI
@@ -77,8 +78,8 @@ const check = (name, ok, extra = '') => { results.push(`${ok ? 'PASS' : 'FAIL'} 
   await p.waitForTimeout(800);
   await p.screenshot({ path: './e2e/screenshots/04-audit.png' });
   const auditText = await p.locator('main').innerText();
-  check('audit trail shows chain verified', /Hash chain verified/.test(auditText));
-  check('audit trail has login, failed login, user create, approve', ['LOGIN', 'USER CREATE', 'APPROVE'].every(a => auditText.includes(a)) && /LOGIN.FAILED/.test(auditText));
+  check('audit trail shows chain verified', /Integrity verified/.test(auditText));
+  check('audit trail has login, failed login, user create, approve', ['Sign in', 'User created', 'Approve', 'Failed sign-in'].every(a => auditText.includes(a)));
 
   // 7. Sign out
   await p.click('button:has-text("Srivatsan B")');

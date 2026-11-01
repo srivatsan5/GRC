@@ -120,9 +120,9 @@ const api = (p, method, path, body) => p.evaluate(async ({ API, method, path, bo
   check('RCSA hub: live counts, no marketing claims', /active risks/.test(hub) && !/neural|Real-time DB|ISO 27001/i.test(hub))
   await admin.click('button[aria-label*="attention"], button[aria-label*="Nothing needs"]')
   await admin.waitForTimeout(500)
-  const bell = await admin.locator('header').innerText()
+  const bell = await admin.locator('[data-radix-popper-content-wrapper]').last().innerText().catch(() => admin.locator('body').innerText())
   check('bell shows real items (KRI breach recorded above), no invented notifications', /KRI breach/.test(bell) && !/CTL-FIN-SOD-07|10m ago/.test(bell), bell.replace(/\s+/g, ' ').slice(0, 200))
-  const footer = await admin.locator('footer').innerText().catch(() => '')
+  const footer = await admin.locator('footer').last().innerText().catch(() => '')
   check('footer version comes from package.json', /v4\.0\.0/.test(footer), footer)
 
   check('no uncaught page errors', errors.length === 0, errors.join(' | '))

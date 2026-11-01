@@ -1,29 +1,38 @@
 'use client'
 
-import React, { useMemo } from 'react'
+/**
+ * Executive dashboard (Charter, approved design): DESIGN_HANDOFF §5.
+ * Every figure is computed from rows the page loads; nothing is invented. Unknown values read "—".
+ */
+import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { FileDown } from 'lucide-react'
+import { ArrowRight, CircleCheck, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { DataState } from '@/components/data-state'
-import { BandBadge } from '@/components/band-badge'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useRows } from '@/lib/data'
-import { bandCounts, currentScore } from '@/lib/risk'
-import { LIGHT_STYLES } from '@/lib/kri'
+import { CountUp, DueChip, Meter, PageHeader, Panel, Segmented, Callout } from '@/components/charter/primitives'
+import { HeatmapLegend, RiskHeatmap, risksInCell, type CellRef, type HeatmapMode } from '@/components/charter/heatmap'
+import { useRows, type Row } from '@/lib/data'
+import { bandCounts, currentScore, type Risk } from '@/lib/risk'
+import { toReading, type KriReading } from '@/lib/kri'
 import { useOrgSettings } from '@/lib/settings'
-import { auditApi, workflowApi } from '@/lib/apiClient'
-import { formatDate, formatDateTime, formatNumber, formatPct, pctOf } from '@/lib/format'
+import { workflowApi, type ApiWorkflowItem } from '@/lib/apiClient'
+import { formatDate, pctOf } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { exportCsv, fileDate } from '@/components/analytics/csv'
-import { approvalLabel, byNewest, countBy, riskCsvColumns, riskDate, riskLabel, useRisks } from '@/components/analytics/risk-data'
-import { BandCountTable, BarList, Panel, StatTile } from '@/components/analytics/widgets'
-import { RiskHeatmap } from '@/components/analytics/risk-heatmap'
-import { SEVERITIES, incidentOpen, kriStatuses, planComplete, planOverdue } from '@/components/analytics/ops-data'
+import { riskCsvColumns, riskDate, riskLabel, useRisks } from '@/components/analytics/risk-data'
+import { SEVERITIES, incidentOpen, kriStatuses, numOrNull, planComplete, planOverdue } from '@/components/analytics/ops-data'
+import { AppetiteBullets, BandSplitBar, BandSwatchLegend, KriBreachTile, MonthColumns, type AppetiteRow, type MonthDatum } from '@/components/analytics/charter-charts'
 
 const MONTHS_SHOWN = 12
+const ATTENTION_LIMIT = 3
+
+const MODE_TITLES: Record<HeatmapMode, string> = {
+  inherent: 'Inherent risk matrix',
+  residual: 'Residual risk matrix',
+  movement: 'Inherent → residual movement',
+}
 
 function monthKey(value: string | null): string | null {
   if (!value) return null
@@ -32,20 +41,34 @@ function monthKey(value: string | null): string | null {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-function nextMonth(key: string): string {
-  const [y, m] = key.split('-').map(Number) as [number, number]
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+/** "SUNDAY, 1 NOVEMBER 2026" (label-caps upper-cases it). */
+function dateline(d: Date) {
+  const weekday = d.toLocaleDateString('en-GB', { weekday: 'long' })
+  const date = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  return `${weekday}, ${date}`
 }
 
-function monthLabel(key: string): string {
-  const [y, m] = key.split('-').map(Number) as [number, number]
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many)
+
+/** The occupied cell with the highest score for a mode (the default selection), or null. */
+function hottestCell(risks: Risk[], mode: HeatmapMode): CellRef | null {
+  let best: CellRef | null = null
+  for (let l = 5; l >= 1; l--)
+    for (let i = 5; i >= 1; i--)
+      if (risksInCell(risks, mode, { l, i }).length && (!best || l * i > best.l * best.i)) best = { l, i }
+  return best
+}
+
+function readingTime(r: KriReading) {
+  const t = new Date(r.date).getTime()
+  return Number.isNaN(t) ? Number.NEGATIVE_INFINITY : t
 }
 
 export function Dashboard() {
   const { hasPermission } = useAuth()
   const { money, bands, settings } = useOrgSettings()
-  const canAudit = hasPermission('audit')
+  const canApprove = hasPermission('approve')
+  const canCreate = hasPermission('create')
 
   const risksQ = useRisks()
   const implQ = useRows('per_trn_control_implementation')
@@ -54,12 +77,14 @@ export function Dashboard() {
   const kriQ = useRows('erm_mst_kri_definition')
   const readQ = useRows('erm_trn_kri_readings')
   const incQ = useRows('erm_trn_incident')
+  const appQ = useRows('erm_mst_risk_appetite')
   const wfQ = useQuery({ queryKey: ['workflow', 'dashboard', 'to-decide'], queryFn: () => workflowApi.list({ mine: 'to-decide' }) })
-  const auditQ = useQuery({ queryKey: ['audit', 'dashboard-recent'], queryFn: () => auditApi.list({ limit: 5 }), enabled: canAudit })
 
   const allRisks = risksQ.data
   const risks = useMemo(() => (allRisks ?? []).filter(r => r.isActive), [allRisks])
+  const riskById = useMemo(() => new Map((allRisks ?? []).map(r => [r.uuid, r])), [allRisks])
 
+  // ── Headline figures ──
   const riskStats = useMemo(() => {
     const rated = risks.filter(r => currentScore(r) != null).length
     const withSle = risks.filter(r => r.sle != null)
@@ -72,6 +97,7 @@ export function Dashboard() {
       sle: withSle.length ? sle : null,
       sleCount: withSle.length,
       highOrCritical: current.High + current.Critical,
+      high: current.High,
       critical: current.Critical,
       inherent: bandCounts(risks.map(r => r.inherentScore), bands),
       residual: bandCounts(risks.map(r => r.residualScore), bands),
@@ -88,15 +114,34 @@ export function Dashboard() {
 
   const plans = useMemo(() => {
     const rows = monQ.data ?? []
-    return { open: rows.filter(r => !planComplete(r)).length, overdue: rows.filter(planOverdue).length }
+    const overdue = rows
+      .filter(planOverdue)
+      .sort((a, b) => new Date(String(a.estimated_end_date)).getTime() - new Date(String(b.estimated_end_date)).getTime())
+    return { open: rows.filter(r => !planComplete(r)).length, overdue }
   }, [monQ.data])
 
   const kris = useMemo(() => kriStatuses(kriQ.data ?? [], readQ.data ?? []), [kriQ.data, readQ.data])
   const kriAlerts = useMemo(() => {
     const red = kris.filter(k => k.light === 'RED')
     const amber = kris.filter(k => k.light === 'AMBER')
-    return { red, amber, withReading: kris.filter(k => k.latest).length, list: [...red, ...amber] }
+    return { red, amber, withReading: kris.filter(k => k.latest).length }
   }, [kris])
+
+  /** The reading before the latest one, per KRI (for the delta on the breach tile). */
+  const previousReading = useMemo(() => {
+    const byKri = new Map<number, KriReading[]>()
+    for (const row of readQ.data ?? []) {
+      const r = toReading(row)
+      if (!Number.isFinite(r.value)) continue
+      byKri.set(r.kriUuid, [...(byKri.get(r.kriUuid) ?? []), r])
+    }
+    const prev = new Map<number, KriReading>()
+    for (const [k, list] of byKri) {
+      const sorted = list.sort((a, b) => readingTime(b) - readingTime(a))
+      if (sorted[1]) prev.set(k, sorted[1])
+    }
+    return prev
+  }, [readQ.data])
 
   const incidents = useMemo(() => {
     const open = (incQ.data ?? []).filter(incidentOpen)
@@ -106,26 +151,70 @@ export function Dashboard() {
 
   const approvals = useMemo(() => {
     const items = (wfQ.data?.items ?? []).filter(i => i.status === 'Pending' || i.status === 'In Review')
-    return { waiting: items.length, decidable: items.filter(i => i.can_decide).length }
+    return { items, waiting: items.length, decidable: items.filter(i => i.can_decide).length }
   }, [wfQ.data])
 
+  // ── Exposure against appetite ──
+  const appetite = useMemo(() => {
+    const rows: AppetiteRow[] = (appQ.data ?? [])
+      .map((row: Row) => {
+        const category = String(row.category ?? '').trim()
+        const matching = risks.filter(r => r.category && r.category.trim().toLowerCase() === category.toLowerCase() && currentScore(r) != null)
+        const scores = matching.map(r => currentScore(r) as number)
+        return {
+          key: String(row.uuid ?? category),
+          category: category || '—',
+          posture: row.posture ? String(row.posture) : null,
+          tolerance: numOrNull(row.tolerance_score),
+          current: scores.length ? Math.max(...scores) : null,
+          ratedCount: scores.length,
+        }
+      })
+      .sort((a, b) => (a.tolerance ?? 99) - (b.tolerance ?? 99) || a.category.localeCompare(b.category))
+    const measured = rows.filter(r => r.current != null)
+    const above = measured.filter(r => r.tolerance != null && (r.current as number) > r.tolerance).length
+    return { rows, within: measured.length - above, above, unmeasured: rows.length - measured.length }
+  }, [appQ.data, risks])
+
+  // ── New risks per month: the last 12 months up to today ──
   const trend = useMemo(() => {
-    const counts = new Map<string, number>()
+    const now = new Date()
+    const months: MonthDatum[] = []
+    for (let k = MONTHS_SHOWN - 1; k >= 0; k--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - k, 1)
+      months.push({
+        key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        short: d.toLocaleDateString('en-GB', { month: 'narrow' }),
+        long: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+        count: 0,
+      })
+    }
+    const index = new Map(months.map((m, i) => [m.key, i]))
     let undated = 0
+    let outside = 0
     for (const r of risks) {
       const k = monthKey(riskDate(r))
       if (!k) undated++
-      else counts.set(k, (counts.get(k) ?? 0) + 1)
+      else if (index.has(k)) months[index.get(k)!]!.count++
+      else outside++
     }
-    const keys = [...counts.keys()].sort()
-    if (keys.length < 2) return { data: null, undated, months: keys.length, truncated: false }
-    const series: { month: string; label: string; count: number }[] = []
-    for (let k = keys[0]!; k <= keys[keys.length - 1]!; k = nextMonth(k)) series.push({ month: k, label: monthLabel(k), count: counts.get(k) ?? 0 })
-    return { data: series.slice(-MONTHS_SHOWN), undated, months: keys.length, truncated: series.length > MONTHS_SHOWN }
+    const first = months[0]!
+    const last = months[months.length - 1]!
+    const range = `${new Date(first.key + '-01').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} – ${new Date(last.key + '-01').toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`
+    return { months, undated, outside, range, inWindow: months.reduce((s, m) => s + m.count, 0) }
   }, [risks])
 
-  const byProcess = useMemo(() => countBy(risks, r => r.process), [risks])
-  const recent = useMemo(() => [...risks].sort(byNewest).slice(0, 6), [risks])
+  // ── Heatmap ──
+  const [mode, setMode] = useState<HeatmapMode>('inherent')
+  const [picked, setPicked] = useState<CellRef | null | undefined>(undefined)
+  const autoCell = useMemo(() => hottestCell(risks, mode), [risks, mode])
+  const selectedCell = picked === undefined ? autoCell : picked
+  const unratedForMode = useMemo(
+    () =>
+      risks.filter(r => (mode === 'inherent' ? r.inherentScore == null : mode === 'residual' ? r.residualScore == null : r.inherentScore == null || r.residualScore == null))
+        .length,
+    [risks, mode],
+  )
 
   const exportRegister = () =>
     exportCsv({
@@ -136,221 +225,486 @@ export function Dashboard() {
       columns: riskCsvColumns(bands, settings.currency),
     })
 
-  const severityText = incidents.bySeverity.filter(x => x.n > 0).map(x => `${x.n} ${x.s.toLowerCase()}`).join(' · ')
+  const loadingRisks = risksQ.isLoading
+  const empty = risksQ.isSuccess && risks.length === 0
+  const severityText = incidents.bySeverity.filter(x => x.n > 0).map(x => `${x.n} ${x.s.toLowerCase()}`).join(', ')
+
+  const attentionCount = kriAlerts.red.length + plans.overdue.length + approvals.waiting
+  const residualRated = riskStats.total - riskStats.residual['Not rated']
+  const residualBands = (['Critical', 'High', 'Moderate', 'Low'] as const).filter(b => riskStats.residual[b] > 0)
+
+  const approvalsContext =
+    approvals.waiting === 0
+      ? 'Nothing waiting for you'
+      : approvals.decidable === approvals.waiting
+        ? approvals.waiting === 1
+          ? 'Ready for your decision'
+          : approvals.waiting === 2
+            ? 'Both ready for your decision'
+            : `All ${approvals.waiting} ready for your decision`
+        : `${approvals.decidable} of ${approvals.waiting} ready for your decision`
+
+  // ── Panels ──
+
+  const headline = (
+    <section aria-label="Headline figures" className="surface-panel grid grid-cols-2 overflow-hidden lg:grid-cols-4">
+      {/* Active risks */}
+      <div className="flex min-w-0 flex-col gap-2 px-5 pt-5 pb-5 sm:px-7 sm:pt-[22px] sm:pb-6">
+        <p className="label-caps">Active risks</p>
+        <Figure loading={loadingRisks} error={risksQ.isError}>
+          <CountUp value={riskStats.total} />
+        </Figure>
+        <div className="mt-1.5 flex h-[5px] gap-[3px]" aria-hidden="true">
+          {riskStats.total === 0 ? (
+            <span className="flex-1 rounded-[3px] bg-surface-sunken shadow-[inset_0_0_0_1px_var(--border)]" />
+          ) : (
+            <>
+              {riskStats.rated > 0 && <span className="rounded-[3px] bg-foreground-secondary" style={{ flex: riskStats.rated }} />}
+              {riskStats.unrated > 0 && <span className="hatch rounded-[3px] bg-surface-sunken shadow-[inset_0_0_0_1px_var(--border-strong)]" style={{ flex: riskStats.unrated }} />}
+            </>
+          )}
+        </div>
+        <p className="text-body-sm text-muted-foreground tabular-nums">
+          {riskStats.total === 0 ? (
+            'No risks in the register yet'
+          ) : (
+            <>
+              {riskStats.rated} rated
+              {riskStats.unrated > 0 && (
+                <>
+                  {' · '}
+                  <Link href="/assessments/inherent" className="rounded-xs font-medium text-primary hover:underline focus-ring">
+                    {riskStats.unrated} not rated
+                  </Link>
+                </>
+              )}
+            </>
+          )}
+        </p>
+      </div>
+
+      {/* High & critical */}
+      <div className="flex min-w-0 flex-col gap-2 border-l px-5 pt-5 pb-5 sm:px-7 sm:pt-[22px] sm:pb-6">
+        <p className="label-caps">High &amp; critical</p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <Figure
+            loading={loadingRisks}
+            error={risksQ.isError}
+            className={riskStats.critical > 0 ? 'text-risk-critical-text' : riskStats.high > 0 ? 'text-risk-high-text' : undefined}
+          >
+            <CountUp value={riskStats.highOrCritical} />
+          </Figure>
+          {!loadingRisks && riskStats.critical > 0 && <BandLabel band="Critical" count={riskStats.high > 0 ? riskStats.critical : null} />}
+          {!loadingRisks && riskStats.high > 0 && <BandLabel band="High" count={riskStats.critical > 0 ? riskStats.high : null} />}
+        </div>
+        <div className="mt-1.5 hidden h-[5px] lg:block" aria-hidden="true" />
+        <p className="text-body-sm text-muted-foreground tabular-nums">
+          {riskStats.rated ? `Current score, ${riskStats.rated} rated ${plural(riskStats.rated, 'risk')}` : 'No risks rated yet'}
+        </p>
+      </div>
+
+      {/* Control coverage */}
+      <div className="flex min-w-0 flex-col gap-2 border-t px-5 pt-5 pb-5 sm:px-7 sm:pt-[22px] sm:pb-6 lg:border-t-0 lg:border-l">
+        <p className="label-caps">Control coverage</p>
+        <Figure loading={loadingRisks || implQ.isLoading || linkQ.isLoading} error={risksQ.isError || implQ.isError || linkQ.isError}>
+          {coverage.pct == null ? (
+            '—'
+          ) : (
+            <>
+              <CountUp value={coverage.pct} />
+              <span className="ml-0.5 text-[36px] text-muted-foreground">%</span>
+            </>
+          )}
+        </Figure>
+        <Meter value={coverage.pct} className="mt-1.5 h-[5px]" label="Control coverage" />
+        <p className="text-body-sm text-muted-foreground tabular-nums">
+          {riskStats.total ? `${coverage.covered} of ${riskStats.total} active risks have a control` : 'No active risks'}
+        </p>
+      </div>
+
+      {/* Approvals waiting for me */}
+      <div className="flex min-w-0 flex-col gap-2 border-t border-l bg-primary/8 px-5 pt-5 pb-5 sm:px-7 sm:pt-[22px] sm:pb-6 lg:border-t-0">
+        <p className="label-caps text-primary">Approvals waiting for me</p>
+        <div className="flex items-baseline justify-between gap-3">
+          <Figure loading={wfQ.isLoading} error={wfQ.isError} className="text-primary">
+            <CountUp value={approvals.waiting} />
+          </Figure>
+          {canApprove && approvals.waiting > 0 && (
+            <Button asChild className="h-8 px-3">
+              <Link href="/workflow">Review</Link>
+            </Button>
+          )}
+        </div>
+        <div className="mt-1.5 hidden h-[5px] lg:block" aria-hidden="true" />
+        <p className="text-body-sm text-muted-foreground tabular-nums">{wfQ.isError ? 'Approvals could not be loaded' : approvalsContext}</p>
+      </div>
+    </section>
+  )
+
+  const strip = (
+    <div className="flex flex-wrap gap-x-9 gap-y-2 px-1 text-body-sm text-foreground-secondary tabular-nums">
+      <StripItem href="/rcsa/identification" figure={money(riskStats.sle, { compact: true })} loading={loadingRisks}>
+        recorded SLE · {riskStats.sleCount} of {riskStats.total} {plural(riskStats.total, 'risk')}
+      </StripItem>
+      <StripItem href="/rcsa/monitoring" figure={String(plans.open)} loading={monQ.isLoading}>
+        open action {plural(plans.open, 'plan')}
+        {plans.overdue.length > 0 && (
+          <>
+            {' · '}
+            <span className="font-medium text-status-danger-fg">{plans.overdue.length} overdue</span>
+          </>
+        )}
+      </StripItem>
+      <StripItem href="/kri" figure={String(kriAlerts.red.length)} loading={kriQ.isLoading || readQ.isLoading}>
+        {kris.length === 0 ? (
+          'KRIs in red · no active KRIs'
+        ) : (
+          <>
+            {plural(kriAlerts.red.length, 'KRI', 'KRIs')} in red · {kriAlerts.amber.length} amber · {kriAlerts.withReading} of {kris.length} read
+          </>
+        )}
+      </StripItem>
+      <StripItem href="/incidents" figure={String(incidents.open)} loading={incQ.isLoading}>
+        open {plural(incidents.open, 'incident')}
+        {severityText && ` · ${severityText}`}
+      </StripItem>
+    </div>
+  )
+
+  const heatmap = (
+    <Panel
+      title={MODE_TITLES[mode]}
+      className="flex flex-col"
+      actions={
+        <Segmented
+          label="Heatmap mode"
+          value={mode}
+          onChange={m => {
+            setMode(m)
+            setPicked(undefined)
+          }}
+          options={[
+            { value: 'inherent', label: 'Inherent' },
+            { value: 'residual', label: 'Residual' },
+            { value: 'movement', label: 'Movement' },
+          ]}
+        />
+      }
+      bodyClassName="flex flex-col gap-5 pt-5"
+    >
+      <DataState query={risksQ} compact>
+        <div className="relative -mx-6 overflow-x-auto px-6 pb-1">
+          <RiskHeatmap risks={risks} mode={mode} selected={selectedCell} onSelect={c => setPicked(c)} className="min-w-[460px]" />
+        </div>
+        <HeatmapLegend unrated={unratedForMode} rateHref={mode === 'inherent' ? '/assessments/inherent' : '/assessments/residual'} />
+      </DataState>
+    </Panel>
+  )
+
+  const attention = (
+    <Panel
+      title="Needs attention"
+      meta={
+        <span className="tabular-nums">
+          {attentionCount} {plural(attentionCount, 'item')} ·{' '}
+          <Link href="/workflow" className="rounded-xs font-medium text-primary hover:underline focus-ring">
+            Open inbox
+          </Link>
+        </span>
+      }
+      bodyClassName="pt-1 pb-3"
+    >
+      <DataState query={[kriQ, readQ, monQ, wfQ]} compact>
+        {attentionCount === 0 ? (
+          <div className="flex items-center gap-3 py-6 text-body-sm text-foreground-secondary">
+            <CircleCheck className="size-5 text-status-success-fg" aria-hidden="true" />
+            Nothing needs your attention: no KRI in breach, no overdue action plan and no approval waiting for you.
+          </div>
+        ) : (
+          <div>
+            {kriAlerts.red.length > 0 && (
+              <AttentionGroup label="KRI breach" count={kriAlerts.red.length} tone="text-risk-critical-text">
+                <div className="mt-1 flex flex-col gap-2">
+                  {kriAlerts.red.slice(0, 2).map(k => (
+                    <KriBreachTile key={k.kri.uuid} kri={k.kri} latest={k.latest!} previous={previousReading.get(k.kri.uuid) ?? null} href={`/kri?q=${encodeURIComponent(k.kri.code || k.kri.name)}`} />
+                  ))}
+                  {kriAlerts.red.length > 2 && <MoreLink href="/kri" n={kriAlerts.red.length - 2} what="KRIs in breach" />}
+                </div>
+              </AttentionGroup>
+            )}
+
+            {plans.overdue.length > 0 && (
+              <AttentionGroup label="Overdue action plans" count={plans.overdue.length} tone="text-status-warning-fg">
+                <ul>
+                  {plans.overdue.slice(0, ATTENTION_LIMIT).map(p => {
+                    const risk = p.identify_risk_uuid != null ? riskById.get(Number(p.identify_risk_uuid)) : undefined
+                    const pct = numOrNull(p.completion_pct)
+                    const meta = [risk ? riskLabel(risk) : null, p.mitigation_owner ? String(p.mitigation_owner) : null, pct != null ? `${pct}% complete` : null].filter(Boolean).join(' · ')
+                    return (
+                      <li key={String(p.uuid)} className="flex flex-col items-start gap-2 border-t py-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:gap-y-1">
+                        <span className="flex w-full min-w-0 flex-col gap-0.5">
+                          <Link href="/rcsa/monitoring" className="truncate rounded-xs text-body font-medium text-foreground hover:underline focus-ring" title={String(p.monitoring_title ?? '')}>
+                            {String(p.monitoring_title ?? 'Untitled action plan')}
+                          </Link>
+                          {meta && (
+                            <span className="truncate text-caption text-muted-foreground tabular-nums" title={meta}>
+                              {meta}
+                            </span>
+                          )}
+                        </span>
+                        <DueChip date={p.estimated_end_date as string | null} />
+                      </li>
+                    )
+                  })}
+                </ul>
+                {plans.overdue.length > ATTENTION_LIMIT && <MoreLink href="/rcsa/monitoring" n={plans.overdue.length - ATTENTION_LIMIT} what="overdue plans" />}
+              </AttentionGroup>
+            )}
+
+            {approvals.waiting > 0 && (
+              <AttentionGroup label="Approvals waiting for you" count={approvals.waiting} tone="text-primary">
+                <ul>
+                  {approvals.items.slice(0, ATTENTION_LIMIT).map(item => (
+                    <ApprovalRow key={item.uuid} item={item} money={money} canReview={canApprove && item.can_decide} />
+                  ))}
+                </ul>
+                {approvals.waiting > ATTENTION_LIMIT && <MoreLink href="/workflow" n={approvals.waiting - ATTENTION_LIMIT} what="approvals" />}
+              </AttentionGroup>
+            )}
+          </div>
+        )}
+      </DataState>
+    </Panel>
+  )
+
+  const exposure = (
+    <Panel
+      title="Exposure against appetite"
+      meta={appetite.rows.length ? `${appetite.within} within · ${appetite.above} above · ${appetite.unmeasured} unmeasured` : undefined}
+      className="min-w-0 xl:flex-[1.4_1_0%]"
+      bodyClassName="pt-2.5 pb-5"
+    >
+      <DataState
+        query={[appQ, risksQ]}
+        compact
+        empty={appetite.rows.length === 0}
+        emptyTitle="No appetite statements yet"
+        emptyDescription="Set a tolerance per risk category to compare it with the current exposure."
+        emptyAction={
+          <Link href="/risk-appetite" className="text-body-sm font-medium text-primary hover:underline">
+            Open risk appetite
+          </Link>
+        }
+      >
+        <div className="relative -mx-6 overflow-x-auto px-6">
+          <AppetiteBullets rows={appetite.rows} bands={bands} />
+        </div>
+        <p className="mt-3 text-caption text-muted-foreground">
+          {appetite.unmeasured === appetite.rows.length ? (
+            <>
+              None of the {riskStats.rated} rated {plural(riskStats.rated, 'risk is', 'risks is')} linked to these categories yet, so exposure reads “—”, not zero.{' '}
+            </>
+          ) : (
+            <>
+              Current = the highest current score among rated active risks in the category.
+              {appetite.unmeasured > 0 && ` ${appetite.unmeasured} ${plural(appetite.unmeasured, 'category has', 'categories have')} no rated risk, so ${plural(appetite.unmeasured, 'it reads', 'they read')} “—”, not zero.`}{' '}
+            </>
+          )}
+          <Link href="/rcsa/identification" className="rounded-xs font-medium text-primary hover:underline focus-ring">
+            Open register
+          </Link>
+        </p>
+      </DataState>
+    </Panel>
+  )
+
+  const byBand = (
+    <Panel title="Inherent and residual, by band" meta={`${riskStats.total} active ${plural(riskStats.total, 'risk')}`} bodyClassName="flex flex-col gap-4 pt-4 pb-5">
+      <DataState
+        query={risksQ}
+        compact
+        empty={riskStats.total === 0}
+        emptyTitle="No risks in the register yet"
+        emptyAction={
+          canCreate ? (
+            <Link href="/rcsa/identification?new=1" className="text-body-sm font-medium text-primary hover:underline">
+              Identify a risk
+            </Link>
+          ) : undefined
+        }
+      >
+        <div className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2.5 text-caption">
+          <span className="text-foreground-secondary">Inherent</span>
+          <BandSplitBar counts={riskStats.inherent} label="Inherent" />
+          <span className="text-foreground-secondary">Residual</span>
+          <BandSplitBar counts={riskStats.residual} label="Residual" />
+          <span />
+          <BandSwatchLegend />
+        </div>
+        <p className="text-caption text-muted-foreground tabular-nums">
+          {residualRated === 0
+            ? `No residual ratings yet; ${riskStats.total - riskStats.inherent['Not rated']} of ${riskStats.total} risks have an inherent rating.`
+            : residualBands.length === 1
+              ? `Residual ratings exist for ${residualRated} of ${riskStats.total} risks; ${residualRated === 1 ? 'it sits' : `all ${residualRated} sit`} in ${residualBands[0]}.`
+              : `Residual ratings exist for ${residualRated} of ${riskStats.total} risks; ${riskStats.residual.High + riskStats.residual.Critical} of them are High or Critical.`}
+        </p>
+      </DataState>
+    </Panel>
+  )
+
+  const perMonth = (
+    <Panel title="New risks per month" meta={trend.range} bodyClassName="pt-4 pb-5">
+      <DataState query={risksQ} compact>
+        <MonthColumns data={trend.months} />
+        <p className="mt-2.5 text-caption text-muted-foreground">
+          {[
+            trend.inWindow === 0 ? 'No risks were registered in these 12 months.' : null,
+            trend.undated > 0 ? `${trend.undated} ${plural(trend.undated, 'risk has', 'risks have')} no registered date and ${trend.undated === 1 ? 'is' : 'are'} not shown.` : null,
+            trend.outside > 0 ? `${trend.outside} earlier ${plural(trend.outside, 'risk is', 'risks are')} outside this window.` : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        </p>
+      </DataState>
+    </Panel>
+  )
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div>
-          <h1 className="text-lg font-semibold text-slate-900">Dashboard</h1>
-          <p className="text-xs text-slate-500">Enterprise risk and control status from the live register</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={exportRegister} disabled={!risksQ.isSuccess || risks.length === 0} className="h-8 text-xs font-normal">
-          <FileDown className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
-          Export risk register (CSV)
-        </Button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        size="hero"
+        eyebrow={`${dateline(new Date())} · Live register`}
+        title="Enterprise risk position"
+        actions={
+          <Button variant="secondary" onClick={exportRegister} disabled={!risksQ.isSuccess || risks.length === 0}>
+            <Download aria-hidden="true" />
+            Export register (CSV)
+          </Button>
+        }
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatTile
-          title="Active risks"
-          href="/rcsa/identification"
-          queries={[risksQ]}
-          value={formatNumber(riskStats.total)}
-          sub={`${riskStats.rated} rated · ${riskStats.unrated} not rated`}
-        />
-        <StatTile
-          title="Recorded single loss expectancy"
-          href="/assessments/inherent"
-          queries={[risksQ]}
-          value={money(riskStats.sle, { compact: true })}
-          sub={riskStats.sleCount ? `Sum over ${riskStats.sleCount} of ${riskStats.total} risks with an SLE` : 'No SLE recorded yet'}
-        />
-        <StatTile
-          title="Control coverage"
-          href="/control-library"
-          queries={[risksQ, implQ, linkQ]}
-          value={formatPct(coverage.pct)}
-          sub={riskStats.total ? `${coverage.covered} of ${riskStats.total} active risks have at least one control` : 'No active risks'}
-        />
-        <StatTile
-          title="Approvals waiting for you"
-          href="/workflow"
-          queries={[wfQ]}
-          value={formatNumber(approvals.waiting)}
-          sub={approvals.waiting ? `${approvals.decidable} ready for your decision` : 'Nothing to decide'}
-          tone={approvals.decidable > 0 ? 'warning' : undefined}
-        />
-        <StatTile
-          title="High and critical risks"
-          href="/heatmaps"
-          queries={[risksQ]}
-          value={formatNumber(riskStats.highOrCritical)}
-          sub={riskStats.rated ? `${riskStats.critical} critical · current score of ${riskStats.rated} rated risks` : 'No risks rated yet'}
-          tone={riskStats.critical > 0 ? 'danger' : undefined}
-        />
-        <StatTile
-          title="Open action plans"
-          href="/rcsa/monitoring"
-          queries={[monQ]}
-          value={formatNumber(plans.open)}
-          sub={plans.overdue ? `${plans.overdue} overdue` : 'None overdue'}
-          tone={plans.overdue > 0 ? 'warning' : undefined}
-        />
-        <StatTile
-          title="KRIs in red or amber"
-          href="/kri"
-          queries={[kriQ, readQ]}
-          value={formatNumber(kriAlerts.red.length + kriAlerts.amber.length)}
-          sub={kris.length ? `${kriAlerts.red.length} red · ${kriAlerts.amber.length} amber · latest readings of ${kriAlerts.withReading} of ${kris.length} KRIs` : 'No active KRIs'}
-          tone={kriAlerts.red.length > 0 ? 'danger' : kriAlerts.amber.length > 0 ? 'warning' : undefined}
-        />
-        <StatTile
-          title="Open incidents"
-          href="/incidents"
-          queries={[incQ]}
-          value={formatNumber(incidents.open)}
-          sub={severityText || 'No open incidents'}
-          tone={incidents.bySeverity[0]!.n > 0 ? 'danger' : undefined}
-        />
-      </div>
+      {headline}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Panel title="Risks by band" bodyClassName="p-0">
-          <DataState query={risksQ} compact empty={risks.length === 0} emptyTitle="No risks in the register yet">
-            <BandCountTable columns={[{ label: 'Inherent', counts: riskStats.inherent }, { label: 'Residual', counts: riskStats.residual }]} />
-            {riskStats.unrated > 0 && (
-              <p className="px-4 py-2 text-[11px] text-slate-500 border-t border-slate-200">
-                {riskStats.unrated} risk{riskStats.unrated === 1 ? ' has' : 's have'} no rating yet.{' '}
-                <Link href="/assessments/inherent" className="text-blue-700 hover:underline">Rate them</Link>
-              </p>
-            )}
-          </DataState>
-        </Panel>
-
-        <Panel title="Inherent heatmap" action={<Link href="/heatmaps" className="text-xs text-blue-700 hover:underline">Open heatmaps &rarr;</Link>}>
-          <DataState query={risksQ} compact empty={riskStats.inherent['Not rated'] === risks.length} emptyTitle="No inherent ratings yet" emptyAction={<Link href="/assessments/inherent" className="text-xs text-blue-700 hover:underline">Rate risks</Link>}>
-            <RiskHeatmap risks={risks} which="inherent" compact />
-            <p className="mt-2 text-[11px] text-slate-500">{risks.length - riskStats.inherent['Not rated']} rated · {riskStats.inherent['Not rated']} not rated</p>
-          </DataState>
-        </Panel>
-
-        <Panel title="Risks by process">
-          <DataState query={risksQ} compact empty={risks.length === 0} emptyTitle="No risks in the register yet">
-            <BarList items={byProcess} total={risks.length} limit={6} />
-          </DataState>
-        </Panel>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Panel title="New risks per month" className="lg:col-span-2" action={trend.data && trend.truncated ? <span className="text-[11px] text-slate-400">Last {MONTHS_SHOWN} months</span> : undefined}>
-          <DataState query={risksQ} compact empty={!trend.data} emptyTitle="Not enough history yet" emptyDescription={`A trend needs risks registered in at least two different months (currently ${trend.months}).`}>
-            <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={trend.data ?? []}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} style={{ fontSize: '11px' }} stroke="#64748b" />
-                  <YAxis allowDecimals={false} axisLine={false} tickLine={false} style={{ fontSize: '11px' }} stroke="#64748b" />
-                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '12px' }} />
-                  <Bar dataKey="count" name="New risks" fill="#1e40af" radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {trend.undated > 0 && <p className="mt-2 text-[11px] text-slate-500">{trend.undated} risk{trend.undated === 1 ? ' has' : 's have'} no created or registered date and {trend.undated === 1 ? 'is' : 'are'} not shown.</p>}
-          </DataState>
-        </Panel>
-
-        <Panel title="KRI alerts" action={<Link href="/kri" className="text-xs text-blue-700 hover:underline">All KRIs &rarr;</Link>} bodyClassName="p-0">
-          <DataState query={[kriQ, readQ]} compact empty={kriAlerts.list.length === 0} emptyTitle={kris.length ? 'No KRIs in red or amber' : 'No active KRIs'} emptyDescription={kris.length ? `Based on the latest reading of ${kriAlerts.withReading} of ${kris.length} KRIs.` : undefined}>
-            <ul className="divide-y divide-slate-100">
-              {kriAlerts.list.map(({ kri, latest, light }) => (
-                <li key={kri.uuid} className="px-4 py-2.5 flex items-center justify-between gap-3 text-xs">
-                  <div className="min-w-0">
-                    <div className="font-medium text-slate-900 truncate">{kri.name || kri.code}</div>
-                    <div className="text-[11px] text-slate-500">
-                      {formatNumber(latest?.value, 2)}
-                      {kri.unit ? ` ${kri.unit}` : ''} · {formatDate(latest?.date)}
-                    </div>
-                  </div>
-                  {light && (
-                    <span className={cn('inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium', LIGHT_STYLES[light].bg, LIGHT_STYLES[light].text, LIGHT_STYLES[light].border)}>
-                      <span className={cn('h-1.5 w-1.5 rounded-full', LIGHT_STYLES[light].dot)} aria-hidden="true" />
-                      {LIGHT_STYLES[light].label}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </DataState>
-        </Panel>
-      </div>
-
-      <Panel title="Recent risks" action={<Link href="/rcsa/identification" className="text-xs text-blue-700 hover:underline">View register &rarr;</Link>} bodyClassName="p-0">
-        <DataState query={risksQ} compact empty={recent.length === 0} emptyTitle="No risks in the register yet" emptyAction={<Link href="/rcsa/identification" className="text-xs text-blue-700 hover:underline">Identify a risk</Link>}>
-          <div className="overflow-x-auto">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th className="w-[38%]">Risk statement</th>
-                  <th>Process</th>
-                  <th>Inherent</th>
-                  <th>Residual</th>
-                  <th className="text-right">SLE</th>
-                  <th>Approval</th>
-                  <th>Created</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map(r => (
-                  <tr key={r.uuid}>
-                    <td>
-                      <span className="font-medium text-slate-900">{riskLabel(r)}</span>
-                      <span className="block text-[11px] text-slate-400 font-mono">{r.referenceNumber ?? `#${r.uuid}`}</span>
-                    </td>
-                    <td className="text-slate-600">{r.process ?? '—'}</td>
-                    <td><BandBadge score={r.inherentScore} /></td>
-                    <td><BandBadge score={r.residualScore} /></td>
-                    <td className="text-right tabular-nums">{money(r.sle)}</td>
-                    <td>
-                      <Badge variant="outline" className="text-[10px] font-normal px-2 py-0.5 rounded">{approvalLabel(r.approvalStatus)}</Badge>
-                    </td>
-                    <td className="text-slate-600 whitespace-nowrap">{formatDate(riskDate(r))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </DataState>
-      </Panel>
-
-      {canAudit && (
-        <Panel title="Recent audit events" action={<Link href="/audit-trail" className="text-xs text-blue-700 hover:underline">Full audit trail &rarr;</Link>} bodyClassName="p-0">
-          <DataState query={auditQ} compact empty={(auditQ.data?.items.length ?? 0) === 0} emptyTitle="No audit events yet">
-            <div className="overflow-x-auto">
-              <table className="enterprise-table">
-                <thead>
-                  <tr>
-                    <th>When</th>
-                    <th>User</th>
-                    <th>Action</th>
-                    <th className="w-[50%]">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(auditQ.data?.items ?? []).map(e => (
-                    <tr key={e.id}>
-                      <td className="text-[11px] text-slate-500 whitespace-nowrap">{formatDateTime(e.timestamp)}</td>
-                      <td className="font-medium text-slate-900">{e.actor_name}</td>
-                      <td className="font-mono text-xs text-slate-700">{e.action}</td>
-                      <td className="text-slate-600">{e.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </DataState>
-        </Panel>
+      {empty && (
+        <Callout
+          tone="info"
+          action={
+            canCreate ? (
+              <Button asChild className="h-8 px-3">
+                <Link href="/rcsa/identification?new=1">Identify the first risk</Link>
+              </Button>
+            ) : undefined
+          }
+        >
+          The risk register is empty. {canCreate ? 'Identify a risk to start the heatmap, band totals and trends.' : 'Figures appear here once risks are identified.'}
+        </Callout>
       )}
+
+      {/* On mobile, Needs attention comes directly after the headline figures (§5.6). */}
+      <div className="order-none max-xl:order-1">{strip}</div>
+
+      <div className="contents xl:grid xl:grid-cols-[minmax(0,1.04fr)_minmax(0,1fr)] xl:items-start xl:gap-6">
+        <div className="min-w-0 max-xl:order-2">{heatmap}</div>
+        <div className="min-w-0 max-xl:order-0">{attention}</div>
+      </div>
+
+      <div className="flex flex-col gap-6 max-xl:order-3 xl:flex-row xl:items-start">
+        {exposure}
+        <div className="flex min-w-0 flex-col gap-6 xl:flex-[1_1_0%]">
+          {byBand}
+          {perMonth}
+        </div>
+      </div>
     </div>
   )
 }
+
+// ── Pieces ───────────────────────────────────────────────────────────────────
+
+function Figure({ loading, error, className, children }: { loading?: boolean; error?: boolean; className?: string; children: React.ReactNode }) {
+  if (loading) return <span className="skeleton block h-[60px] w-20" aria-label="Loading" />
+  return <p className={cn('figure text-figure-lg', className ?? 'text-foreground')}>{error ? '—' : children}</p>
+}
+
+/** Solid band badge (glyph + word) beside the headline figure; the count shows when both bands are present. */
+function BandLabel({ band, count }: { band: 'Critical' | 'High'; count: number | null }) {
+  const solid = band === 'Critical' ? 'bg-risk-critical text-risk-critical-fg' : 'bg-risk-high text-risk-high-fg'
+  const level = band === 'Critical' ? 4 : 3
+  return (
+    <span className={cn('inline-flex h-badge -translate-y-2 items-center gap-1.5 rounded-sm px-2 text-caption font-medium whitespace-nowrap tabular-nums', solid)}>
+      <span aria-hidden="true" className="inline-flex h-2.5 items-end gap-0.5">
+        {[4, 6, 8, 10].map((h, i) => (
+          <span key={h} className={cn('w-[3px] rounded-[1px] bg-current', i < level ? 'opacity-100' : 'opacity-30')} style={{ height: h }} />
+        ))}
+      </span>
+      {count != null ? `${count} ${band}` : band}
+    </span>
+  )
+}
+
+function StripItem({ href, figure, loading, children }: { href: string; figure: string; loading?: boolean; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="group inline-flex items-baseline gap-2 rounded-xs focus-ring">
+      {loading ? (
+        <span className="skeleton inline-block h-5 w-8 self-center" aria-label="Loading" />
+      ) : (
+        <b className="figure text-figure-sm font-medium text-foreground">{figure}</b>
+      )}
+      <span className="group-hover:text-foreground">{children}</span>
+    </Link>
+  )
+}
+
+function AttentionGroup({ label, count, tone, children }: { label: string; count: number; tone: string; children: React.ReactNode }) {
+  return (
+    <section aria-label={label}>
+      <h3 className="flex items-center gap-2 pt-4 pb-1">
+        <span className={cn('label-caps', tone)}>{label}</span>
+        <span className="text-caption text-muted-foreground tabular-nums">{count}</span>
+      </h3>
+      {children}
+    </section>
+  )
+}
+
+function MoreLink({ href, n, what }: { href: string; n: number; what: string }) {
+  return (
+    <Link href={href} className="inline-flex items-center gap-1 rounded-xs pt-1 pb-2 text-caption font-medium text-primary hover:underline focus-ring">
+      {n} more {what} <ArrowRight className="size-3" aria-hidden="true" />
+    </Link>
+  )
+}
+
+function ApprovalRow({ item, money, canReview }: { item: ApiWorkflowItem; money: (v: number | null | undefined, o?: { compact?: boolean }) => string; canReview: boolean }) {
+  const total = item.steps?.length ?? 0
+  const step = item.next_step ?? null
+  const meta = [
+    step != null && total ? `Step ${step} of ${total}` : null,
+    item.submitted_name ?? item.submitted_by ?? null,
+    item.amount != null ? money(item.amount) : null,
+    item.submitted_on ? formatDate(item.submitted_on, { day: 'numeric', month: 'short' }) : null,
+  ].filter(Boolean)
+  return (
+    <li className="flex flex-col items-start gap-2 border-t py-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-x-4 sm:gap-y-1">
+      <span className="flex w-full min-w-0 flex-col gap-0.5">
+        <span className="truncate text-body font-medium text-foreground" title={item.title}>
+          {item.title || item.request_type || `Request #${item.uuid}`}
+        </span>
+        <span className="truncate text-caption text-muted-foreground tabular-nums">
+          <span className="font-mono">#{item.uuid}</span>
+          {meta.length > 0 && ` · ${meta.join(' · ')}`}
+        </span>
+        {!item.can_decide && item.blocked_reason && <span className="text-caption text-muted-foreground">{item.blocked_reason}</span>}
+      </span>
+      {canReview && (
+        <Button asChild className="h-8 px-3">
+          <Link href="/workflow" aria-label={`Review ${item.title || `request #${item.uuid}`}`}>
+            Review
+          </Link>
+        </Button>
+      )}
+    </li>
+  )
+}
+
+export default Dashboard

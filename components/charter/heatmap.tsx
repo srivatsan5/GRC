@@ -11,7 +11,7 @@
  *  - Bands come from organisation settings, so thresholds are never hard-coded.
  */
 import Link from 'next/link'
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { BAND_STYLES, IMPACT_LABELS, LIKELIHOOD_LABELS, bandOf, type Band, type Risk, type RiskBands } from '@/lib/risk'
@@ -170,36 +170,7 @@ export function RiskHeatmap({
               }),
             )}
           </div>
-          {mode === 'movement' && paths.length > 0 && (
-            <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible" viewBox="0 0 5 5" preserveAspectRatio="none" aria-hidden="true">
-              <defs>
-                <marker id="hm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
-                  <path d="M0 0 10 5 0 10z" fill="var(--foreground)" />
-                </marker>
-              </defs>
-              {paths.map(p => {
-                const x1 = p.from.i - 0.5
-                const y1 = 5 - p.from.l + 0.5
-                const x2 = p.to.i - 0.5
-                const y2 = 5 - p.to.l + 0.5
-                return (
-                  <line
-                    key={`${p.from.l}${p.from.i}-${p.to.l}${p.to.i}`}
-                    x1={x1}
-                    y1={y1}
-                    x2={x2}
-                    y2={y2}
-                    stroke="var(--foreground)"
-                    strokeWidth={1.5}
-                    strokeDasharray="4 3"
-                    vectorEffect="non-scaling-stroke"
-                    markerEnd="url(#hm-arrow)"
-                    opacity={0.35 + 0.65 * (p.n / maxPath)}
-                  />
-                )
-              })}
-            </svg>
-          )}
+          {mode === 'movement' && paths.length > 0 && <MovementOverlay gridRef={gridRef} paths={paths} maxPath={maxPath} small={small} />}
         </div>
 
         {/* X axis */}
@@ -288,4 +259,67 @@ export function bandRanges(b: RiskBands): { band: Band; from: number; to: number
     { band: 'High', from: b.high, to: b.critical - 1 },
     { band: 'Critical', from: b.critical, to: 25 },
   ]
+}
+
+/**
+ * Dashed arrows from each inherent cell to its residual cell, drawn in real pixels: the grid is
+ * measured (and re-measured on resize) so arrowheads keep their size at any width.
+ */
+function MovementOverlay({
+  gridRef,
+  paths,
+  maxPath,
+  small,
+}: {
+  gridRef: React.RefObject<HTMLDivElement | null>
+  paths: { from: CellRef; to: CellRef; n: number }[]
+  maxPath: number
+  small: boolean
+}) {
+  const [box, setBox] = useState<{ w: number; h: number; centers: Record<string, { x: number; y: number }> } | null>(null)
+  useEffect(() => {
+    const grid = gridRef.current
+    if (!grid) return
+    const measure = () => {
+      const centers: Record<string, { x: number; y: number }> = {}
+      grid.querySelectorAll<HTMLElement>('[data-cell]').forEach(el => {
+        centers[el.dataset.cell!] = { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 }
+      })
+      setBox({ w: grid.offsetWidth, h: grid.offsetHeight, centers })
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(grid)
+    return () => ro.disconnect()
+  }, [gridRef])
+  if (!box) return null
+  const head = small ? 5 : 8
+  return (
+    <svg className="pointer-events-none absolute inset-0 overflow-visible" width={box.w} height={box.h} viewBox={`0 0 ${box.w} ${box.h}`} aria-hidden="true">
+      {paths.map(p => {
+        const a = box.centers[`${p.from.l}-${p.from.i}`]
+        const b = box.centers[`${p.to.l}-${p.to.i}`]
+        if (!a || !b) return null
+        const dx = b.x - a.x
+        const dy = b.y - a.y
+        const len = Math.hypot(dx, dy) || 1
+        const ux = dx / len
+        const uy = dy / len
+        // stop short of the target centre so the head sits on the cell, not over its count
+        const inset = small ? 4 : 14
+        const ex = b.x - ux * inset
+        const ey = b.y - uy * inset
+        const opacity = 0.4 + 0.6 * (p.n / maxPath)
+        const left = { x: ex - ux * head - uy * head * 0.55, y: ey - uy * head + ux * head * 0.55 }
+        const right = { x: ex - ux * head + uy * head * 0.55, y: ey - uy * head - ux * head * 0.55 }
+        return (
+          <g key={`${p.from.l}${p.from.i}-${p.to.l}${p.to.i}`} opacity={opacity}>
+            <line x1={a.x} y1={a.y} x2={ex - ux * head * 0.6} y2={ey - uy * head * 0.6} stroke="var(--foreground)" strokeWidth={small ? 1.25 : 1.75} strokeDasharray={small ? '3 2' : '5 4'} strokeLinecap="round" />
+            <path d={`M${ex},${ey} L${left.x},${left.y} L${right.x},${right.y} Z`} fill="var(--foreground)" />
+            <circle cx={a.x} cy={a.y} r={small ? 1.75 : 3} fill="var(--foreground)" />
+          </g>
+        )
+      })}
+    </svg>
+  )
 }

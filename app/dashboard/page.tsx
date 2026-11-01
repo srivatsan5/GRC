@@ -2,36 +2,25 @@
 
 import dynamic from 'next/dynamic'
 import { PericopeLayout } from '@/components/pericope-layout'
-import { Skeleton } from '@/components/ui/skeleton'
 
-// Lazy-load the heavy Dashboard component
-const Dashboard = dynamic(
-  () => import('@/components/pages/dashboard').then(mod => mod.Dashboard),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="space-y-8 animate-pulse">
-        <div className="flex justify-between items-end">
-          <div className="space-y-3">
-             <Skeleton className="h-4 w-24" />
-             <Skeleton className="h-10 w-64" />
-          </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-        <div className="grid grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-36 rounded-2xl" />)}
-        </div>
-        <div className="grid grid-cols-12 gap-8">
-          <Skeleton className="col-span-8 h-[400px] rounded-[2.5rem]" />
-          <div className="col-span-4 flex flex-col gap-8">
-            <Skeleton className="h-[200px] rounded-[2.5rem]" />
-            <Skeleton className="h-[200px] rounded-[2.5rem]" />
-          </div>
-        </div>
+// Lazy-load the dashboard; the placeholder mirrors its Charter layout (header, headline panel, hero row).
+const Dashboard = dynamic(() => import('@/components/pages/dashboard').then(mod => mod.Dashboard), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading dashboard">
+      <div className="space-y-3">
+        <span className="skeleton block h-4 w-64" />
+        <span className="skeleton block h-11 w-96 max-w-full" />
       </div>
-    )
-  }
-)
+      <div className="surface-panel h-44" />
+      <span className="skeleton block h-5 w-2/3" />
+      <div className="grid gap-6 xl:grid-cols-2">
+        <div className="surface-panel h-[560px]" />
+        <div className="surface-panel h-[560px]" />
+      </div>
+    </div>
+  ),
+})
 
 export default function DashboardPage() {
   return (

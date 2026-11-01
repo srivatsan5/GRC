@@ -117,8 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   if (status === 'checking') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f1f5f9]" role="status" aria-live="polite">
-        <span className="text-sm text-slate-500">Loading Pericope…</span>
+      <div className="flex min-h-dvh items-center justify-center bg-background" role="status" aria-live="polite">
+        <span className="flex items-center gap-3 text-body-sm text-muted-foreground"><span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-md bg-primary font-display text-[20px] italic leading-none text-primary-foreground shadow-button">P</span>Loading Pericope…</span>
       </div>
     )
   }

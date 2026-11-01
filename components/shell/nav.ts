@@ -95,6 +95,8 @@ const PAGE_TITLES: Record<string, string> = Object.fromEntries([
 
 /** The nav item a path belongs to (longest prefix wins). */
 export function navItemFor(path: string): { item: NavItem; group: NavGroup } | null {
+  // A risk's controls page lives under its cycle but belongs to the controls stage.
+  if (/^\/rcsa\/provisioning\/[^/]+\/controls\//.test(path)) path = '/rcsa/mitigation'
   let best: { item: NavItem; group: NavGroup; len: number } | null = null
   for (const group of NAV) {
     for (const item of group.items) {

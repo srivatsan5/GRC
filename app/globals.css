@@ -475,6 +475,10 @@
 
   ::selection { background: var(--selection); }
 
+  /* Keep absolutely positioned children (e.g. sr-only text in tables) inside horizontal scrollers,
+     so a wide table never widens the whole page on mobile. */
+  .overflow-x-auto, .overflow-auto { position: relative; }
+
   :focus-visible {
     outline: var(--focus-ring-width) solid var(--ring);
     outline-offset: var(--focus-ring-offset);

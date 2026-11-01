@@ -114,8 +114,7 @@ export function RiskRatingMovement({ risk, canRate, className }: { risk: Risk; c
   const one = useMemo(() => [risk], [risk])
   return (
     <div className={cn('grid grid-cols-1 items-center gap-6 sm:grid-cols-[176px_minmax(0,1fr)]', className)}>
-      {/* The sm heatmap's impact axis lands in the 16 px label column (shared-component bug, reported); pin it under the grid. */}
-      <div className="w-[176px] [&_div.grid-cols-5.pt-2]:col-start-2 [&_div.invisible]:max-h-0 [&_div.invisible]:overflow-hidden">
+      <div className="w-[176px]">
         <RiskHeatmap risks={one} mode={mode} size="sm" showDetail={false} />
       </div>
       <div className="min-w-0 space-y-3">

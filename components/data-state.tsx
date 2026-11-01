@@ -21,7 +21,7 @@ interface QueryLike {
 
 export function LoadingState({ label = 'Loading…', compact = false }: { label?: string; compact?: boolean }) {
   return (
-    <div role="status" aria-live="polite" aria-label={label} className={compact ? 'space-y-2 py-3' : 'space-y-3 py-6'}>
+    <div role="status" aria-live="polite" aria-label={label} className={compact ? 'space-y-2 px-6 py-3' : 'space-y-3 px-6 py-6'}>
       {Array.from({ length: compact ? 3 : 5 }, (_, i) => (
         <div key={i} className="flex items-center gap-4">
           <span className="skeleton h-4 flex-[3]" />
@@ -34,10 +34,10 @@ export function LoadingState({ label = 'Loading…', compact = false }: { label?
   )
 }
 
-export function ErrorState({ error, onRetry, compact = false }: { error: unknown; onRetry?: () => unknown; compact?: boolean }) {
+export function ErrorState({ error, onRetry, compact = false, className }: { error: unknown; onRetry?: () => unknown; compact?: boolean; className?: string }) {
   if (apiErrorCode(error) === 'NOT_PROVISIONED') {
     return (
-      <div role="status" className={`mx-auto max-w-lg text-center ${compact ? 'py-6' : 'py-14'}`}>
+      <div role="status" className={`mx-auto max-w-lg px-6 text-center ${compact ? 'py-6' : 'py-14'} ${className ?? ''}`}>
         <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-status-info-bg text-status-info-fg"><Database className="size-5" aria-hidden="true" /></span>
         <p className="mt-4 font-display text-section text-foreground">This module isn’t set up in the database yet</p>
         <p className="mt-1.5 text-body-sm text-muted-foreground">{apiErrorMessage(error)} An administrator can run them (see db/README.md).</p>
@@ -45,7 +45,7 @@ export function ErrorState({ error, onRetry, compact = false }: { error: unknown
     )
   }
   return (
-    <div role="alert" className={`mx-auto max-w-lg text-center ${compact ? 'py-6' : 'py-14'}`}>
+    <div role="alert" className={`mx-auto max-w-lg px-6 text-center ${compact ? 'py-6' : 'py-14'} ${className ?? ''}`}>
       <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-status-danger-bg text-status-danger-fg"><AlertTriangle className="size-5" aria-hidden="true" /></span>
       <p className="mt-4 font-display text-section text-foreground">Couldn’t load this data</p>
       <p className="mt-1.5 text-body-sm text-muted-foreground">{apiErrorMessage(error)}</p>
@@ -64,7 +64,9 @@ export function EmptyState({
   action,
   icon: Icon = Inbox,
   compact = false,
+  className,
 }: {
+  className?: string
   title: string
   description?: string
   action?: React.ReactNode
@@ -72,7 +74,7 @@ export function EmptyState({
   compact?: boolean
 }) {
   return (
-    <div className={`mx-auto max-w-md text-center ${compact ? 'py-6' : 'py-14'}`}>
+    <div className={`mx-auto max-w-md px-6 text-center ${compact ? 'py-6' : 'py-14'} ${className ?? ''}`}>
       <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-surface-sunken text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]"><Icon className="size-5" aria-hidden="true" /></span>
       <p className="mt-4 font-display text-section text-foreground">{title}</p>
       {description && <p className="mt-1.5 text-body-sm text-muted-foreground">{description}</p>}

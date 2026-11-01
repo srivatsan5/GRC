@@ -14,6 +14,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
           onError: (error: unknown) => {
             const status = (error as { response?: { status?: number } })?.response?.status
             if (status === 401) return // handled by the auth provider (back to sign-in)
+            if (status === 404) return // pages render their own "not found" state
             const message = apiErrorMessage(error, 'Could not load data')
             toast.error('Data could not be loaded', { id: `query-error:${message}`, description: message })
           },

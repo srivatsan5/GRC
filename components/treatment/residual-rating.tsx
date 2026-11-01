@@ -21,7 +21,7 @@ import { FieldError, labelCls, selectCls } from './shared'
 const RISK = 'per_trn_identify_risk'
 
 /** RiskHeatmap size="sm": collapse the (invisible) axis-caption cell so it doesn't add ~70 px under the small grid. */
-const HEATMAP_SM_FIX = 'w-full max-w-[240px] [&>div:first-child>div:nth-child(3)]:h-0 [&>div:first-child>div:nth-child(3)]:overflow-hidden'
+const HEATMAP_SM_FIX = 'w-full max-w-[240px]'
 
 function lxi(l: number | null, i: number | null): string | null {
   return l != null && i != null ? `${LIKELIHOOD_LABELS[l - 1]} × ${IMPACT_LABELS[i - 1]}` : null

@@ -174,10 +174,14 @@ export function RiskHeatmap({
         </div>
 
         {/* X axis */}
-        <div aria-hidden="true" className={cn('flex flex-col justify-start pt-2 text-right', small && 'invisible')}>
-          <span className="label-caps leading-tight">Likelihood ↑</span>
-          <span className="label-caps leading-tight">Impact →</span>
-        </div>
+        {small ? (
+          <div aria-hidden="true" />
+        ) : (
+          <div aria-hidden="true" className="flex flex-col justify-start pt-2 text-right">
+            <span className="label-caps leading-tight">Likelihood ↑</span>
+            <span className="label-caps leading-tight">Impact →</span>
+          </div>
+        )}
         <div aria-hidden="true" className="grid grid-cols-5 gap-1 pt-2 text-center">
           {[1, 2, 3, 4, 5].map(i => (
             <div key={i} className="leading-tight">

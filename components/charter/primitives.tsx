@@ -358,7 +358,7 @@ export function Chip({ tone = 'neutral', icon, children, className }: { tone?: T
 export function DueChip({ date, done, doneLabel = 'Done', soonDays = 14, noDateLabel = 'No due date' }: { date: string | null | undefined; done?: boolean; doneLabel?: string; soonDays?: number; noDateLabel?: string }) {
   if (done) return <Chip tone="success" icon={Check}>{doneLabel}</Chip>
   const d = daysUntil(date)
-  if (d == null) return <Chip tone="neutral" icon={null}>{noDateLabel}</Chip>
+  if (d == null) return <Chip tone="neutral" icon={null} className="hatch">{noDateLabel}</Chip>
   if (d < 0) return <Chip tone="danger" icon={Clock}>{`${-d} day${d === -1 ? '' : 's'} overdue`}</Chip>
   if (d === 0) return <Chip tone="warning" icon={Clock}>Due today</Chip>
   if (d <= soonDays) return <Chip tone="warning" icon={Clock}>{`Due in ${d} day${d === 1 ? '' : 's'}`}</Chip>

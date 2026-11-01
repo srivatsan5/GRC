@@ -33,7 +33,7 @@ export function Pager({
       <div className="flex items-center gap-2">
         {onPageSize && (
           <label className="flex items-center gap-2 text-caption text-muted-foreground">
-            Rows
+            Rows per page
             <select
               value={pageSize}
               onChange={e => onPageSize(Number(e.target.value))}

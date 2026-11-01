@@ -12,11 +12,15 @@ export function RequirePermission({ action, children }: { action: Action; childr
   const { hasPermission } = useAuth()
   if (hasPermission(action)) return <>{children}</>
   return (
-    <div className="max-w-md mx-auto mt-16 text-center bg-white border border-slate-200 rounded-lg p-8" role="alert">
-      <ShieldAlert className="w-8 h-8 mx-auto text-slate-400" aria-hidden="true" />
-      <h1 className="mt-3 text-base font-semibold text-slate-900">You don’t have access to this page</h1>
-      <p className="mt-1 text-sm text-slate-500">Ask an administrator if you need it.</p>
-      <Link href="/dashboard" className="mt-4 inline-block text-sm text-blue-700 hover:underline">Back to dashboard</Link>
+    <div className="surface-panel mx-auto mt-16 max-w-md px-8 py-10 text-center" role="alert">
+      <span className="mx-auto inline-flex size-11 items-center justify-center rounded-lg bg-status-warning-bg text-status-warning-fg">
+        <ShieldAlert className="size-5" aria-hidden="true" />
+      </span>
+      <h1 className="mt-4 font-display text-section text-foreground">You don’t have access to this page</h1>
+      <p className="mt-1.5 text-body-sm text-muted-foreground">Your role can’t open it. Ask an administrator if you need access.</p>
+      <Link href="/dashboard" className="mt-5 inline-block text-body-sm font-medium text-primary hover:underline focus-ring rounded-xs">
+        Back to dashboard
+      </Link>
     </div>
   )
 }

@@ -519,7 +519,7 @@ function Assessment({ riskId }: { riskId: string }) {
             {/* Right: live matrix + history */}
             <div className="space-y-6">
               <Panel title="On the matrix" meta={canEdit && changed ? 'Preview · not saved' : 'Inherent'}>
-                <RiskHeatmap risks={preview} mode="inherent" size="sm" showDetail={false} className="[&>div>div:last-child]:col-start-2" selected={l != null && i != null ? { l, i } : null} />
+                <RiskHeatmap risks={preview} mode="inherent" size="sm" showDetail={false} selected={l != null && i != null ? { l, i } : null} />
                 <div className="mt-3 flex items-center justify-between gap-3 text-caption text-muted-foreground">
                   <span>Likelihood ↑ · Impact →</span>
                   {score == null && <span>Not placed until both are rated</span>}

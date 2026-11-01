@@ -174,7 +174,7 @@ export function RiskHeatmap({
         </div>
 
         {/* X axis */}
-        <div aria-hidden="true" className={cn('flex flex-col justify-start pt-2 text-right', small && 'hidden')}>
+        <div aria-hidden="true" className={cn('flex flex-col justify-start pt-2 text-right', small && 'invisible')}>
           <span className="label-caps leading-tight">Likelihood ↑</span>
           <span className="label-caps leading-tight">Impact →</span>
         </div>

@@ -29,7 +29,7 @@ export const NAV: NavGroup[] = [
   {
     label: 'RCSA lifecycle',
     items: [
-      { label: 'Assessment cycles', href: '/rcsa/provisioning', step: 1, also: ['/rcsa', '/risk-assessments/list'] },
+      { label: 'Assessment cycles', href: '/rcsa/provisioning', step: 1, also: ['/risk-assessments/list'] },
       { label: 'Risk register', href: '/rcsa/identification', step: 2, also: ['/risks', '/risk-identification', '/risk-planning'] },
       { label: 'Inherent assessment', href: '/assessments/inherent', step: 3 },
       { label: 'Controls & mitigation', href: '/rcsa/mitigation', step: 4, also: ['/assessments/controls', '/risk-response'] },

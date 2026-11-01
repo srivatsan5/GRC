@@ -3,44 +3,59 @@
 /** /rcsa/provisioning/[id] — one assessment cycle and the risks assessed in it. */
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { ArrowLeft, ArrowRight, ExternalLink, Gauge, MoreHorizontal, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
 import { DataState, EmptyState } from '@/components/data-state'
 import { Pager } from '@/components/pager'
-import { BandBadge } from '@/components/band-badge'
+import { BandBadge, BandPips, RiskMovement } from '@/components/band-badge'
+import { LifecycleStepper } from '@/components/charter/lifecycle-stepper'
+import { ApprovalBadge, CountUp, DueChip, Meter, PageHeader, Panel, Person, Stat } from '@/components/charter/primitives'
 import { useDeleteRow, useRow, useRowPage, useRows, type Row } from '@/lib/data'
-import { bandCounts, toRisk } from '@/lib/risk'
-import { daysUntil, formatDate, formatNumber } from '@/lib/format'
+import { BAND_STYLES, bandCounts, toRisk } from '@/lib/risk'
+import { formatDate } from '@/lib/format'
 import { useOrgSettings } from '@/lib/settings'
 import { apiErrorMessage } from '@/lib/apiClient'
-import { ApprovalBadge, RcsaStepper, SortHeader, type SortState } from '@/components/rcsa/shared'
 import { CYCLE_TABLE, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
-import { CycleDialog, CycleStatusBadge } from '@/components/rcsa/cycle-dialog'
-import { RiskDecisionButtons } from '@/components/rcsa/risk-decision'
+import { CycleDialog } from '@/components/rcsa/cycle-dialog'
+import { CycleRiskDecision } from '@/components/cycles/decision'
+import { CycleStatusChip, CycleTimeline, SortTh, type SortState } from '@/components/cycles/cycle-bits'
 
 const PAGE_SIZE = 25
 const CONTROL_TABLE = 'per_trn_control_implementation'
 
 export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessmentId: string }) {
+  const router = useRouter()
   const confirm = useConfirm()
   const { hasPermission } = useAuth()
   const { money, bands } = useOrgSettings()
   const cycleId = Number(assessmentId)
+  const validId = Number.isInteger(cycleId) && cycleId > 0
   const [page, setPage] = useState(1)
-  const [sort, setSort] = useState<SortState>({ sort: 'created_on', order: 'desc' })
-  const [riskDialog, setRiskDialog] = useState<{ open: boolean; risk: Row | null }>({ open: false, risk: null })
+  const [sort, setSort] = useState<SortState>({
+    sort: 'created_on',
+    order: 'desc',
+  })
+  const [riskDialog, setRiskDialog] = useState<{
+    open: boolean
+    risk: Row | null
+  }>({ open: false, risk: null })
   const [cycleOpen, setCycleOpen] = useState(false)
 
-  const cycle = useRow(CYCLE_TABLE, Number.isFinite(cycleId) ? cycleId : null)
+  const cycle = useRow(CYCLE_TABLE, validId ? cycleId : null)
   const filter = { assessment_cycle_uuid: cycleId }
-  const allRisks = useRows(RISK_TABLE, { filter, enabled: Number.isFinite(cycleId) })
-  const pageQ = useRowPage(RISK_TABLE, { page, pageSize: PAGE_SIZE, sort: sort.sort, order: sort.order, filter }, { enabled: Number.isFinite(cycleId) })
+  const allRisks = useRows(RISK_TABLE, { filter, enabled: validId })
+  const pageQ = useRowPage(RISK_TABLE, { page, pageSize: PAGE_SIZE, sort: sort.sort, order: sort.order, filter }, { enabled: validId })
   const items = pageQ.data?.items ?? []
   const ids = useMemo(() => items.map(r => Number(r.uuid)).filter(Number.isFinite), [items])
-  const controls = useRows(CONTROL_TABLE, { filter: { identify_risk_uuid: ids }, enabled: ids.length > 0 })
+  const controls = useRows(CONTROL_TABLE, {
+    filter: { identify_risk_uuid: ids },
+    enabled: ids.length > 0,
+  })
   const del = useDeleteRow(RISK_TABLE)
 
   const controlCount = useMemo(() => {
@@ -54,13 +69,19 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
 
   const summary = useMemo(() => {
     const risks = (allRisks.data ?? []).map(toRisk)
-    const counts = bandCounts(risks.map(r => r.inherentScore), bands)
+    const counts = bandCounts(
+      risks.map(r => r.inherentScore),
+      bands,
+    )
     const sles = risks.map(r => r.sle).filter((v): v is number => v != null)
     return {
       total: risks.length,
       rated: risks.length - counts['Not rated'],
+      residual: risks.filter(r => r.residualScore != null).length,
       approved: risks.filter(r => r.approvalStatus === 'APPROVED').length,
-      highCritical: counts.High + counts.Critical,
+      submitted: risks.filter(r => r.approvalStatus === 'SUBMITTED' || r.approvalStatus === 'IN_REVIEW' || r.approvalStatus === 'PENDING').length,
+      high: counts.High,
+      critical: counts.Critical,
       sle: sles.length ? sles.reduce((a, b) => a + b, 0) : null,
       sleCount: sles.length,
     }
@@ -83,151 +104,319 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
     }
   }
 
+  const onSort = (s: SortState) => {
+    setSort(s)
+    setPage(1)
+  }
+
   const c = cycle.data
-  const due = daysUntil(c?.submission_deadline)
-  const addButton = hasPermission('create') ? (
-    <Button size="sm" className="h-8" onClick={() => setRiskDialog({ open: true, risk: null })}>
-      <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+  const completed = c?.status === 'Completed'
+  const canCreate = hasPermission('create')
+  const canUpdate = hasPermission('update')
+  const canDelete = hasPermission('delete')
+  const addButton = canCreate ? (
+    <Button onClick={() => setRiskDialog({ open: true, risk: null })}>
+      <Plus aria-hidden="true" />
       Add risk to this cycle
     </Button>
   ) : null
 
-  if (!Number.isInteger(cycleId) || cycleId <= 0) {
-    return <EmptyState title="Assessment cycle not found" description="The link doesn't point to a valid cycle." action={<Link href="/rcsa/provisioning" className="text-xs text-blue-800 hover:underline">Back to all cycles</Link>} />
+  if (!validId) {
+    return (
+      <div className="space-y-6">
+        <LifecycleStepper current="cycles" />
+        <Panel>
+          <EmptyState
+            title="Assessment cycle not found"
+            description="The link doesn't point to a valid cycle."
+            action={
+              <Button asChild variant="secondary">
+                <Link href="/rcsa/provisioning">Back to all cycles</Link>
+              </Button>
+            }
+          />
+        </Panel>
+      </div>
+    )
   }
 
+  const pct = (part: number) => (summary.total ? Math.round((part / summary.total) * 100) : null)
+  const statsLoading = allRisks.isLoading
+  const hc = summary.high + summary.critical
+
   return (
-    <div className="space-y-6 font-sans">
-      <RcsaStepper
-        active="setup"
-        right={
-          <Button asChild size="sm" variant="outline">
-            <Link href="/rcsa/provisioning">
-              <ArrowLeft className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
-              All cycles
-            </Link>
-          </Button>
-        }
-      />
+    <div className="space-y-6">
+      <LifecycleStepper current="cycles" />
 
       <DataState query={cycle}>
-        {c && (
-          <div className="bg-white rounded border border-slate-200 p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
-              <div>
-                <div className="flex items-center gap-2">
-                  {c.cycle_reference && <span className="font-mono text-xs font-semibold text-slate-700">{c.cycle_reference}</span>}
-                  <CycleStatusBadge status={c.status} />
-                </div>
-                <h1 className="text-lg font-semibold text-slate-900 mt-1">{c.cycle_name}</h1>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {[c.cycle_type, c.cycle_period].filter(Boolean).join(' · ') || 'Assessment cycle'} · {formatDate(c.cycle_start_date)} – {formatDate(c.cycle_end_date)} · Deadline {formatDate(c.submission_deadline)}
-                  {due != null && due < 0 && c.status !== 'Completed' && <span className="ml-1 font-medium text-red-700">(overdue)</span>}
-                </p>
-                {c.notes && <p className="text-xs text-slate-600 mt-2 whitespace-pre-line">{c.notes}</p>}
-              </div>
-              <div className="flex items-center gap-2">
-                {hasPermission('update') && (
-                  <Button size="sm" variant="outline" className="h-8" onClick={() => setCycleOpen(true)}>
-                    <Pencil className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+        {c ? (
+          <PageHeader
+            eyebrow={
+              <Link href="/rcsa/provisioning" className="inline-flex items-center gap-1.5 rounded-xs hover:text-foreground focus-ring">
+                <ArrowLeft className="size-3.5" aria-hidden="true" />
+                Assessment cycles
+              </Link>
+            }
+            title={c.cycle_name || 'Untitled cycle'}
+            description={
+              <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span className="font-mono text-body-sm text-foreground-secondary">{c.cycle_reference || 'No reference'}</span>
+                <CycleStatusChip status={c.status} />
+                {[c.cycle_type, c.cycle_period].filter(Boolean).length > 0 && <span className="text-body-sm">{[c.cycle_type, c.cycle_period].filter(Boolean).join(' · ')}</span>}
+                <span aria-hidden="true" className="hidden text-border-strong sm:inline">
+                  |
+                </span>
+                <span className="text-body-sm tabular-nums">
+                  {formatDate(c.cycle_start_date)} – {formatDate(c.cycle_end_date)}
+                </span>
+                <span className="inline-flex items-center gap-2 text-body-sm">
+                  Deadline
+                  <DueChip date={c.submission_deadline} done={completed} doneLabel="Cycle completed" noDateLabel="Not set" />
+                </span>
+              </span>
+            }
+            actions={
+              <>
+                {canUpdate && (
+                  <Button variant="secondary" onClick={() => setCycleOpen(true)}>
+                    <Pencil aria-hidden="true" />
                     Edit cycle
                   </Button>
                 )}
                 {addButton}
-              </div>
-            </div>
-
-            <DataState query={allRisks} compact>
-              <dl className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                <Stat label="Risks" value={formatNumber(summary.total)} />
-                <Stat label="Rated" value={`${summary.rated} / ${summary.total}`} />
-                <Stat label="Approved" value={`${summary.approved} / ${summary.total}`} />
-                <Stat label="High or critical (inherent)" value={formatNumber(summary.highCritical)} />
-                <Stat label={`Total SLE${summary.sleCount && summary.sleCount < summary.total ? ` (${summary.sleCount} of ${summary.total} risks)` : ''}`} value={money(summary.sle)} />
-              </dl>
-            </DataState>
-          </div>
+              </>
+            }
+          />
+        ) : (
+          <Panel>
+            <EmptyState
+              title="Assessment cycle not found"
+              description="It may have been deleted."
+              action={
+                <Button asChild variant="secondary">
+                  <Link href="/rcsa/provisioning">Back to all cycles</Link>
+                </Button>
+              }
+            />
+          </Panel>
         )}
       </DataState>
 
       {c && (
-        <div className="bg-white rounded border border-slate-200 overflow-hidden">
-          <div className="p-4 border-b border-slate-200">
-            <h2 className="text-sm font-semibold text-slate-900">Risks in this cycle</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">Open a risk&apos;s controls to record how it is mitigated and its residual rating.</p>
-          </div>
-          <DataState query={pageQ} empty={items.length === 0} emptyTitle="No risks in this cycle yet" emptyDescription="Add a risk here, or assign existing risks to this cycle from the risk register." emptyAction={addButton}>
-            <div className="overflow-x-auto">
-              <table className="enterprise-table">
-                <thead>
-                  <tr>
-                    <SortHeader label="Risk" column="risk_statement" state={sort} onSort={s => (setSort(s), setPage(1))} className="w-[34%]" />
-                    <SortHeader label="Category" column="risk_type" state={sort} onSort={s => (setSort(s), setPage(1))} />
-                    <SortHeader label="Owner" column="risk_owner" state={sort} onSort={s => (setSort(s), setPage(1))} />
-                    <th>Inherent</th>
-                    <th>Residual</th>
-                    <SortHeader label="SLE" column="inherent_sle" state={sort} onSort={s => (setSort(s), setPage(1))} className="text-right" />
-                    <th className="text-right">Controls</th>
-                    <SortHeader label="Approval" column="approval_status" state={sort} onSort={s => (setSort(s), setPage(1))} />
-                    <th className="text-right">
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(row => {
-                    const r = toRisk(row)
-                    return (
-                      <tr key={r.uuid}>
-                        <td>
-                          <span className="font-medium text-slate-900 block">{r.statement ?? <span className="italic text-slate-400">No statement recorded</span>}</span>
-                          {r.process && <span className="text-[11px] text-slate-500">{[r.process, r.subProcess].filter(Boolean).join(' › ')}</span>}
-                        </td>
-                        <td>{r.category ?? '—'}</td>
-                        <td>{r.owner ?? '—'}</td>
-                        <td>
-                          <BandBadge score={r.inherentScore} />
-                          {r.inherentScore == null && hasPermission('update') && (
-                            <Link href={`/assessments/inherent?riskId=${r.uuid}`} className="block text-[11px] text-blue-800 hover:underline mt-0.5">
-                              Rate now
-                            </Link>
-                          )}
-                        </td>
-                        <td>
-                          <BandBadge score={r.residualScore} />
-                        </td>
-                        <td className="text-right tabular-nums whitespace-nowrap">{money(r.sle)}</td>
-                        <td className="text-right tabular-nums">{controls.isLoading ? '…' : controls.isError ? '—' : (controlCount.get(r.uuid) ?? 0)}</td>
-                        <td>
-                          <ApprovalBadge status={r.approvalStatus} />
-                        </td>
-                        <td className="text-right">
-                          <div className="flex flex-wrap items-center justify-end gap-1">
-                            <Button asChild size="sm" variant="outline">
-                              <Link href={`/rcsa/provisioning/${assessmentId}/controls/${r.uuid}`}>Controls &rarr;</Link>
-                            </Button>
-                            <RiskDecisionButtons risk={row} compact />
-                            {hasPermission('update') && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit risk" onClick={() => setRiskDialog({ open: true, risk: row })}>
-                                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                              </Button>
-                            )}
-                            {hasPermission('delete') && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label="Delete risk" disabled={del.isPending} onClick={() => remove(row)}>
-                                <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+        <>
+          {/* Progress: one panel, five cells split by hairlines, then the schedule */}
+          <section aria-label="Cycle progress" className="surface-panel overflow-hidden">
+            <div className="grid grid-cols-2 lg:grid-cols-5">
+              <Cell>
+                <Stat
+                  label="Risks"
+                  loading={statsLoading}
+                  value={<CountUp value={summary.total} />}
+                  context={
+                    summary.sle != null
+                      ? `${money(summary.sle, { compact: true })} SLE${summary.sleCount < summary.total ? ` · ${summary.sleCount} of ${summary.total} recorded` : ''}`
+                      : 'No SLE recorded'
+                  }
+                />
+              </Cell>
+              <Cell className="border-l">
+                <ProgressStat label="Inherent rated" part={summary.rated} whole={summary.total} pct={pct(summary.rated)} loading={statsLoading} />
+              </Cell>
+              <Cell className="border-t lg:border-t-0 lg:border-l">
+                <ProgressStat label="Residual rated" part={summary.residual} whole={summary.total} pct={pct(summary.residual)} loading={statsLoading} />
+              </Cell>
+              <Cell className="border-t border-l lg:border-t-0">
+                <ProgressStat
+                  label="Approved"
+                  part={summary.approved}
+                  whole={summary.total}
+                  pct={pct(summary.approved)}
+                  loading={statsLoading}
+                  note={summary.submitted ? `${summary.submitted} awaiting a decision` : undefined}
+                />
+              </Cell>
+              <Cell className="col-span-2 border-t lg:col-span-1 lg:border-t-0 lg:border-l">
+                <Stat
+                  label="High & critical"
+                  loading={statsLoading}
+                  value={<CountUp value={hc} />}
+                  tone={summary.critical ? 'text-risk-critical-text' : summary.high ? 'text-risk-high-text' : undefined}
+                  context={summary.total ? `Inherent · ${summary.critical} critical, ${summary.high} high` : 'No risks yet'}
+                >
+                  {summary.critical > 0 && (
+                    <span>
+                      <span className={`inline-flex h-badge items-center gap-1.5 rounded-sm px-2 text-caption font-medium ${BAND_STYLES.Critical.solid}`}>
+                        <BandPips level={4} />
+                        {summary.critical} Critical
+                      </span>
+                    </span>
+                  )}
+                </Stat>
+              </Cell>
             </div>
-            <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
-          </DataState>
-        </div>
+            <div className="grid grid-cols-1 items-center gap-x-10 gap-y-4 border-t bg-surface-sunken/60 px-5 py-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:gap-6">
+                <span className="label-caps shrink-0">Schedule</span>
+                <CycleTimeline start={c.cycle_start_date} end={c.cycle_end_date} deadline={c.submission_deadline} completed={completed} className="min-w-0 flex-1" />
+              </div>
+              <p className="text-body-sm text-muted-foreground">
+                Finalize the cycle on{' '}
+                <Link href="/rcsa/monitoring" className="inline-flex items-center gap-1 rounded-xs font-medium text-primary hover:underline focus-ring">
+                  Monitoring
+                  <ArrowRight className="size-3.5" aria-hidden="true" />
+                </Link>
+              </p>
+            </div>
+            {c.notes && (
+              <div className="border-t px-5 py-4 sm:px-6">
+                <p className="label-caps mb-1">Notes</p>
+                <p className="max-w-3xl text-body-sm whitespace-pre-line text-foreground-secondary">{c.notes}</p>
+              </div>
+            )}
+          </section>
+
+          <Panel title="Risks in this cycle" meta={pageQ.data ? `${pageQ.data.total} risk${pageQ.data.total === 1 ? '' : 's'}` : undefined} bodyClassName="p-0 pt-4">
+            <DataState
+              query={pageQ}
+              empty={items.length === 0}
+              emptyTitle="No risks in this cycle yet"
+              emptyDescription="Add a risk here, or assign existing risks to this cycle from the risk register."
+              emptyAction={addButton}
+            >
+              <div className="overflow-x-auto">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <SortTh label="Risk" column="risk_statement" state={sort} onSort={onSort} className="pl-6" />
+                      <SortTh label="Owner" column="risk_owner" state={sort} onSort={onSort} />
+                      <th>Inherent</th>
+                      <th>Residual</th>
+                      <SortTh label="SLE" column="inherent_sle" state={sort} onSort={onSort} numeric />
+                      <th data-numeric>Controls</th>
+                      <SortTh label="Approval" column="approval_status" state={sort} onSort={onSort} />
+                      <th className="pr-6 text-right">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map(row => {
+                      const r = toRisk(row)
+                      const href = `/risks/${r.uuid}`
+                      const ref = r.referenceNumber ?? `#${r.uuid}`
+                      const sub = [ref, r.process].filter(Boolean).join(' · ')
+                      const assessHref = `/assessments/inherent?riskId=${r.uuid}`
+                      const controlsHref = `/rcsa/provisioning/${assessmentId}/controls/${r.uuid}`
+                      const nControls = controlCount.get(r.uuid) ?? 0
+                      return (
+                        <tr
+                          key={r.uuid}
+                          className="cursor-pointer"
+                          onClick={e => {
+                            if ((e.target as HTMLElement).closest('a,button,input,select,textarea,[role="menuitem"],[role="dialog"]')) return
+                            router.push(href)
+                          }}
+                        >
+                          <td className="py-2 pl-6">
+                            <div className="w-44 xl:w-52">
+                              <Link href={href} className="block truncate font-medium text-foreground underline-offset-2 hover:underline focus-ring rounded-xs" title={r.statement ?? undefined}>
+                                {r.statement ?? <span className="font-normal text-muted-foreground italic">No statement recorded</span>}
+                              </Link>
+                              <span className="block truncate font-mono text-caption text-muted-foreground" title={sub}>
+                                {sub}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="max-w-[168px]">
+                            <Person name={r.owner} />
+                          </td>
+                          <td className="whitespace-nowrap">
+                            <BandBadge score={r.inherentScore} kind="Inherent" rateHref={canUpdate ? assessHref : undefined} />
+                          </td>
+                          <td className="whitespace-nowrap">
+                            {r.inherentScore == null && r.residualScore == null ? (
+                              <span className="text-caption text-muted-foreground">Rate inherent first</span>
+                            ) : (
+                              <RiskMovement inherent={r.inherentScore} residual={r.residualScore} rateHref={canUpdate ? controlsHref : undefined} />
+                            )}
+                          </td>
+                          <td data-numeric className="whitespace-nowrap">
+                            {r.sle == null ? <span className="text-muted-foreground">—</span> : money(r.sle)}
+                          </td>
+                          <td data-numeric>
+                            {controls.isLoading ? (
+                              <span className="skeleton inline-block h-3 w-4 align-middle" />
+                            ) : controls.isError ? (
+                              '—'
+                            ) : (
+                              <Link
+                                href={controlsHref}
+                                aria-label={`${nControls} control${nControls === 1 ? '' : 's'} applied: open controls for ${r.statement ?? ref}`}
+                                className="inline-flex items-center gap-1 rounded-xs font-medium text-primary underline-offset-2 hover:underline focus-ring"
+                              >
+                                {nControls === 0 ? (canUpdate ? 'Apply' : 'None') : nControls}
+                                <ArrowRight className="size-3" aria-hidden="true" />
+                              </Link>
+                            )}
+                          </td>
+                          <td>
+                            <ApprovalBadge status={r.approvalStatus ?? 'DRAFT'} />
+                          </td>
+                          <td className="pr-6">
+                            <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                              <CycleRiskDecision risk={row} />
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="size-8" aria-label={`More actions for ${r.statement ?? ref}`}>
+                                    <MoreHorizontal aria-hidden="true" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="min-w-48">
+                                  <DropdownMenuItem asChild>
+                                    <Link href={href}>
+                                      <ExternalLink aria-hidden="true" />
+                                      Open risk
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={assessHref}>
+                                      <Gauge aria-hidden="true" />
+                                      {canUpdate ? 'Inherent assessment' : 'View inherent assessment'}
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={controlsHref}>
+                                      <ShieldCheck aria-hidden="true" />
+                                      Controls &amp; residual
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  {(canUpdate || canDelete) && <DropdownMenuSeparator />}
+                                  {canUpdate && (
+                                    <DropdownMenuItem onSelect={() => setRiskDialog({ open: true, risk: row })}>
+                                      <Pencil aria-hidden="true" />
+                                      Edit risk
+                                    </DropdownMenuItem>
+                                  )}
+                                  {canDelete && (
+                                    <DropdownMenuItem variant="destructive" disabled={del.isPending} onSelect={() => remove(row)}>
+                                      <Trash2 aria-hidden="true" />
+                                      Delete risk
+                                    </DropdownMenuItem>
+                                  )}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <Pager page={page} pageSize={PAGE_SIZE} total={pageQ.data?.total ?? 0} onPage={setPage} busy={pageQ.isFetching} />
+            </DataState>
+          </Panel>
+        </>
       )}
 
       <RiskDialog open={riskDialog.open} risk={riskDialog.risk} cycleUuid={cycleId} lockCycle onOpenChange={open => setRiskDialog(d => ({ ...d, open }))} />
@@ -236,11 +425,24 @@ export function ProvisioningAssessmentDetailsPage({ assessmentId }: { assessment
   )
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Cell({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={`min-w-0 p-5 lg:p-6 ${className ?? ''}`}>{children}</div>
+}
+
+function ProgressStat({ label, part, whole, pct, loading, note }: { label: string; part: number; whole: number; pct: number | null; loading?: boolean; note?: string }) {
   return (
-    <div className="p-3 bg-slate-50 rounded border border-slate-200">
-      <dt className="text-[11px] text-slate-500">{label}</dt>
-      <dd className="text-lg font-semibold text-slate-900 tabular-nums">{value}</dd>
-    </div>
+    <Stat
+      label={label}
+      loading={loading}
+      value={
+        <>
+          <CountUp value={part} />
+          <span className="text-figure-sm text-muted-foreground"> / {whole}</span>
+        </>
+      }
+      context={whole ? (note ?? `${pct}% of the cycle's risks`) : 'No risks yet'}
+    >
+      <Meter value={whole ? pct : null} label={`${label}: ${part} of ${whole}`} className="mt-1" />
+    </Stat>
   )
 }

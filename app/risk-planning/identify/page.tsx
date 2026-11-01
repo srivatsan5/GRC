@@ -1,5 +1,6 @@
-import { RiskplanningidentifyPage } from '@/components/pages/risk-planning-identify' 
+import { redirect } from 'next/navigation'
 
+/** Superseded by the risk register. */
 export default function Page() {
-  return <RiskplanningidentifyPage />
+  redirect('/rcsa/identification')
 }

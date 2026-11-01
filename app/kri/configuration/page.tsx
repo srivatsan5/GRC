@@ -1,5 +1,12 @@
-import { KriconfigurationPage } from '@/components/pages/kri-configuration' 
+'use client'
+
+import { PericopeLayout } from '@/components/pericope-layout'
+import { KriconfigurationPage } from '@/components/pages/kri-configuration'
 
 export default function Page() {
-  return <KriconfigurationPage />
+  return (
+    <PericopeLayout>
+      <KriconfigurationPage />
+    </PericopeLayout>
+  )
 }

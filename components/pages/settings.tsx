@@ -1,355 +1,312 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import {
-  Bell,
-  Lock,
-  Users,
-  Key,
-  Globe,
-  HardDrive,
-  AlertCircle,
-  Save,
-  RotateCcw,
-} from 'lucide-react'
+/**
+ * Organisation settings (stored by /api/settings). Only settings that change how the
+ * app behaves live here: currency formats every money amount, the risk bands colour
+ * every score, and the idle timeout signs users out.
+ */
+import React, { useEffect, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Info } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { useToast } from '@/hooks/use-toast'
+import { DataState } from '@/components/data-state'
+import { useAuth } from '@/components/providers/auth-provider'
+import { settingsApi, apiErrorMessage, type ApiOrgSettings } from '@/lib/apiClient'
+import { SETTINGS_KEY } from '@/lib/settings'
+import { BAND_STYLES, IMPACT_LABELS, LIKELIHOOD_LABELS, bandOf, type RiskBands } from '@/lib/risk'
+import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { useAuth, Role } from '@/components/providers/auth-provider'
-import { recordAudit } from '@/lib/auditLog'
 
-const tabs = [
-  { id: 'general', name: 'Organization', icon: Globe },
-  { id: 'notifications', name: 'Notifications', icon: Bell },
-  { id: 'security', name: 'Security & Auth', icon: Lock },
-  { id: 'api', name: 'API & Integrations', icon: Key },
-  { id: 'data', name: 'Data Retention', icon: HardDrive },
-]
+const CURRENCIES: ApiOrgSettings['currency'][] = ['USD', 'EUR', 'GBP', 'INR', 'JPY', 'AUD', 'SGD', 'AED', 'CAD', 'CHF']
 
-const SETTINGS_KEY = 'pericope_settings_v1'
-
-interface OrgSettings {
+interface Draft {
   orgName: string
   industry: string
-  currency: string
-  maturityTarget: string
-  telemetryRetention: string
-  notifications: { critical: boolean; sla: boolean; weekly: boolean }
-  security: { mfa: boolean; encryption: string; sessionTimeout: number }
-  dataRetention: { auditLog: string; assessment: string; report: string; piiHandling: string }
+  currency: ApiOrgSettings['currency']
+  idleTimeoutMinutes: string
+  moderate: string
+  high: string
+  critical: string
 }
 
-const DEFAULT_SETTINGS: OrgSettings = {
-  orgName: 'Acme Financial Services',
-  industry: 'Financial Services',
-  currency: 'USD',
-  maturityTarget: 'Optimized',
-  telemetryRetention: '5 Years',
-  notifications: { critical: true, sla: true, weekly: false },
-  security: { mfa: true, encryption: 'AES-256 GCM', sessionTimeout: 30 },
-  dataRetention: { auditLog: '7 Years', assessment: '5 Years', report: '3 Years', piiHandling: 'Pseudonymized' },
-}
+const toDraft = (s: ApiOrgSettings): Draft => ({
+  orgName: s.orgName,
+  industry: s.industry,
+  currency: s.currency,
+  idleTimeoutMinutes: String(s.idleTimeoutMinutes),
+  moderate: String(s.riskBands.moderate),
+  high: String(s.riskBands.high),
+  critical: String(s.riskBands.critical),
+})
 
-const INDUSTRIES = ['Financial Services', 'Healthcare', 'Technology', 'Manufacturing', 'Retail', 'Energy & Utilities', 'Telecommunications', 'Public Sector', 'Education', 'Insurance']
-const CURRENCIES = ['USD', 'INR', 'EUR', 'GBP', 'JPY', 'AUD', 'SGD', 'AED']
+const int = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN)
+
+function validate(d: Draft): Partial<Record<keyof Draft | 'bands', string>> {
+  const e: Partial<Record<keyof Draft | 'bands', string>> = {}
+  const name = d.orgName.trim()
+  if (!name) e.orgName = 'Enter the organisation name.'
+  else if (name.length > 120) e.orgName = 'Keep the name under 120 characters.'
+  if (d.industry.trim().length > 80) e.industry = 'Keep the industry under 80 characters.'
+  const t = int(d.idleTimeoutMinutes)
+  if (!Number.isInteger(t) || t < 5 || t > 480) e.idleTimeoutMinutes = 'Enter a whole number of minutes from 5 to 480.'
+  for (const k of ['moderate', 'high', 'critical'] as const) {
+    const n = int(d[k])
+    if (!Number.isInteger(n) || n < 2 || n > 25) e[k] = 'Whole number from 2 to 25.'
+  }
+  if (!e.moderate && !e.high && !e.critical) {
+    if (!(int(d.moderate) < int(d.high) && int(d.high) < int(d.critical))) e.bands = 'Thresholds must increase: Moderate < High < Critical.'
+  }
+  return e
+}
 
 export function SettingsPage() {
-  const { toast } = useToast()
   const { hasPermission } = useAuth()
-  const [activeTab, setActiveTab] = useState('general')
-  const [saving, setSaving] = useState(false)
+  const canEdit = hasPermission('admin')
+  const queryClient = useQueryClient()
+  const query = useQuery({ queryKey: SETTINGS_KEY, queryFn: settingsApi.get, staleTime: 5 * 60_000 })
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [touched, setTouched] = useState(false)
 
-  const [settings, setSettings] = useState<OrgSettings>(DEFAULT_SETTINGS)
-  const [draft, setDraft] = useState<OrgSettings>(DEFAULT_SETTINGS)
-
+  const loaded = query.data?.settings
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(SETTINGS_KEY)
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        setSettings(parsed)
-        setDraft(parsed)
-      }
-    } catch { /* ignore */ }
-  }, [])
+    if (loaded && draft === null) setDraft(toDraft(loaded))
+  }, [loaded, draft])
 
-  const handleSave = async () => {
-    if (!hasPermission('admin')) {
-      toast({ title: 'Read-only mode', description: 'Only Administrators can modify settings.', variant: 'destructive' })
-      return
-    }
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 250))
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(draft))
-    setSettings(draft)
-    recordAudit({
-      action: 'SETTINGS_CHANGE',
-      entity: 'Settings',
-      description: `Updated platform configuration (${activeTab})`,
-      before: settings,
-      after: draft,
-      result: 'SUCCESS',
+  const save = useMutation({
+    mutationFn: (s: ApiOrgSettings) => settingsApi.save(s),
+    onSuccess: async res => {
+      setDraft(toDraft(res.settings))
+      setTouched(false)
+      await queryClient.invalidateQueries({ queryKey: SETTINGS_KEY })
+      if (res.stored) toast.success('Settings saved')
+      else toast.warning('Settings applied, but they could not be stored in the database')
+    },
+    onError: err => toast.error(apiErrorMessage(err)),
+  })
+
+  const errors = draft ? validate(draft) : {}
+  const shown = touched ? errors : {}
+  const dirty = !!draft && !!loaded && JSON.stringify(draft) !== JSON.stringify(toDraft(loaded))
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!draft || !canEdit) return
+    setTouched(true)
+    if (Object.keys(errors).length) return
+    save.mutate({
+      orgName: draft.orgName.trim(),
+      industry: draft.industry.trim(),
+      currency: draft.currency,
+      idleTimeoutMinutes: int(draft.idleTimeoutMinutes),
+      riskBands: { moderate: int(draft.moderate), high: int(draft.high), critical: int(draft.critical) },
     })
-    setSaving(false)
-    toast({ title: 'Settings saved' })
   }
 
-  const handleReset = () => {
-    setDraft(settings)
-    toast({ title: 'Changes reverted' })
-  }
+  const previewBands: RiskBands | null =
+    draft && !errors.moderate && !errors.high && !errors.critical && !errors.bands
+      ? { moderate: int(draft.moderate), high: int(draft.high), critical: int(draft.critical) }
+      : null
+
+  const label = 'block text-xs font-medium text-slate-700 mb-1'
+  const err = (k: keyof typeof errors) =>
+    shown[k] ? (
+      <p id={`set-${k}-error`} className="mt-1 text-[11px] text-red-600">
+        {shown[k]}
+      </p>
+    ) : null
+  const aria = (k: keyof typeof errors) => ({ 'aria-invalid': !!shown[k], 'aria-describedby': shown[k] ? `set-${k}-error` : undefined })
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">System Configuration</h1>
-          <p className="text-xs text-slate-500">Manage organization parameters, security, and data retention</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleReset} disabled={saving}>
-            Reset
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={saving || !hasPermission('admin')}>
-            {saving ? 'Saving...' : 'Save changes'}
-          </Button>
+          <h1 className="text-lg font-semibold text-slate-900">Organisation settings</h1>
+          <p className="text-xs text-slate-500">Currency, session timeout and the score thresholds used for every risk band in the app.</p>
         </div>
       </div>
 
-      {!hasPermission('admin') && (
-        <div className="rounded border border-amber-200 bg-amber-50 p-3 flex items-center gap-2 text-xs text-amber-800">
-          <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          <span>Read-only view. Only Administrators can save configuration changes.</span>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">
-        {/* Navigation Tabs */}
-        <div className="bg-white rounded border border-slate-200 p-1.5 space-y-0.5">
-          {tabs.map(tab => {
-            const Icon = tab.icon
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2 rounded text-xs text-left transition-colors font-medium',
-                  activeTab === tab.id
-                    ? 'bg-blue-50 text-blue-900 font-semibold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                )}
-              >
-                <Icon className="w-4 h-4 text-slate-400" />
-                <span>{tab.name}</span>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Content Area */}
-        <div className="md:col-span-3 bg-white rounded border border-slate-200 p-5 space-y-5">
-          {/* GENERAL */}
-          {activeTab === 'general' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Organization profile</h2>
-                <p className="text-xs text-slate-500">Corporate parameters and baseline currency</p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <DataState query={query}>
+        {draft && (
+          <form onSubmit={onSubmit} noValidate className="space-y-6">
+            {query.data && !query.data.stored && (
+              <div role="status" className="flex gap-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                <Info className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Organization name</label>
-                  <Input
-                    value={draft.orgName}
-                    onChange={e => setDraft({ ...draft, orgName: e.target.value })}
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Industry sector</label>
-                  <select
-                    value={draft.industry}
-                    onChange={e => setDraft({ ...draft, industry: e.target.value })}
-                    className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                  >
-                    {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-                  </select>
+                  <p className="font-semibold">These settings are not stored in the database yet.</p>
+                  <p className="mt-0.5">
+                    The app is using default values{query.data.reason ? ` (${query.data.reason})` : ''}. Saving will try to store them; until the settings table is set up,
+                    changes may not survive an API restart.
+                  </p>
                 </div>
               </div>
+            )}
+            {!canEdit && <p className="text-xs text-slate-500">Only Administrators can change these settings.</p>}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <fieldset disabled={!canEdit || save.isPending} className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <section className="bg-white rounded border border-slate-200 p-4 space-y-4">
+                <h2 className="text-sm font-semibold text-slate-900">Organisation</h2>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Reporting currency</label>
+                  <label htmlFor="set-orgName" className={label}>
+                    Organisation name *
+                  </label>
+                  <Input id="set-orgName" className="h-8 text-xs" value={draft.orgName} onChange={e => setDraft({ ...draft, orgName: e.target.value })} {...aria('orgName')} />
+                  {err('orgName')}
+                </div>
+                <div>
+                  <label htmlFor="set-industry" className={label}>
+                    Industry
+                  </label>
+                  <Input id="set-industry" className="h-8 text-xs" value={draft.industry} onChange={e => setDraft({ ...draft, industry: e.target.value })} {...aria('industry')} />
+                  {err('industry')}
+                </div>
+                <div>
+                  <label htmlFor="set-currency" className={label}>
+                    Currency
+                  </label>
                   <select
+                    id="set-currency"
                     value={draft.currency}
-                    onChange={e => setDraft({ ...draft, currency: e.target.value })}
+                    onChange={e => setDraft({ ...draft, currency: e.target.value as ApiOrgSettings['currency'] })}
                     className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
                   >
-                    {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    {CURRENCIES.map(c => (
+                      <option key={c}>{c}</option>
+                    ))}
                   </select>
+                  <p className="mt-1 text-[11px] text-slate-500">Every money amount is shown in this currency, e.g. {formatMoney(1250000, draft.currency)}.</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Maturity model</label>
-                  <select
-                    value={draft.maturityTarget}
-                    onChange={e => setDraft({ ...draft, maturityTarget: e.target.value })}
-                    className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                  >
-                    {['Initial', 'Developing', 'Defined', 'Managed', 'Optimized'].map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* NOTIFICATIONS */}
-          {activeTab === 'notifications' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Email & alert routing</h2>
-                <p className="text-xs text-slate-500">Configure operational alert triggers</p>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <label className="flex items-center gap-3 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={draft.notifications.critical}
-                    onChange={e => setDraft({ ...draft, notifications: { ...draft.notifications, critical: e.target.checked } })}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>Email alerts immediately when critical risks (score &ge; 16) are identified</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={draft.notifications.sla}
-                    onChange={e => setDraft({ ...draft, notifications: { ...draft.notifications, sla: e.target.checked } })}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>Send reminders 7 days before RCSA assessment deadlines</span>
-                </label>
-
-                <label className="flex items-center gap-3 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={draft.notifications.weekly}
-                    onChange={e => setDraft({ ...draft, notifications: { ...draft.notifications, weekly: e.target.checked } })}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>Weekly executive summary report to risk owners</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* SECURITY */}
-          {activeTab === 'security' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Authentication & session controls</h2>
-                <p className="text-xs text-slate-500">Session policies and cryptographic parameters</p>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Session timeout (minutes)</label>
-                    <Input
-                      type="number"
-                      value={draft.security.sessionTimeout}
-                      onChange={e => setDraft({ ...draft, security: { ...draft.security, sessionTimeout: Number(e.target.value) || 30 } })}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-700 mb-1">Database encryption standard</label>
-                    <Input
-                      disabled
-                      value={draft.security.encryption}
-                      className="h-8 text-xs bg-slate-50"
-                    />
-                  </div>
-                </div>
-
-                <label className="flex items-center gap-3 cursor-pointer text-xs pt-2">
-                  <input
-                    type="checkbox"
-                    checked={draft.security.mfa}
-                    onChange={e => setDraft({ ...draft, security: { ...draft.security, mfa: e.target.checked } })}
-                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span>Require two-factor authentication (2FA) for all Administrator roles</span>
-                </label>
-              </div>
-            </div>
-          )}
-
-          {/* API */}
-          {activeTab === 'api' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">API & webhooks</h2>
-                <p className="text-xs text-slate-500">Backend connectivity and integration tokens</p>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Backend API Base URL</label>
+                  <label htmlFor="set-idle" className={label}>
+                    Idle sign-out (minutes) *
+                  </label>
                   <Input
-                    disabled
-                    value={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}
-                    className="h-8 text-xs bg-slate-50 font-mono"
+                    id="set-idle"
+                    type="number"
+                    min={5}
+                    max={480}
+                    step={1}
+                    className="h-8 text-xs w-32"
+                    value={draft.idleTimeoutMinutes}
+                    onChange={e => setDraft({ ...draft, idleTimeoutMinutes: e.target.value })}
+                    {...aria('idleTimeoutMinutes')}
                   />
+                  {err('idleTimeoutMinutes')}
+                  <p className="mt-1 text-[11px] text-slate-500">Users are signed out after this long without activity (5–480).</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Audit webhook destination</label>
-                  <Input
-                    placeholder="https://api.company.com/webhook/grc-events"
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+              </section>
 
-          {/* DATA RETENTION */}
-          {activeTab === 'data' && (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Data retention & archival</h2>
-                <p className="text-xs text-slate-500">Compliance retention windows per regulation</p>
-              </div>
+              <section className="bg-white rounded border border-slate-200 p-4 space-y-4">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">Risk bands</h2>
+                  <p className="text-[11px] text-slate-500">A likelihood × impact score (1–25) at or above a threshold falls in that band. Scores below Moderate are Low.</p>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {(['moderate', 'high', 'critical'] as const).map(k => (
+                    <div key={k}>
+                      <label htmlFor={`set-${k}`} className={label}>
+                        {k[0]!.toUpperCase() + k.slice(1)} from *
+                      </label>
+                      <Input
+                        id={`set-${k}`}
+                        type="number"
+                        min={2}
+                        max={25}
+                        step={1}
+                        className="h-8 text-xs"
+                        value={draft[k]}
+                        onChange={e => setDraft({ ...draft, [k]: e.target.value })}
+                        {...aria(k)}
+                      />
+                      {err(k)}
+                    </div>
+                  ))}
+                </div>
+                {err('bands')}
+                <BandPreview bands={previewBands} />
+              </section>
+            </fieldset>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Audit log retention</label>
-                  <select
-                    value={draft.dataRetention.auditLog}
-                    onChange={e => setDraft({ ...draft, dataRetention: { ...draft.dataRetention, auditLog: e.target.value } })}
-                    className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                  >
-                    {['3 Years', '5 Years', '7 Years (SOX)', '10 Years', 'Indefinite'].map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Assessment cycles retention</label>
-                  <select
-                    value={draft.dataRetention.assessment}
-                    onChange={e => setDraft({ ...draft, dataRetention: { ...draft.dataRetention, assessment: e.target.value } })}
-                    className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                  >
-                    {['1 Year', '3 Years', '5 Years', '7 Years'].map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
+            {canEdit && (
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!dirty || save.isPending}
+                  onClick={() => {
+                    if (loaded) setDraft(toDraft(loaded))
+                    setTouched(false)
+                  }}
+                >
+                  Discard changes
+                </Button>
+                <Button type="submit" size="sm" disabled={!dirty || save.isPending}>
+                  {save.isPending ? 'Saving…' : 'Save settings'}
+                </Button>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </form>
+        )}
+      </DataState>
+    </div>
+  )
+}
+
+function BandPreview({ bands }: { bands: RiskBands | null }) {
+  if (!bands) return <p className="text-[11px] text-slate-500">Fix the thresholds to see the preview.</p>
+  return (
+    <div>
+      <p className="text-xs font-medium text-slate-700 mb-2">Preview</p>
+      <table className="border-separate border-spacing-1 text-[11px]" aria-label="Risk band preview: likelihood rows by impact columns">
+        <thead>
+          <tr>
+            <th scope="col" className="sr-only">
+              Likelihood
+            </th>
+            {IMPACT_LABELS.map((l, i) => (
+              <th key={l} scope="col" className="w-14 font-normal text-slate-500 text-center leading-tight">
+                {i + 1}
+                <span className="block text-[9px]">{l}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {[5, 4, 3, 2, 1].map(l => (
+            <tr key={l}>
+              <th scope="row" className="pr-1 font-normal text-slate-500 text-right whitespace-nowrap">
+                {l} <span className="text-[9px]">{LIKELIHOOD_LABELS[l - 1]}</span>
+              </th>
+              {[1, 2, 3, 4, 5].map(i => {
+                const score = l * i
+                const b = bandOf(score, bands)!
+                return (
+                  <td key={i} title={`${score} · ${b}`} className={cn('h-9 w-14 rounded text-center font-semibold tabular-nums', BAND_STYLES[b].cell, BAND_STYLES[b].text)}>
+                    {score}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <ul className="mt-2 flex flex-wrap gap-3 text-[11px] text-slate-600">
+        {(
+          [
+            ['Low', `1–${bands.moderate - 1}`],
+            ['Moderate', `${bands.moderate}–${bands.high - 1}`],
+            ['High', `${bands.high}–${bands.critical - 1}`],
+            ['Critical', `${bands.critical}–25`],
+          ] as const
+        ).map(([b, range]) => (
+          <li key={b} className="flex items-center gap-1">
+            <span className={cn('h-2 w-2 rounded-full', BAND_STYLES[b].dot)} aria-hidden="true" />
+            {b} {range}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

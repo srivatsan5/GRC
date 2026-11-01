@@ -2,820 +2,616 @@
 
 import React, { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Search,
-  Printer,
-} from 'lucide-react'
+import { FileDown, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { oracleService } from '@/lib/oracleService'
 import { cn } from '@/lib/utils'
-import { recordAudit } from '@/lib/auditLog'
-import { auditApi } from '@/lib/apiClient'
+import { DataState } from '@/components/data-state'
+import { BandBadge } from '@/components/band-badge'
 import { useAuth } from '@/components/providers/auth-provider'
-import { controlsStore } from '@/components/pages/control-library'
-import { vendorStore } from '@/components/pages/vendor-risk'
-import { kriStore } from '@/components/pages/kri-intelligence'
-import { useStoreSnapshot } from '@/lib/localStore'
+import { useRows, type Row } from '@/lib/data'
+import { auditApi } from '@/lib/apiClient'
+import { bandCounts, currentScore, type Risk } from '@/lib/risk'
+import { LIGHT_STYLES } from '@/lib/kri'
+import { useOrgSettings } from '@/lib/settings'
+import { DASH, daysUntil, formatDate, formatDateTime, formatNumber } from '@/lib/format'
+import { exportCsv, fileDate, type CsvColumn } from '@/components/analytics/csv'
+import { approvalLabel, countBy, riskCsvColumns, riskLabel, useRisks } from '@/components/analytics/risk-data'
+import { BandCountTable, BarList, Panel } from '@/components/analytics/widgets'
+import { incidentOpen, kriStatuses, numOrNull, SEVERITIES, type KriStatus } from '@/components/analytics/ops-data'
 
-interface ReportRow {
-  id: string
-  name: string
-  type: string
-  lastGenerated: string
-  status: 'Ready' | 'Pending'
-  size: string
-  department: string
-  frequency: string
-}
+type ReportId = 'risks' | 'controls' | 'kri' | 'vendors' | 'incidents' | 'audit'
 
-const REPORT_TEMPLATES: Array<Omit<ReportRow, 'lastGenerated' | 'size'>> = [
-  { id: 'RPT-001', name: 'Executive Board Risk Committee Pack', type: 'Executive', status: 'Ready', department: 'Risk Office', frequency: 'Quarterly' },
-  { id: 'RPT-002', name: 'RCSA Assessment Lifecycle Summary', type: 'Operational', status: 'Ready', department: 'Operations', frequency: 'Quarterly' },
-  { id: 'RPT-003', name: 'SOX Section 404 Control Test Workpapers', type: 'Compliance', status: 'Ready', department: 'Internal Audit', frequency: 'Quarterly' },
-  { id: 'RPT-004', name: 'Immutable Audit Trail Ledger (SOX)', type: 'Audit Trail', status: 'Ready', department: 'Internal Audit', frequency: 'On demand' },
-  { id: 'RPT-005', name: 'Key Risk Indicator (KRI) Threshold Register', type: 'Operational', status: 'Ready', department: 'Risk Office', frequency: 'Monthly' },
-  { id: 'RPT-006', name: 'Control Effectiveness & Residual Risk Report', type: 'Executive', status: 'Ready', department: 'Risk Office', frequency: 'Monthly' },
-  { id: 'RPT-007', name: 'ISO/IEC 27001 Information Security Evidence Pack', type: 'Compliance', status: 'Ready', department: 'IT Security', frequency: 'Annual' },
-  { id: 'RPT-008', name: 'Third-Party Vendor Risk Assessment (TPRM)', type: 'Operational', status: 'Ready', department: 'Procurement', frequency: 'Monthly' },
+const REPORTS: { id: ReportId; name: string; description: string; audit?: boolean }[] = [
+  { id: 'risks', name: 'Risk register', description: 'Active risks by band, category and owner, with ratings and SLE.' },
+  { id: 'controls', name: 'Control library summary', description: 'Library controls, their effectiveness ratings, testing and risk coverage.' },
+  { id: 'kri', name: 'KRI status', description: 'Each active KRI with its latest reading and traffic light.' },
+  { id: 'vendors', name: 'Vendor summary', description: 'Third parties by tier and status, with overdue reviews and open findings.' },
+  { id: 'incidents', name: 'Incident summary', description: 'Incidents by severity and status, with recorded losses.' },
+  { id: 'audit', name: 'Audit trail summary', description: 'Recent audit events by action, entity and user.', audit: true },
 ]
 
+const TABLE_LIMIT = 100
+
+interface QueryLike {
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+  refetch: () => unknown
+  dataUpdatedAt: number
+}
+
+interface Column<T> extends CsvColumn<T> {
+  render?: (row: T) => React.ReactNode
+  align?: 'right'
+  /** Exported to CSV but not shown in the on-screen table. */
+  hidden?: boolean
+}
+
+const text = (v: unknown) => (v === null || v === undefined || String(v).trim() === '' ? DASH : String(v))
+
 export function ReportsPage() {
-  const [selectedReportId, setSelectedReportId] = useState<string>('RPT-001')
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [typeFilter, setTypeFilter] = useState<string>('All')
-
-  // Live Store Snapshots
-  const localControls = useStoreSnapshot(controlsStore)
-  const localVendors = useStoreSnapshot(vendorStore)
-  const localKri = useStoreSnapshot(kriStore)
   const { hasPermission } = useAuth()
-  const { data: auditData } = useQuery({
-    queryKey: ['audit', 'reports'],
-    queryFn: () => auditApi.list({ limit: 1000 }),
-    enabled: hasPermission('audit'),
-  })
-  const auditEntries = auditData?.items ?? []
-
-  const { data: rawRisks = [] } = useQuery({
-    queryKey: ['reports-risks'],
-    queryFn: () => oracleService.getIdentifyRisks(),
-  })
-
-  // Sanitized Risk Records with guaranteed titles
-  const risks = useMemo(() => {
-    return oracleService.parseAllRisks(rawRisks)
-  }, [rawRisks])
-
-  const totalSLE = useMemo(() => risks.reduce((acc, r) => acc + Number(r.sle), 0), [risks])
-  const criticalCount = useMemo(() => risks.filter((r) => r.score >= 16).length, [risks])
-
-  const reportsList = useMemo(() => {
-    return REPORT_TEMPLATES.map((tpl, i) => {
-      const date = new Date(Date.now() - (i + 1) * 2 * 24 * 60 * 60 * 1000)
-      return {
-        ...tpl,
-        lastGenerated: date.toISOString().slice(0, 10),
-        size: `${(140 + i * 18)} KB`,
-      }
-    }).filter(r => {
-      if (typeFilter !== 'All' && r.type !== typeFilter) return false
-      if (globalFilter && !r.name.toLowerCase().includes(globalFilter.toLowerCase())) return false
-      return true
-    })
-  }, [typeFilter, globalFilter])
-
-  const handlePrint = () => {
-    recordAudit({
-      action: 'EXPORT',
-      entity: 'Report',
-      entity_id: selectedReportId,
-      description: `Generated and printed ${REPORT_TEMPLATES.find(t => t.id === selectedReportId)?.name}`,
-      result: 'SUCCESS',
-    })
-    window.print()
-  }
+  const available = REPORTS.filter(r => !r.audit || hasPermission('audit'))
+  const [selected, setSelected] = useState<ReportId>('risks')
+  const current = available.find(r => r.id === selected) ?? available[0]!
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Top Page Header — Hidden when Printing */}
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 print:hidden">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">Reports & Board Deliverables</h1>
-          <p className="text-xs text-slate-500">Formal governance documentation, audit workpapers, and committee packs</p>
+          <h1 className="text-lg font-semibold text-slate-900">Reports</h1>
+          <p className="text-xs text-slate-500">Generated on demand from the live database. Export any report as CSV or print it.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button onClick={handlePrint} size="sm" className="h-8 text-xs bg-blue-900 hover:bg-blue-800 text-white shadow-xs">
-            <Printer className="w-3.5 h-3.5 mr-1.5" />
-            Print / Save as PDF
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <nav className="bg-white rounded border border-slate-200 h-fit print:hidden" aria-label="Reports">
+          <ul className="divide-y divide-slate-100">
+            {available.map(r => (
+              <li key={r.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(r.id)}
+                  aria-current={current.id === r.id ? 'page' : undefined}
+                  className={cn('w-full text-left px-4 py-3 text-xs transition-colors', current.id === r.id ? 'bg-slate-50' : 'hover:bg-slate-50')}
+                >
+                  <span className={cn('block font-medium', current.id === r.id ? 'text-blue-800' : 'text-slate-900')}>{r.name}</span>
+                  <span className="block text-[11px] text-slate-500 mt-0.5">{r.description}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        <div className="lg:col-span-3 space-y-4">
+          {current.id === 'risks' && <RiskRegisterReport />}
+          {current.id === 'controls' && <ControlReport />}
+          {current.id === 'kri' && <KriReport />}
+          {current.id === 'vendors' && <VendorReport />}
+          {current.id === 'incidents' && <IncidentReport />}
+          {current.id === 'audit' && <AuditReport />}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ shell */
+
+function ReportShell<T>({
+  title,
+  entity,
+  queries,
+  rows,
+  columns,
+  emptyTitle,
+  summary,
+  tableNote,
+}: {
+  title: string
+  entity: string
+  queries: QueryLike[]
+  rows: T[]
+  columns: Column<T>[]
+  emptyTitle: string
+  summary?: React.ReactNode
+  tableNote?: string
+}) {
+  const loaded = queries.every(q => !q.isLoading && !q.isError)
+  const updatedAt = Math.max(...queries.map(q => q.dataUpdatedAt || 0))
+  const onExport = () =>
+    exportCsv({
+      filename: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${fileDate()}`,
+      entity,
+      description: `Exported report: ${title}`,
+      rows,
+      columns,
+    })
+  const shown = rows.slice(0, TABLE_LIMIT)
+  const screen = columns.filter(c => !c.hidden)
+
+  return (
+    <>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 bg-white rounded border border-slate-200 p-4">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            {loaded && updatedAt ? `Data as of ${formatDateTime(new Date(updatedAt).toISOString())}` : 'Loading data…'}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 print:hidden">
+          <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => window.print()} disabled={!loaded}>
+            <Printer className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            Print
+          </Button>
+          <Button size="sm" className="h-8 text-xs" onClick={onExport} disabled={!loaded || rows.length === 0}>
+            <FileDown className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+            Export CSV
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start print:block print:w-full">
-        {/* Left: Report Catalog Selector — Hidden when Printing */}
-        <div className="space-y-3 print:hidden">
-          <div className="bg-white rounded border border-slate-200 p-3 space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-              <Input
-                placeholder="Search reports..."
-                value={globalFilter}
-                onChange={e => setGlobalFilter(e.target.value)}
-                className="pl-8 h-8 text-xs bg-slate-50"
-              />
-            </div>
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 text-xs">
-              {(['All', 'Executive', 'Operational', 'Compliance'] as const).map(t => (
-                <button
-                  key={t}
-                  onClick={() => setTypeFilter(t)}
-                  className={cn(
-                    'px-2 py-0.5 rounded text-xs transition-colors whitespace-nowrap',
-                    typeFilter === t ? 'bg-slate-900 text-white font-medium' : 'text-slate-600 hover:bg-slate-100'
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+      <DataState query={queries} empty={rows.length === 0} emptyTitle={emptyTitle}>
+        {summary && <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{summary}</div>}
+        <Panel title="Detail" bodyClassName="p-0" action={<span className="text-[11px] text-slate-500">{rows.length} rows</span>}>
+          <div className="overflow-x-auto">
+            <table className="enterprise-table">
+              <thead>
+                <tr>
+                  {screen.map(c => (
+                    <th key={c.header} className={c.align === 'right' ? 'text-right' : undefined}>{c.header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((row, i) => (
+                  <tr key={i}>
+                    {screen.map(c => (
+                      <td key={c.header} className={c.align === 'right' ? 'text-right tabular-nums' : undefined}>
+                        {c.render ? c.render(row) : text(c.value(row))}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
+          {(rows.length > TABLE_LIMIT || tableNote) && (
+            <p className="px-4 py-2 text-[11px] text-slate-500 border-t border-slate-200">
+              {rows.length > TABLE_LIMIT ? `Showing the first ${TABLE_LIMIT} of ${rows.length} rows; the CSV export contains all of them. ` : ''}
+              {tableNote}
+            </p>
+          )}
+        </Panel>
+      </DataState>
+    </>
+  )
+}
 
-          <div className="bg-white rounded border border-slate-200 overflow-hidden divide-y divide-slate-100">
-            {reportsList.map(r => {
-              const isSelected = selectedReportId === r.id
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => setSelectedReportId(r.id)}
-                  className={cn(
-                    'p-3 cursor-pointer transition-colors text-xs space-y-1',
-                    isSelected ? 'bg-blue-50/70 border-l-4 border-l-blue-900' : 'hover:bg-slate-50'
-                  )}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-900 truncate pr-2">{r.name}</span>
-                    <span className="text-[10px] text-slate-400">{r.frequency}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-slate-500">
-                    <span>{r.department}</span>
-                    <span className="font-mono text-[10px]">{r.lastGenerated}</span>
-                  </div>
-                </div>
-              )
-            })}
+function Figures({ title, items }: { title: string; items: { label: string; value: React.ReactNode; tone?: string }[] }) {
+  return (
+    <Panel title={title}>
+      <dl className="space-y-2">
+        {items.map(i => (
+          <div key={i.label} className="flex justify-between gap-3 text-xs">
+            <dt className="text-slate-600">{i.label}</dt>
+            <dd className={cn('font-semibold tabular-nums text-slate-900', i.tone)}>{i.value}</dd>
           </div>
-        </div>
+        ))}
+      </dl>
+    </Panel>
+  )
+}
 
-        {/* Right: Dynamic Formatted Report Preview (The ONLY section visible in Print/PDF) */}
-        <div className="lg:col-span-2 bg-white rounded border border-slate-200 p-6 space-y-6 shadow-xs print:p-0 print:border-none print:shadow-none print:w-full print:m-0 print:space-y-4">
-          
-          {/* ========================================================================= */}
-          {/* 1. REPORT: Executive Board Risk Committee Pack (RPT-001) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-001' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Executive Governance Pack</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">Quarterly Risk & Governance Report</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Target Scope: Board Risk Committee &middot; Cycle: Q1 2026 Assessment &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">
-                  Audit Ready
-                </Badge>
-              </div>
+/* ------------------------------------------------------------- risk register */
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Executive Exposure Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Total Active Risks</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">{risks.length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Gross SLE Exposure</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">${(totalSLE / 1000).toFixed(0)}k</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Critical Band Risks</span>
-                    <span className="text-xl font-bold text-rose-700 tabular-nums">{criticalCount}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Control Coverage</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">78.4%</span>
-                  </div>
-                </div>
-              </div>
+function RiskRegisterReport() {
+  const { bands, money, settings } = useOrgSettings()
+  const q = useRisks()
+  const all = q.data
+  const risks = useMemo(() => (all ?? []).filter(r => r.isActive), [all])
+  const csv = useMemo(() => riskCsvColumns(bands, settings.currency), [bands, settings.currency])
+  const columns: Column<Risk>[] = useMemo(() => {
+    const render: Record<string, (r: Risk) => React.ReactNode> = {
+      'Risk statement': r => <span className="font-medium text-slate-900">{riskLabel(r)}</span>,
+      'Inherent score': r => <BandBadge score={r.inherentScore} />,
+      'Residual score': r => <BandBadge score={r.residualScore} />,
+      [`SLE (${settings.currency})`]: r => money(r.sle),
+      'Created on': r => formatDate(r.createdOn),
+    }
+    const shownOnScreen = new Set(['Risk ID', 'Risk statement', 'Category', 'Process', 'Owner', 'Inherent score', 'Residual score', `SLE (${settings.currency})`, 'Approval status', 'Created on'])
+    // The on-screen table shows a subset; CSV export uses every column.
+    return csv.map(c => ({ ...c, render: render[c.header], align: c.header.startsWith('SLE') ? ('right' as const) : undefined, hidden: !shownOnScreen.has(c.header) }))
+  }, [csv, money, settings.currency])
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Top High-Exposure Risk Scenarios</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[45%]">Risk Scenario</th>
-                      <th className="w-[20%]">Department</th>
-                      <th className="w-[20%]">Single Loss (SLE)</th>
-                      <th className="w-[15%]">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {risks.slice(0, 5).map((r: any, i: number) => (
-                      <tr key={i}>
-                        <td>
-                          <span className="font-medium text-slate-900">{r.risk_statement}</span>
-                        </td>
-                        <td className="text-slate-600">{r.process_name}</td>
-                        <td className="font-medium tabular-nums text-slate-900">
-                          ${(Number(r.inherent_sle) || 40000).toLocaleString()}
-                        </td>
-                        <td>
-                          <StatusBadge status={r.approval_status === 'APPROVED' ? 'approved' : 'in-review'} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+  const stats = useMemo(() => {
+    const withSle = risks.filter(r => r.sle != null)
+    return {
+      current: bandCounts(risks.map(currentScore), bands),
+      inherent: bandCounts(risks.map(r => r.inherentScore), bands),
+      residual: bandCounts(risks.map(r => r.residualScore), bands),
+      byCategory: countBy(risks, r => r.category),
+      byOwner: countBy(risks, r => r.owner),
+      byApproval: countBy(risks, r => approvalLabel(r.approvalStatus)),
+      sle: withSle.length ? withSle.reduce((s, r) => s + (r.sle ?? 0), 0) : null,
+      sleCount: withSle.length,
+    }
+  }, [risks, bands])
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">3. Key Risk Indicator (KRI) Operational Thresholds</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[40%]">Indicator Metric</th>
-                      <th className="w-[20%]">Unit & Frequency</th>
-                      <th className="w-[20%]">Upper Limit</th>
-                      <th className="w-[20%]">Breach Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {localKri.map((kri: any, idx: number) => (
-                      <tr key={idx}>
-                        <td className="font-medium text-slate-900">{kri.name}</td>
-                        <td className="text-slate-600">{kri.unit}</td>
-                        <td className="font-mono text-slate-700">&lt; {kri.amberThreshold}</td>
-                        <td>
-                          <StatusBadge status={kri.currentValue >= kri.redThreshold ? 'critical' : kri.currentValue >= kri.amberThreshold ? 'warning' : 'success'} label={kri.currentValue >= kri.redThreshold ? 'Breach' : kri.currentValue >= kri.amberThreshold ? 'Warning' : 'Normal'} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+  return (
+    <ReportShell
+      title="Risk register"
+      entity="per_trn_identify_risk"
+      queries={[q]}
+      rows={risks}
+      columns={columns}
+      emptyTitle="No active risks in the register"
+      summary={
+        <>
+          <Panel title="By band" bodyClassName="p-0">
+            <BandCountTable columns={[{ label: 'Inherent', counts: stats.inherent }, { label: 'Residual', counts: stats.residual }, { label: 'Current', counts: stats.current }]} />
+            <p className="px-4 py-2 text-[11px] text-slate-500 border-t border-slate-200">Current = residual if assessed, else inherent.</p>
+          </Panel>
+          <Panel title="By category">
+            <BarList items={stats.byCategory} total={risks.length} limit={8} />
+          </Panel>
+          <Panel title="By owner">
+            <BarList items={stats.byOwner} total={risks.length} limit={8} />
+          </Panel>
+          <Figures
+            title="Totals"
+            items={[
+              { label: 'Active risks', value: formatNumber(risks.length) },
+              { label: 'Recorded SLE', value: money(stats.sle) },
+              { label: 'Risks with an SLE', value: formatNumber(stats.sleCount) },
+              ...stats.byApproval.map(a => ({ label: a.name, value: formatNumber(a.count) })),
+            ]}
+          />
+        </>
+      }
+    />
+  )
+}
 
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex flex-col sm:flex-row justify-between gap-4 print:break-inside-avoid">
-                <div>
-                  <span className="font-semibold text-slate-800 block">Report Certified by:</span>
-                  <span>Chief Risk Officer (CRO) &middot; Board Risk Committee</span>
-                </div>
-                <div className="sm:text-right">
-                  <span className="font-semibold text-slate-800 block">Regulatory Compliance:</span>
-                  <span>SOX Section 404 &middot; ISO/IEC 31000:2018</span>
-                </div>
-              </div>
-            </>
-          )}
+/* ------------------------------------------------------------------ controls */
 
-          {/* ========================================================================= */}
-          {/* 2. REPORT: RCSA Assessment Lifecycle Summary (RPT-002) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-002' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Operational Risk</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">RCSA Assessment Lifecycle Summary</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Departmental Assessment Progress &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">RCSA Cycle 2026</Badge>
-              </div>
+function ControlReport() {
+  const controlsQ = useRows('erm_mst_control')
+  const linksQ = useRows('erm_lnk_control_risk')
+  const implQ = useRows('per_trn_control_implementation')
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Assessment Stage Progression Overview</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Total Active Cycles</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">4</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Identification Phase</span>
-                    <span className="text-xl font-bold text-blue-700 tabular-nums">100%</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Control Evaluation</span>
-                    <span className="text-xl font-bold text-amber-700 tabular-nums">78%</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Monitoring Stage</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">67%</span>
-                  </div>
-                </div>
-              </div>
+  const linked = useMemo(() => {
+    const m = new Map<number, Set<number>>()
+    const add = (c: unknown, r: unknown) => {
+      if (c == null || r == null) return
+      const set = m.get(Number(c)) ?? new Set<number>()
+      set.add(Number(r))
+      m.set(Number(c), set)
+    }
+    for (const l of linksQ.data ?? []) add(l.control_uuid, l.risk_uuid)
+    for (const i of implQ.data ?? []) add(i.control_id, i.identify_risk_uuid)
+    return m
+  }, [linksQ.data, implQ.data])
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Departmental Assessment Schedules</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[30%]">Assessment Cycle</th>
-                      <th className="w-[25%]">Target Department</th>
-                      <th className="w-[20%]">Risk Champion</th>
-                      <th className="w-[15%]">Active Stage</th>
-                      <th className="w-[10%]">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { code: 'RCSA-FIN-2026-001', dept: 'Finance & Treasury', champ: 'Priya Sharma', stage: '03 Controls', status: 'In Progress' },
-                      { code: 'RCSA-IT-2026-002', dept: 'Information Technology', champ: 'Anthony Muller', stage: '04 Monitoring', status: 'Completed' },
-                      { code: 'RCSA-LEG-2026-003', dept: 'Legal & Compliance', champ: 'Lin Wei', stage: '02 Identify', status: 'In Progress' },
-                      { code: 'RCSA-OPS-2026-004', dept: 'Operations & Logistics', champ: 'Anthony Muller', stage: '03 Controls', status: 'In Progress' },
-                    ].map((row, i) => (
-                      <tr key={i}>
-                        <td>
-                          <span className="font-semibold text-slate-900 font-mono text-xs">{row.code}</span>
-                        </td>
-                        <td className="text-slate-700">{row.dept}</td>
-                        <td className="text-slate-600">{row.champ}</td>
-                        <td className="font-medium text-slate-800">{row.stage}</td>
-                        <td>
-                          <StatusBadge status={row.status === 'Completed' ? 'completed' : 'in-review'} label={row.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+  const controls = controlsQ.data ?? []
+  const stats = useMemo(() => {
+    const design = controls.map(c => numOrNull(c.design_effectiveness)).filter((n): n is number => n != null)
+    const operating = controls.map(c => numOrNull(c.operating_effectiveness)).filter((n): n is number => n != null)
+    const avg = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : null)
+    return {
+      byStatus: countBy(controls, c => c.status),
+      byType: countBy(controls, c => c.control_type),
+      design: avg(design),
+      designN: design.length,
+      operating: avg(operating),
+      operatingN: operating.length,
+      untested: controls.filter(c => !c.last_tested_on).length,
+      linked: controls.filter(c => (linked.get(Number(c.uuid))?.size ?? 0) > 0).length,
+    }
+  }, [controls, linked])
 
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Reviewed by: Head of Operational Risk</span></div>
-                <div><span>Governance Sign-off: Attested</span></div>
-              </div>
-            </>
-          )}
+  const columns: Column<Row>[] = [
+    { header: 'Code', value: c => c.control_code },
+    { header: 'Name', value: c => c.control_name, render: c => <span className="font-medium text-slate-900">{text(c.control_name)}</span> },
+    { header: 'Type', value: c => c.control_type },
+    { header: 'Nature', value: c => c.control_nature },
+    { header: 'Frequency', value: c => c.frequency },
+    { header: 'Owner', value: c => c.owner_name },
+    { header: 'Design (1–5)', value: c => numOrNull(c.design_effectiveness), align: 'right' },
+    { header: 'Operating (1–5)', value: c => numOrNull(c.operating_effectiveness), align: 'right' },
+    { header: 'Last tested', value: c => c.last_tested_on, render: c => formatDate(c.last_tested_on) },
+    { header: 'Linked risks', value: c => linked.get(Number(c.uuid))?.size ?? 0, align: 'right' },
+    { header: 'Status', value: c => c.status },
+  ]
 
-          {/* ========================================================================= */}
-          {/* 3. REPORT: SOX Section 404 Control Test Workpapers (RPT-003) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-003' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Internal Audit & Compliance</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">SOX Section 404 Control Test Workpapers</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Internal Controls Over Financial Reporting (ICFR) &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">SOX 404(b)</Badge>
-              </div>
+  return (
+    <ReportShell
+      title="Control library summary"
+      entity="erm_mst_control"
+      queries={[controlsQ, linksQ, implQ]}
+      rows={controls}
+      columns={columns}
+      emptyTitle="No controls in the library yet"
+      summary={
+        <>
+          <Figures
+            title="Effectiveness"
+            items={[
+              { label: 'Controls', value: formatNumber(controls.length) },
+              { label: `Average design (${stats.designN} rated)`, value: stats.design == null ? DASH : `${formatNumber(stats.design, 1)} / 5` },
+              { label: `Average operating (${stats.operatingN} rated)`, value: stats.operating == null ? DASH : `${formatNumber(stats.operating, 1)} / 5` },
+              { label: 'Never tested', value: formatNumber(stats.untested), tone: stats.untested ? 'text-amber-700' : undefined },
+              { label: 'Linked to at least one risk', value: formatNumber(stats.linked) },
+            ]}
+          />
+          <Panel title="By status">
+            <BarList items={stats.byStatus} total={controls.length} />
+          </Panel>
+          <Panel title="By type">
+            <BarList items={stats.byType} total={controls.length} />
+          </Panel>
+        </>
+      }
+      tableNote="Linked risks counts distinct risks from control–risk links and applied controls."
+    />
+  )
+}
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Control Testing Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Controls Evaluated</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">{localControls.length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Effective / Tested</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">{localControls.filter((c: any) => c.status === 'Active').length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Control Deficiencies</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">0</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Avg Operating Score</span>
-                    <span className="text-xl font-bold text-blue-700 tabular-nums">4.4 / 5</span>
-                  </div>
-                </div>
-              </div>
+/* ----------------------------------------------------------------------- KRI */
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Control Testing Workpapers Matrix</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[15%]">Control Code</th>
-                      <th className="w-[35%]">Control Title</th>
-                      <th className="w-[15%]">Type & Nature</th>
-                      <th className="w-[15%]">Frequency</th>
-                      <th className="w-[10%]">Design</th>
-                      <th className="w-[10%]">Operating</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {localControls.map((c: any, idx: number) => (
-                      <tr key={idx}>
-                        <td className="font-mono text-slate-700 font-semibold">{c.code}</td>
-                        <td>
-                          <span className="font-medium text-slate-900">{c.name}</span>
-                          <span className="block text-[11px] text-slate-500">{c.owner}</span>
-                        </td>
-                        <td className="text-slate-600">{c.type} / {c.nature}</td>
-                        <td className="text-slate-600">{c.frequency}</td>
-                        <td className="font-mono font-medium text-slate-800">{c.designEffectiveness}/5</td>
-                        <td className="font-mono font-medium text-emerald-700">{c.operatingEffectiveness}/5</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+function LightChip({ light }: { light: KriStatus['light'] }) {
+  if (!light) return <span className="text-[11px] text-slate-500">No reading</span>
+  const s = LIGHT_STYLES[light]
+  return (
+    <span className={cn('inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium', s.bg, s.text, s.border)}>
+      <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} aria-hidden="true" />
+      {light}
+    </span>
+  )
+}
 
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Audit Workpaper Lead: Lin Wei (Internal Auditor)</span></div>
-                <div><span>Attestation: Controls verified operating effectively</span></div>
-              </div>
-            </>
-          )}
+function KriReport() {
+  const defsQ = useRows('erm_mst_kri_definition')
+  const readsQ = useRows('erm_trn_kri_readings')
+  const statuses = useMemo(() => kriStatuses(defsQ.data ?? [], readsQ.data ?? []), [defsQ.data, readsQ.data])
+  const count = (l: KriStatus['light']) => statuses.filter(s => s.light === l).length
 
-          {/* ========================================================================= */}
-          {/* 4. REPORT: Immutable Audit Trail Ledger (SOX) (RPT-004) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-004' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; System of Record</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">Immutable Audit Trail Ledger</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Chronological System Events & Mutations &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">Tamper Evident</Badge>
-              </div>
+  const columns: Column<KriStatus>[] = [
+    { header: 'Code', value: s => s.kri.code },
+    { header: 'Name', value: s => s.kri.name, render: s => <span className="font-medium text-slate-900">{text(s.kri.name)}</span> },
+    { header: 'Category', value: s => s.kri.category },
+    { header: 'Owner', value: s => s.kri.owner },
+    { header: 'Direction', value: s => (s.kri.direction === 'HIGHER_WORSE' ? 'Higher is worse' : 'Lower is worse') },
+    { header: 'Amber threshold', value: s => s.kri.amber, align: 'right' },
+    { header: 'Red threshold', value: s => s.kri.red, align: 'right' },
+    { header: 'Latest value', value: s => s.latest?.value ?? null, render: s => (s.latest ? `${formatNumber(s.latest.value, 2)}${s.kri.unit ? ` ${s.kri.unit}` : ''}` : DASH), align: 'right' },
+    { header: 'Reading date', value: s => s.latest?.date ?? null, render: s => formatDate(s.latest?.date) },
+    { header: 'Status', value: s => s.light ?? 'No reading', render: s => <LightChip light={s.light} /> },
+  ]
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Event Log Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Total Events Logged</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">{auditEntries.length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Create Mutations</span>
-                    <span className="text-xl font-bold text-blue-700 tabular-nums">{auditEntries.filter((e: any) => e.action === 'CREATE').length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Updates / Approvals</span>
-                    <span className="text-xl font-bold text-amber-700 tabular-nums">{auditEntries.filter((e: any) => e.action === 'UPDATE' || e.action === 'APPROVE').length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Integrity Status</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">Verified</span>
-                  </div>
-                </div>
-              </div>
+  return (
+    <ReportShell
+      title="KRI status"
+      entity="erm_mst_kri_definition"
+      queries={[defsQ, readsQ]}
+      rows={statuses}
+      columns={columns}
+      emptyTitle="No active KRIs defined"
+      summary={
+        <Figures
+          title="Latest readings"
+          items={[
+            { label: 'Active KRIs', value: formatNumber(statuses.length) },
+            { label: 'Red', value: formatNumber(count('RED')), tone: 'text-red-700' },
+            { label: 'Amber', value: formatNumber(count('AMBER')), tone: 'text-amber-700' },
+            { label: 'Green', value: formatNumber(count('GREEN')), tone: 'text-emerald-700' },
+            { label: 'No reading / thresholds', value: formatNumber(count(null)) },
+          ]}
+        />
+      }
+      tableNote="Status is computed from each KRI's latest reading against its amber and red thresholds."
+    />
+  )
+}
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Chronological System Events Table</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[18%]">Timestamp</th>
-                      <th className="w-[18%]">User & Role</th>
-                      <th className="w-[14%]">Action</th>
-                      <th className="w-[18%]">Entity</th>
-                      <th className="w-[32%]">Event Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {auditEntries.slice(0, 8).map((e: any, idx: number) => (
-                      <tr key={idx}>
-                        <td className="font-mono text-[11px] text-slate-600">{new Date(e.timestamp).toLocaleString()}</td>
-                        <td>
-                          <span className="font-medium text-slate-900 block">{e.actor_name}</span>
-                          <span className="text-[10px] text-slate-400">{e.actor_role}</span>
-                        </td>
-                        <td className="font-mono text-xs font-semibold">{e.action}</td>
-                        <td className="text-slate-700">{e.entity}</td>
-                        <td className="text-slate-600 line-clamp-1">{e.description}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+/* ------------------------------------------------------------------- vendors */
 
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Database Engine: Autonomous Transaction Triggers</span></div>
-                <div><span>Attestation: Non-repudiation verified</span></div>
-              </div>
-            </>
-          )}
+function VendorReport() {
+  const { money, settings } = useOrgSettings()
+  const q = useRows('erm_mst_vendor')
+  const vendors = q.data ?? []
+  const overdue = (v: Row) => {
+    const d = daysUntil(v.next_review_on)
+    return d != null && d < 0
+  }
+  const stats = useMemo(() => {
+    const values = vendors.map(v => numOrNull(v.contract_value)).filter((n): n is number => n != null)
+    const findings = vendors.map(v => numOrNull(v.open_findings)).filter((n): n is number => n != null)
+    return {
+      byTier: countBy(vendors, v => v.tier),
+      byStatus: countBy(vendors, v => v.status),
+      overdue: vendors.filter(overdue).length,
+      contract: values.length ? values.reduce((s, x) => s + x, 0) : null,
+      contractN: values.length,
+      findings: findings.length ? findings.reduce((s, x) => s + x, 0) : null,
+    }
+  }, [vendors])
 
-          {/* ========================================================================= */}
-          {/* 5. REPORT: Key Risk Indicator (KRI) Threshold Register (RPT-005) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-005' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Risk Telemetry</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">Key Risk Indicator (KRI) Threshold Register</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Continuous Operational Telemetry &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">Continuous Telemetry</Badge>
-              </div>
+  const columns: Column<Row>[] = [
+    { header: 'Vendor', value: v => v.vendor_name, render: v => <span className="font-medium text-slate-900">{text(v.vendor_name)}</span> },
+    { header: 'Category', value: v => v.category },
+    { header: 'Tier', value: v => v.tier },
+    { header: 'Country', value: v => v.country_code },
+    { header: `Contract value (${settings.currency})`, value: v => numOrNull(v.contract_value), render: v => money(numOrNull(v.contract_value)), align: 'right' },
+    { header: 'Risk score (1–100)', value: v => numOrNull(v.risk_score), align: 'right' },
+    { header: 'Open findings', value: v => numOrNull(v.open_findings), align: 'right' },
+    { header: 'Last assessed', value: v => v.last_assessment_on, render: v => formatDate(v.last_assessment_on) },
+    {
+      header: 'Next review',
+      value: v => v.next_review_on,
+      render: v => (
+        <span className={overdue(v) ? 'text-red-700 font-medium' : undefined}>
+          {formatDate(v.next_review_on)}
+          {overdue(v) ? ' · overdue' : ''}
+        </span>
+      ),
+    },
+    { header: 'Review overdue', value: v => (overdue(v) ? 'Yes' : 'No'), hidden: true },
+    { header: 'Status', value: v => v.status },
+  ]
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Indicator Health Overview</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Total Tracked KRIs</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">{localKri.length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Green / Normal</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">{localKri.filter((k: any) => k.currentValue < k.amberThreshold).length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Amber Warnings</span>
-                    <span className="text-xl font-bold text-amber-700 tabular-nums">{localKri.filter((k: any) => k.currentValue >= k.amberThreshold && k.currentValue < k.redThreshold).length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Red Breaches</span>
-                    <span className="text-xl font-bold text-rose-700 tabular-nums">{localKri.filter((k: any) => k.currentValue >= k.redThreshold).length}</span>
-                  </div>
-                </div>
-              </div>
+  return (
+    <ReportShell
+      title="Vendor summary"
+      entity="erm_mst_vendor"
+      queries={[q]}
+      rows={vendors}
+      columns={columns}
+      emptyTitle="No vendors recorded yet"
+      summary={
+        <>
+          <Figures
+            title="Totals"
+            items={[
+              { label: 'Vendors', value: formatNumber(vendors.length) },
+              { label: `Contract value (${stats.contractN} recorded)`, value: money(stats.contract) },
+              { label: 'Open findings', value: formatNumber(stats.findings) },
+              { label: 'Reviews overdue', value: formatNumber(stats.overdue), tone: stats.overdue ? 'text-red-700' : undefined },
+            ]}
+          />
+          <Panel title="By tier">
+            <BarList items={stats.byTier} total={vendors.length} />
+          </Panel>
+          <Panel title="By status">
+            <BarList items={stats.byStatus} total={vendors.length} />
+          </Panel>
+        </>
+      }
+    />
+  )
+}
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Indicator Threshold & Reading Ledger</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[15%]">KRI Code</th>
-                      <th className="w-[30%]">Indicator Title</th>
-                      <th className="w-[15%]">Owner</th>
-                      <th className="w-[15%]">Green / Amber Bound</th>
-                      <th className="w-[12%]">Current Value</th>
-                      <th className="w-[13%]">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {localKri.map((k: any, idx: number) => {
-                      const isRed = k.currentValue >= k.redThreshold
-                      const isAmber = k.currentValue >= k.amberThreshold && !isRed
-                      return (
-                        <tr key={idx}>
-                          <td className="font-mono text-slate-700 font-semibold">{k.code}</td>
-                          <td>
-                            <span className="font-medium text-slate-900">{k.name}</span>
-                            <span className="block text-[11px] text-slate-400">{k.category}</span>
-                          </td>
-                          <td className="text-slate-600">{k.owner}</td>
-                          <td className="font-mono text-slate-700">&le; {k.greenThreshold} / &le; {k.amberThreshold} {k.unit}</td>
-                          <td className="font-mono font-bold text-slate-900">{k.currentValue} {k.unit}</td>
-                          <td>
-                            <StatusBadge status={isRed ? 'critical' : isAmber ? 'warning' : 'success'} label={isRed ? 'Breach' : isAmber ? 'Warning' : 'Normal'} />
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+/* ----------------------------------------------------------------- incidents */
 
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Monitoring Custodian: Risk Operations Lead</span></div>
-                <div><span>Escalation Protocol: Automated Webhooks Active</span></div>
-              </div>
-            </>
-          )}
+function IncidentReport() {
+  const { money, settings } = useOrgSettings()
+  const q = useRows('erm_trn_incident')
+  const incidents = q.data ?? []
+  const stats = useMemo(() => {
+    const losses = incidents.map(i => numOrNull(i.loss_amount)).filter((n): n is number => n != null)
+    const open = incidents.filter(incidentOpen)
+    return {
+      open: open.length,
+      openBySeverity: SEVERITIES.map(s => ({ name: s, count: open.filter(i => String(i.severity ?? '').toLowerCase() === s.toLowerCase()).length })),
+      byStatus: countBy(incidents, i => i.status),
+      loss: losses.length ? losses.reduce((s, x) => s + x, 0) : null,
+      lossN: losses.length,
+    }
+  }, [incidents])
 
-          {/* ========================================================================= */}
-          {/* 6. REPORT: Control Effectiveness & Residual Risk Report (RPT-006) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-006' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Risk Quantification</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">Control Effectiveness & Residual Risk Report</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Inherent vs Residual Exposure Reduction &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">FAIR Model</Badge>
-              </div>
+  const columns: Column<Row>[] = [
+    { header: 'Reference', value: i => i.incident_ref },
+    { header: 'Title', value: i => i.title, render: i => <span className="font-medium text-slate-900">{text(i.title)}</span> },
+    { header: 'Severity', value: i => i.severity },
+    { header: 'Status', value: i => i.status },
+    { header: 'Category', value: i => i.category },
+    { header: 'Assigned to', value: i => i.assigned_to },
+    { header: 'Occurred', value: i => i.occurred_on, render: i => formatDate(i.occurred_on) },
+    { header: 'Reported', value: i => i.reported_on, render: i => formatDate(i.reported_on) },
+    { header: 'Closed', value: i => i.closed_on, render: i => formatDate(i.closed_on) },
+    { header: `Loss (${settings.currency})`, value: i => numOrNull(i.loss_amount), render: i => money(numOrNull(i.loss_amount)), align: 'right' },
+  ]
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Portfolio Risk Reduction Metrics</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Gross Inherent SLE</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">${(totalSLE / 1000).toFixed(0)}k</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Net Residual SLE</span>
-                    <span className="text-xl font-bold text-blue-700 tabular-nums">${Math.round((totalSLE * 0.32) / 1000)}k</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Exposure Mitigated</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">68%</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Active Controls</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">{localControls.length}</span>
-                  </div>
-                </div>
-              </div>
+  return (
+    <ReportShell
+      title="Incident summary"
+      entity="erm_trn_incident"
+      queries={[q]}
+      rows={incidents}
+      columns={columns}
+      emptyTitle="No incidents recorded"
+      summary={
+        <>
+          <Figures
+            title="Totals"
+            items={[
+              { label: 'Incidents', value: formatNumber(incidents.length) },
+              { label: 'Open (not mitigated or closed)', value: formatNumber(stats.open), tone: stats.open ? 'text-amber-700' : undefined },
+              { label: `Recorded losses (${stats.lossN} with an amount)`, value: money(stats.loss) },
+            ]}
+          />
+          <Panel title="Open by severity">
+            <BarList items={stats.openBySeverity} total={stats.open} />
+          </Panel>
+          <Panel title="By status">
+            <BarList items={stats.byStatus} total={incidents.length} />
+          </Panel>
+        </>
+      }
+    />
+  )
+}
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Inherent to Residual Risk Step-Down Matrix</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[40%]">Risk Scenario</th>
-                      <th className="w-[15%]">Inherent Score</th>
-                      <th className="w-[15%]">Mapped Controls</th>
-                      <th className="w-[15%]">Residual Score</th>
-                      <th className="w-[15%]">Reduction</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {risks.slice(0, 5).map((r: any, i: number) => {
-                      const inhScore = Math.min(25, Math.max(1, Math.round((Number(r.inherent_sle) || 40000) / 10000)))
-                      const resScore = Math.max(1, Math.round(inhScore * 0.35))
-                      const reductionPct = Math.round(((inhScore - resScore) / inhScore) * 100)
-                      return (
-                        <tr key={i}>
-                          <td>
-                            <span className="font-medium text-slate-900">{r.risk_statement}</span>
-                          </td>
-                          <td className="font-mono text-slate-800 font-bold">{inhScore}/25</td>
-                          <td className="text-slate-600">CTL-00{(i % 5) + 1}</td>
-                          <td className="font-mono text-emerald-700 font-bold">{resScore}/25</td>
-                          <td>
-                            <span className="text-emerald-700 font-semibold">{reductionPct}% &darr;</span>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+/* --------------------------------------------------------------------- audit */
 
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Formula: S = L &times; I &middot; Residual SLE = S_res &times; $10k</span></div>
-                <div><span>Certified: Risk Governance Lead</span></div>
-              </div>
-            </>
-          )}
+type AuditEntry = Awaited<ReturnType<typeof auditApi.list>>['items'][number]
 
-          {/* ========================================================================= */}
-          {/* 7. REPORT: ISO/IEC 27001 Information Security Evidence Pack (RPT-007) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-007' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Information Security Management System</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">ISO/IEC 27001:2022 Security Evidence Pack</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Annex A Information Security Controls &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">ISO 27001:2022</Badge>
-              </div>
+function AuditReport() {
+  const q = useQuery({ queryKey: ['audit', 'reports-summary'], queryFn: () => auditApi.list({ limit: 1000 }) })
+  const entries = q.data?.items ?? []
+  const total = q.data?.total ?? 0
+  const stats = useMemo(
+    () => ({
+      byAction: countBy(entries, e => e.action),
+      byEntity: countBy(entries, e => e.entity),
+      byActor: countBy(entries, e => e.actor_name || e.actor_email),
+      failures: entries.filter(e => e.result === 'FAILURE').length,
+    }),
+    [entries],
+  )
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. ISMS Control Implementation Summary</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Annex A Controls</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">93</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Implemented</span>
-                    <span className="text-xl font-bold text-emerald-700 tabular-nums">96.8%</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Tested Frequency</span>
-                    <span className="text-xl font-bold text-blue-700 tabular-nums">Continuous</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Audit Certification</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">Compliant</span>
-                  </div>
-                </div>
-              </div>
+  const columns: Column<AuditEntry>[] = [
+    { header: 'Seq', value: e => e.seq, align: 'right' },
+    { header: 'Timestamp', value: e => e.timestamp, render: e => <span className="whitespace-nowrap text-[11px] text-slate-500">{formatDateTime(e.timestamp)}</span> },
+    { header: 'User', value: e => e.actor_name },
+    { header: 'Role', value: e => e.actor_role },
+    { header: 'Action', value: e => e.action },
+    { header: 'Entity', value: e => e.entity },
+    { header: 'Entity ID', value: e => e.entity_id },
+    { header: 'Description', value: e => e.description },
+    { header: 'Result', value: e => e.result },
+  ]
 
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Key Information Security Controls Matrix</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[15%]">Annex A Clause</th>
-                      <th className="w-[35%]">Control Implementation</th>
-                      <th className="w-[15%]">Nature</th>
-                      <th className="w-[20%]">Testing Evidence</th>
-                      <th className="w-[15%]">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { clause: 'A.5.15', name: 'Multi-Factor Authentication on Production Systems', nature: 'Automated', evidence: 'SSO & Hardware Token Logs', status: 'Compliant' },
-                      { clause: 'A.8.12', name: 'Data Leakage Prevention (DLP) Policies', nature: 'Automated', evidence: 'Cloud DLP Endpoint Audit', status: 'Compliant' },
-                      { clause: 'A.8.24', name: 'Use of Cryptography (AES-256 GCM at Rest)', nature: 'Automated', evidence: 'Database Encryption Keys', status: 'Compliant' },
-                      { clause: 'A.8.8', name: 'Management of Technical Vulnerabilities', nature: 'Hybrid', evidence: 'Monthly CVE Vulnerability Scans', status: 'Compliant' },
-                      { clause: 'A.8.13', name: 'Information Backup & Offsite Retention', nature: 'Automated', evidence: 'Daily Geo-Redundant Backups', status: 'Compliant' },
-                    ].map((row, i) => (
-                      <tr key={i}>
-                        <td className="font-mono text-slate-700 font-semibold">{row.clause}</td>
-                        <td className="font-medium text-slate-900">{row.name}</td>
-                        <td className="text-slate-600">{row.nature}</td>
-                        <td className="text-slate-600">{row.evidence}</td>
-                        <td>
-                          <StatusBadge status="completed" label={row.status} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Chief Information Security Officer (CISO)</span></div>
-                <div><span>ISMS Audit Scope: Stage 2 Surveillance Audit</span></div>
-              </div>
-            </>
-          )}
-
-          {/* ========================================================================= */}
-          {/* 8. REPORT: Third-Party Vendor Risk Assessment (TPRM) (RPT-008) */}
-          {/* ========================================================================= */}
-          {selectedReportId === 'RPT-008' && (
-            <>
-              <div className="pb-3 border-b border-slate-300 flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pericope ERM &middot; Vendor Governance</div>
-                  <h2 className="text-xl font-bold text-slate-900 mt-0.5">Third-Party Risk Management (TPRM) Report</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Supplier Due Diligence & Criticality Review &middot; Generated {new Date().toLocaleDateString()}</p>
-                </div>
-                <Badge variant="outline" className="text-xs border-slate-300">TPRM Cadence</Badge>
-              </div>
-
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">1. Vendor Portfolio Criticality Distribution</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Total Active Vendors</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">{localVendors.length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Critical Tier</span>
-                    <span className="text-xl font-bold text-rose-700 tabular-nums">{localVendors.filter((v: any) => v.tier === 'Critical').length}</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Annual Spend ($)</span>
-                    <span className="text-xl font-bold text-slate-900 tabular-nums">${(localVendors.reduce((acc: number, v: any) => acc + v.contractValue, 0) / 1000000).toFixed(1)}M</span>
-                  </div>
-                  <div className="p-3 bg-slate-50 rounded border border-slate-200">
-                    <span className="text-[11px] text-slate-500 block">Open Findings</span>
-                    <span className="text-xl font-bold text-amber-700 tabular-nums">{localVendors.reduce((acc: number, v: any) => acc + v.findings, 0)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2.5 print:break-inside-avoid">
-                <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">2. Critical Vendor Inventory & Risk Ratings</h3>
-                <table className="enterprise-table">
-                  <thead>
-                    <tr>
-                      <th className="w-[28%]">Vendor Name</th>
-                      <th className="w-[18%]">Service Category</th>
-                      <th className="w-[14%]">Risk Tier</th>
-                      <th className="w-[15%] text-right">Contract Spend</th>
-                      <th className="w-[12%]">Risk Score</th>
-                      <th className="w-[13%]">Next Review</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {localVendors.map((v: any, idx: number) => (
-                      <tr key={idx}>
-                        <td>
-                          <span className="font-medium text-slate-900">{v.name}</span>
-                          <span className="block text-[10px] text-slate-400 font-mono">{v.id} &middot; {v.country}</span>
-                        </td>
-                        <td className="text-slate-600">{v.category}</td>
-                        <td>
-                          <StatusBadge status={v.tier === 'Critical' ? 'critical' : v.tier === 'High' ? 'high' : 'warning'} label={v.tier} />
-                        </td>
-                        <td className="text-right font-medium tabular-nums text-slate-900">${v.contractValue.toLocaleString()}</td>
-                        <td className="font-bold tabular-nums text-slate-800">{v.riskScore}/100</td>
-                        <td className="text-slate-600 text-[11px] font-mono">{v.nextReview}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="pt-4 border-t border-slate-300 text-xs text-slate-500 flex justify-between print:break-inside-avoid">
-                <div><span>Reviewed by: Head of Strategic Procurement</span></div>
-                <div><span>TPRM Policy: Annual Re-Attestation Enforced</span></div>
-              </div>
-            </>
-          )}
-
-        </div>
-      </div>
-    </div>
+  return (
+    <ReportShell
+      title="Audit trail summary"
+      entity="audit_trail"
+      queries={[q]}
+      rows={entries}
+      columns={columns}
+      emptyTitle="No audit events recorded"
+      summary={
+        <>
+          <Figures
+            title="Totals"
+            items={[
+              { label: 'Events in the trail', value: formatNumber(total) },
+              { label: 'Summarised below (most recent)', value: formatNumber(entries.length) },
+              { label: 'Failed actions', value: formatNumber(stats.failures), tone: stats.failures ? 'text-red-700' : undefined },
+            ]}
+          />
+          <Panel title="By action">
+            <BarList items={stats.byAction} total={entries.length} limit={8} />
+          </Panel>
+          <Panel title="By entity">
+            <BarList items={stats.byEntity} total={entries.length} limit={8} />
+          </Panel>
+          <Panel title="By user">
+            <BarList items={stats.byActor} total={entries.length} limit={8} />
+          </Panel>
+        </>
+      }
+      tableNote={total > entries.length ? `Summary covers the ${entries.length} most recent of ${total} events. The full trail is on the Audit trail page.` : undefined}
+    />
   )
 }

@@ -1,253 +1,280 @@
 'use client'
 
+/**
+ * Business process library (read-only): per_mst_business_process and
+ * per_mst_business_sub_process, with the number of risk-register entries per process.
+ * The reference tables' column names aren't documented, so names, codes and parent
+ * links are found defensively and anything not found is shown as "—".
+ */
 import React, { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-} from '@tanstack/react-table'
-import { 
-  Plus, 
-  Search, 
-  File, 
-  Folder, 
-  Download, 
-  ChevronRight, 
-  Loader2, 
-  Archive,
-  HardDrive,
-  Clock,
-  LayoutGrid,
-  List,
-  ChevronLeft
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ChevronDown, ChevronRight, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { motion, AnimatePresence } from 'framer-motion'
-import { FadeIn, StaggerContainer, StaggerItem } from '@/components/ui/fade-in'
-import { oracleService } from '@/lib/oracleService'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { DataState } from '@/components/data-state'
+import { useRows, type Row } from '@/lib/data'
+import { DASH } from '@/lib/format'
 
-const assetCategories = [
-  { id: 1, name: 'Risk Templates', description: 'Pre-defined identification matrices', color: '#3b82f6' },
-  { id: 2, name: 'Assessment Frameworks', description: 'COSO, ISO/NIST methodologies', color: '#8b5cf6' },
-  { id: 3, name: 'Mitigation Playbooks', description: 'Response procedures and manuals', color: '#10b981' },
-  { id: 4, name: 'Policy Documents', description: 'Governance and mandate binders', color: '#f59e0b' },
-  { id: 5, name: 'Training Materials', description: 'Awareness and mastery kits', color: '#06b6d4' },
-  { id: 6, name: 'Compliance Checklists', description: 'Audit and validation protocols', color: '#ec4899' },
-]
+const SKIP_NAME = /(created|updated|modified|approved|_by$|user|owner)/
+
+function clean(v: unknown): string | null {
+  if (v == null) return null
+  const s = String(v).trim()
+  return s === '' || s === 'null' ? null : s
+}
+
+/** The first non-empty value among preferred keys, then any other `*_name` column. */
+function pickName(row: Row, preferred: string[]): string | null {
+  for (const k of preferred) {
+    const v = clean(row[k])
+    if (v) return v
+  }
+  for (const [k, v] of Object.entries(row)) {
+    if (k.endsWith('_name') && !SKIP_NAME.test(k) && clean(v)) return clean(v)
+  }
+  return clean(row.name) ?? clean(row.title)
+}
+
+function pickCode(row: Row): string | null {
+  for (const [k, v] of Object.entries(row)) {
+    if ((k === 'code' || k.endsWith('_code')) && clean(v)) return clean(v)
+  }
+  return null
+}
+
+function pickDescription(row: Row): string | null {
+  for (const [k, v] of Object.entries(row)) {
+    if (k.includes('description') && clean(v)) return clean(v)
+  }
+  return null
+}
+
+function idOf(row: Row): number | null {
+  const n = Number(row.uuid ?? row.id)
+  return Number.isFinite(n) ? n : null
+}
+
+/** A sub-process's link to its process, if one of the usual columns is present. */
+function parentOf(row: Row): number | null {
+  for (const k of ['business_process_uuid', 'process_uuid', 'business_process_id', 'process_id', 'parent_uuid']) {
+    const v = row[k]
+    if (v != null && v !== '' && Number.isFinite(Number(v))) return Number(v)
+  }
+  return null
+}
+
+const norm = (s: string | null | undefined) => s?.trim().toLowerCase() ?? ''
+
+interface Item {
+  key: string
+  id: number | null
+  name: string | null
+  code: string | null
+  description: string | null
+  risks: number
+}
+
+interface Process extends Item {
+  subs: Item[]
+}
 
 export function AssetLibraryPage() {
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const processesQ = useRows('per_mst_business_process')
+  const subsQ = useRows('per_mst_business_sub_process')
+  const risksQ = useRows('per_trn_identify_risk')
+  const [search, setSearch] = useState('')
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  // 1. Data Fetching
-  const { data: assetLibrary = [], isLoading } = useQuery({
-    queryKey: ['asset-library'],
-    queryFn: () => oracleService.getAssets(),
-  })
+  const { processes, orphanSubs } = useMemo(() => {
+    const risks = risksQ.data ?? []
+    const countRisks = (id: number | null, name: string | null, idKey: string, nameKey: string) =>
+      risks.filter(r => (id != null && Number(r[idKey]) === id) || (name != null && norm(r[nameKey]) === norm(name))).length
 
-  // 2. Computed
-  const filteredAssets = useMemo(() => {
-    return assetLibrary.filter((a: any) => !selectedCategory || a.category === selectedCategory)
-  }, [assetLibrary, selectedCategory])
-
-  // 3. Columns
-  const columnHelper = createColumnHelper<any>()
-  const columns = useMemo(() => [
-    columnHelper.accessor('name', {
-      header: 'Identified Resource',
-      cell: info => (
-        <div className="flex items-center gap-3">
-           <div className="p-2 rounded-lg bg-secondary/50 group-hover:bg-primary/10 transition-colors">
-              <File className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-           </div>
-           <span className="font-bold text-foreground text-[13px] tracking-tight">{info.row.original.business_process_name || info.getValue() || 'Unnamed Asset'}</span>
-        </div>
-      ),
-    }),
-    columnHelper.accessor('category', {
-      header: 'Cluster',
-      cell: () => <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Business Process</span>,
-    }),
-    columnHelper.accessor('type', {
-      header: 'Protocol',
-      cell: () => <span className="font-mono text-[11px] font-bold text-primary/80">DOC</span>,
-    }),
-    columnHelper.accessor('size', {
-      header: 'Payload',
-      cell: () => <span className="font-mono text-[11px] text-muted-foreground tabular-nums">1.2 MB</span>,
-    }),
-    columnHelper.accessor('modified', {
-      header: 'Revision',
-      cell: () => <span className="text-[11px] font-medium text-muted-foreground tabular-nums">2026-05-18</span>,
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: 'Fetch',
-      cell: () => (
-        <button className="p-1.5 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground/40 hover:text-foreground">
-           <Download className="w-4 h-4" />
-        </button>
-      )
+    const processes: Process[] = (processesQ.data ?? []).map((row, i) => {
+      const id = idOf(row)
+      const name = pickName(row, ['business_process_name', 'process_name', 'name'])
+      return {
+        key: `p-${id ?? i}`,
+        id,
+        name,
+        code: pickCode(row),
+        description: pickDescription(row),
+        risks: countRisks(id, name, 'business_process_uuid', 'process_name'),
+        subs: [],
+      }
     })
-  ], [])
+    const byId = new Map(processes.filter(p => p.id != null).map(p => [p.id!, p]))
+    const orphanSubs: Item[] = []
+    ;(subsQ.data ?? []).forEach((row, i) => {
+      const id = idOf(row)
+      const name = pickName(row, ['business_sub_process_name', 'sub_process_name', 'subprocess_name', 'name'])
+      const item: Item = {
+        key: `s-${id ?? i}`,
+        id,
+        name,
+        code: pickCode(row),
+        description: pickDescription(row),
+        risks: countRisks(id, name, 'business_sub_process_uuid', 'sub_process_name'),
+      }
+      const parent = parentOf(row)
+      const owner = parent != null ? byId.get(parent) : undefined
+      if (owner) owner.subs.push(item)
+      else orphanSubs.push(item)
+    })
+    const byName = (a: Item, b: Item) => (a.name ?? '').localeCompare(b.name ?? '')
+    processes.sort(byName).forEach(p => p.subs.sort(byName))
+    orphanSubs.sort(byName)
+    return { processes, orphanSubs }
+  }, [processesQ.data, subsQ.data, risksQ.data])
 
-  // 4. Table instance
-  const table = useReactTable({
-    data: filteredAssets,
-    columns,
-    state: { globalFilter },
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-  })
+  const q = norm(search)
+  const matches = (i: Item) => !q || [i.name, i.code, i.description].some(v => norm(v).includes(q))
+  const shownProcesses = processes.filter(p => matches(p) || p.subs.some(matches))
+  const shownOrphans = orphanSubs.filter(matches)
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-        <p className="text-xs text-slate-500 mt-3">Loading assets...</p>
-      </div>
-    )
-  }
+  const toggle = (key: string) =>
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
 
   return (
-    <div className="flex-1 pb-20 bg-background/20 font-sans">
-      <FadeIn delay={0.1} direction="none">
-        <div className="border-b border-border/40 px-6 py-6 bg-background/60 backdrop-blur-xl sticky top-0 z-40 flex justify-between items-center shadow-sm">
-          <div className="flex items-center gap-4">
-             {selectedCategory && (
-               <Button variant="ghost" size="icon" onClick={() => setSelectedCategory(null)} className="rounded-full hover:bg-secondary">
-                  <ChevronLeft className="w-5 h-5" />
-               </Button>
-             )}
-             <div>
-               <h1 className="text-xl font-black text-foreground tracking-tighter uppercase italic">Resource Bank</h1>
-               <p className="text-[12px] text-muted-foreground mt-1 font-medium italic opacity-70">Centralized repository for methodologies and compliance assets</p>
-             </div>
-          </div>
-          <div className="flex items-center gap-3">
-             <Button size="sm" className="rounded-full px-6 h-10 font-black uppercase text-[11px] tracking-widest shadow-xl shadow-primary/20">
-                <Plus className="w-3.5 h-3.5 mr-2" />
-                Ingest Resource
-             </Button>
-          </div>
-        </div>
-      </FadeIn>
-
-      <div className="p-8">
-        <AnimatePresence mode="wait">
-          {!selectedCategory ? (
-            <motion.div
-              key="explorer"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-            >
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-                 {assetCategories.map((cat, idx) => {
-                   const count = assetLibrary.filter((a: any) => a.category === cat.name).length
-                   return (
-                     <motion.div
-                       key={cat.id}
-                       whileHover={{ y: -6, boxShadow: '0 25px 30px -10px rgba(0,0,0,0.1)' }}
-                       onClick={() => setSelectedCategory(cat.name)}
-                       className="glass-card rounded-3xl p-7 bg-card/40 border border-border/40 cursor-pointer group relative overflow-hidden"
-                     >
-                        <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full blur-3xl opacity-10 transition-opacity group-hover:opacity-20" style={{ backgroundColor: cat.color }} />
-                        <div className="flex items-start justify-between mb-6">
-                           <div className="p-3 rounded-2xl bg-secondary/50 border border-border/40 shadow-sm" style={{ color: cat.color }}>
-                              <Folder className="w-6 h-6" />
-                           </div>
-                           <span className="text-[10px] font-black bg-secondary/80 px-3 py-1 rounded-full border border-border/40 tabular-nums">{count} Nodes</span>
-                        </div>
-                        <h3 className="text-[15px] font-black text-foreground tracking-tight mb-2 uppercase group-hover:text-primary transition-colors">{cat.name}</h3>
-                        <p className="text-[11px] font-medium text-muted-foreground leading-relaxed italic opacity-70">{cat.description}</p>
-                     </motion.div>
-                   )
-                 })}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="table-view"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
-            >
-               <div className="flex flex-col md:flex-row gap-4 bg-card/30 p-3 rounded-2xl border border-border/40 backdrop-blur-md">
-                  <div className="relative flex-1 max-w-sm ml-2">
-                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-                     <Input 
-                       placeholder="Filter resources..." 
-                       className="pl-12 h-11 bg-background/50 border-none rounded-xl text-[14px] font-bold shadow-inner placeholder:font-medium placeholder:italic" 
-                       value={globalFilter}
-                       onChange={e => setGlobalFilter(e.target.value)}
-                     />
-                  </div>
-                  <div className="flex items-center gap-2 bg-secondary/30 px-5 rounded-xl border border-border/20">
-                     <span className="text-[10px] font-black uppercase text-muted-foreground">Cluster:</span>
-                     <span className="text-[11px] font-black text-primary">{selectedCategory}</span>
-                  </div>
-               </div>
-
-               <div className="glass-card rounded-[40px] overflow-hidden shadow-2xl border border-border/40 bg-card/5 backdrop-blur-xl flex flex-col h-full min-h-[500px]">
-                  <div className="overflow-x-auto flex-1">
-                     <table className="w-full text-left text-[13px] border-separate border-spacing-0">
-                        <thead className="bg-secondary/60 backdrop-blur-md">
-                           <tr className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                              {table.getHeaderGroups()[0].headers.map(h => (
-                                <th key={h.id} className="px-8 py-5 border-b border-border/20 border-r border-border/10 last:border-r-0">
-                                   {flexRender(h.column.columnDef.header, h.getContext())}
-                                </th>
-                              ))}
-                           </tr>
-                        </thead>
-                        <tbody>
-                           {table.getRowModel().rows.map(row => (
-                             <motion.tr 
-                               key={row.id} 
-                               layout="position"
-                               className="group hover:bg-primary/5 transition-all cursor-default"
-                             >
-                                {row.getVisibleCells().map(cell => (
-                                  <td key={cell.id} className="px-8 py-5 border-b border-border/10 border-r border-border/10 last:border-r-0">
-                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                                  </td>
-                                ))}
-                             </motion.tr>
-                           ))}
-                           {filteredAssets.length === 0 && (
-                             <tr>
-                               <td colSpan={columns.length} className="py-40 text-center">
-                                  <Archive className="w-10 h-10 text-muted-foreground/20 mx-auto mb-4" />
-                                  <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground italic opacity-50">Cluster contains zero payloads</p>
-                               </td>
-                             </tr>
-                           )}
-                        </tbody>
-                     </table>
-                  </div>
-
-                  <div className="bg-secondary/40 px-10 py-5 border-t border-border/40 flex items-center justify-between">
-                     <div className="flex items-center gap-6">
-                        <div className="flex items-center gap-2">
-                           <HardDrive className="w-4 h-4 text-primary/60" />
-                           <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Storage Matrix Online</span>
-                        </div>
-                        <div className="w-px h-4 bg-border/40" />
-                        <span className="text-[11px] font-bold text-foreground">{filteredAssets.length} Resource Payloads</span>
-                     </div>
-                     <span className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground italic">Authenticated Access Guaranteed</span>
-                  </div>
-               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+    <div className="space-y-6">
+      <div className="pb-3 border-b border-slate-200">
+        <h1 className="text-lg font-semibold text-slate-900">Business process library</h1>
+        <p className="text-xs text-slate-500">Business processes and sub-processes from reference data, with the number of risks recorded against each.</p>
       </div>
+
+      <DataState
+        query={[processesQ, subsQ, risksQ]}
+        empty={processes.length === 0 && orphanSubs.length === 0}
+        emptyTitle="No business processes in reference data"
+        emptyDescription="Business processes are maintained in the reference tables in the database."
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="relative w-full sm:w-72">
+            <label htmlFor="bp-search" className="sr-only">
+              Search processes
+            </label>
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <Input id="bp-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search processes…" className="h-8 pl-8 text-xs" />
+          </div>
+          <p className="text-xs text-slate-600">
+            <span className="font-semibold tabular-nums text-slate-900">{processes.length}</span> processes ·{' '}
+            <span className="font-semibold tabular-nums text-slate-900">{processes.reduce((n, p) => n + p.subs.length, 0) + orphanSubs.length}</span> sub-processes
+          </p>
+        </div>
+
+        <div className="bg-white rounded border border-slate-200 overflow-x-auto">
+          <table className="enterprise-table w-full text-xs">
+            <thead>
+              <tr>
+                <th scope="col" className="w-8">
+                  <span className="sr-only">Expand</span>
+                </th>
+                <th scope="col">Process</th>
+                <th scope="col">Code</th>
+                <th scope="col">Description</th>
+                <th scope="col" className="text-right">
+                  Sub-processes
+                </th>
+                <th scope="col" className="text-right">
+                  Risks
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {shownProcesses.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-500">
+                    No processes match “{search}”.
+                  </td>
+                </tr>
+              )}
+              {shownProcesses.map(p => {
+                const open = expanded.has(p.key) || (!!q && p.subs.some(matches))
+                const subs = q ? p.subs.filter(matches) : p.subs
+                return (
+                  <React.Fragment key={p.key}>
+                    <tr>
+                      <td>
+                        {p.subs.length > 0 && (
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => toggle(p.key)}
+                            aria-expanded={open}
+                            aria-label={`${open ? 'Hide' : 'Show'} sub-processes of ${p.name ?? 'this process'}`}
+                          >
+                            {open ? <ChevronDown className="w-3.5 h-3.5" aria-hidden="true" /> : <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />}
+                          </Button>
+                        )}
+                      </td>
+                      <td className="font-medium text-slate-900">{p.name ?? (p.id != null ? `Process #${p.id}` : DASH)}</td>
+                      <td className="font-mono text-slate-600">{p.code ?? DASH}</td>
+                      <td className="text-slate-600">{p.description ?? DASH}</td>
+                      <td className="text-right tabular-nums">{p.subs.length}</td>
+                      <td className="text-right tabular-nums">{p.risks}</td>
+                    </tr>
+                    {open &&
+                      subs.map(s => (
+                        <tr key={s.key} className="bg-slate-50/60">
+                          <td />
+                          <td className="pl-6 text-slate-800">{s.name ?? (s.id != null ? `Sub-process #${s.id}` : DASH)}</td>
+                          <td className="font-mono text-slate-600">{s.code ?? DASH}</td>
+                          <td className="text-slate-600">{s.description ?? DASH}</td>
+                          <td />
+                          <td className="text-right tabular-nums">{s.risks}</td>
+                        </tr>
+                      ))}
+                  </React.Fragment>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {orphanSubs.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-900">Sub-processes without a linked process</h2>
+            <p className="text-[11px] text-slate-500">These sub-process rows have no recognisable link to a process in the reference data.</p>
+            <div className="bg-white rounded border border-slate-200 overflow-x-auto">
+              <table className="enterprise-table w-full text-xs">
+                <thead>
+                  <tr>
+                    <th scope="col">Sub-process</th>
+                    <th scope="col">Code</th>
+                    <th scope="col">Description</th>
+                    <th scope="col" className="text-right">
+                      Risks
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shownOrphans.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="py-6 text-center text-slate-500">
+                        No sub-processes match “{search}”.
+                      </td>
+                    </tr>
+                  )}
+                  {shownOrphans.map(s => (
+                    <tr key={s.key}>
+                      <td className="font-medium text-slate-900">{s.name ?? (s.id != null ? `Sub-process #${s.id}` : DASH)}</td>
+                      <td className="font-mono text-slate-600">{s.code ?? DASH}</td>
+                      <td className="text-slate-600">{s.description ?? DASH}</td>
+                      <td className="text-right tabular-nums">{s.risks}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </DataState>
     </div>
   )
 }

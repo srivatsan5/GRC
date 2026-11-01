@@ -84,3 +84,34 @@ export const auditApi = {
   record: (e: { action: string; entity: string; entity_id?: string | number | null; description: string; result?: 'SUCCESS' | 'FAILURE' }) =>
     http.post<ApiAuditEntry>('/api/audit', e).then(r => r.data),
 }
+
+export type ApiWorkflowItem = components['schemas']['WorkflowItem']
+export type ApiWorkflowStep = components['schemas']['WorkflowStep']
+export type ApiOrgSettings = components['schemas']['OrgSettings']
+export type ApiRowPage = components['schemas']['RowPage']
+
+export const workflowApi = {
+  list: (q: { status?: string; mine?: 'submitted' | 'to-decide' } = {}) =>
+    http.get<{ items: ApiWorkflowItem[]; total: number }>('/api/workflow', { params: q }).then(r => r.data),
+  submit: (input: {
+    title: string
+    request_type: ApiWorkflowItem['request_type']
+    business_unit?: string
+    amount?: number
+    details?: string
+    approver_roles: ('Risk Manager' | 'Administrator')[]
+  }) => http.post<ApiWorkflowItem>('/api/workflow', input).then(r => r.data),
+  decide: (id: number, decision: 'Approved' | 'Rejected', comment?: string) =>
+    http.post<ApiWorkflowItem>(`/api/workflow/${id}/decision`, { decision, comment }).then(r => r.data),
+  withdraw: (id: number) => http.post<ApiWorkflowItem>(`/api/workflow/${id}/withdraw`).then(r => r.data),
+}
+
+export const settingsApi = {
+  get: () => http.get<{ settings: ApiOrgSettings; stored: boolean; reason?: string }>('/api/settings').then(r => r.data),
+  save: (settings: ApiOrgSettings) => http.put<{ settings: ApiOrgSettings; stored: boolean }>('/api/settings', settings).then(r => r.data),
+}
+
+/** Error code from an API error response (e.g. 'NOT_PROVISIONED', 'FORBIDDEN'). */
+export function apiErrorCode(error: unknown): string | null {
+  return (error as AxiosError<{ error?: { code?: string } }>)?.response?.data?.error?.code ?? null
+}

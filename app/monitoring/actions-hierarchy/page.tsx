@@ -1,5 +1,10 @@
-import { MonitoringactionshierarchyPage } from '@/components/pages/monitoring-actions-hierarchy' 
+import { PericopeLayout } from '@/components/pericope-layout'
+import { MonitoringactionshierarchyPage } from '@/components/pages/monitoring-actions-hierarchy'
 
 export default function Page() {
-  return <MonitoringactionshierarchyPage />
+  return (
+    <PericopeLayout>
+      <MonitoringactionshierarchyPage />
+    </PericopeLayout>
+  )
 }

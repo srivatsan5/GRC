@@ -1,5 +1,3 @@
-'use client'
-
 import { PericopeLayout } from '@/components/pericope-layout'
 import { MitigationActiveRisksPage } from '@/components/pages/mitigation-active-risks'
 

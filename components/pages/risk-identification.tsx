@@ -1,710 +1,626 @@
 'use client'
 
-import React, { useMemo, useState, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  createColumnHelper,
-} from '@tanstack/react-table'
-import { 
-  Plus, 
-  Search, 
-  MoreVertical, 
-  ChevronUp, 
-  ChevronDown, 
-  ChevronsUpDown, 
-  Loader2, 
-  AlertCircle,
-  Shield,
-  ArrowLeft,
-  ArrowRight,
-  Filter,
-  CheckCircle2,
-  Trash2,
-  Upload,
-  Download,
-  FileSpreadsheet,
-  Layers,
-  FileText,
-} from 'lucide-react'
+/** /rcsa/identification and /risk-identification — the risk register (per_trn_identify_risk). */
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { Download, FileSpreadsheet, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { StatusBadge } from '@/components/ui/status-badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { oracleService } from '@/lib/oracleService'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { useAuth } from '@/components/providers/auth-provider'
+import { DataState } from '@/components/data-state'
+import { Pager } from '@/components/pager'
+import { BandBadge } from '@/components/band-badge'
+import { fetchAllRows, useCreateRow, useDeleteRow, useRowPage, useRows, type Row } from '@/lib/data'
+import { BANDS, toRisk, type Risk } from '@/lib/risk'
+import { formatDate } from '@/lib/format'
+import { useOrgSettings } from '@/lib/settings'
+import { apiErrorMessage } from '@/lib/apiClient'
 import { recordAudit } from '@/lib/auditLog'
+import { APPROVAL_STATUSES, ApprovalBadge, RcsaStepper, SortHeader, approvalLabel, downloadCsv, parseCsv, selectClass, textareaClass, useDebounced, type SortState } from '@/components/rcsa/shared'
+import { CYCLE_TABLE, RISK_TABLE, RiskDialog } from '@/components/rcsa/risk-dialog'
+import { RiskDecisionButtons } from '@/components/rcsa/risk-decision'
 
-export function RiskIdentificationPage({ assessmentId: propAssessmentId }: { assessmentId?: string }) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const queryClient = useQueryClient()
-  const assessmentId = propAssessmentId || searchParams.get('assessmentId')
-  const [globalFilter, setGlobalFilter] = React.useState('')
-  const [isAddRiskOpen, setIsAddRiskOpen] = React.useState(false)
-  const [isImportOpen, setIsImportOpen] = React.useState(false)
-  const [pasteText, setPasteText] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+const PAGE_SIZE = 25
+/** Columns the API searches for this table (kept in step with the client-side fallback). */
+const SEARCH_COLS = ['risk_statement', 'process_name', 'sub_process_name', 'risk_type', 'risk_owner', 'assessment_reference_number']
+const NO_CYCLE = '__none__'
 
-  // Form State
-  const [riskStatement, setRiskStatement] = React.useState('')
-  const [riskType, setRiskType] = React.useState('Operational')
-  const [inherentLikelihood, setInherentLikelihood] = React.useState('3')
-  const [inherentImpact, setInherentImpact] = React.useState('3')
-  const [justification, setJustification] = React.useState('')
-  const [riskOwner, setRiskOwner] = React.useState('Finance & Treasury')
+// CSV import template — exactly the columns the import reads.
+const CSV_COLUMNS = ['Risk statement', 'Category', 'Business process', 'Sub-process', 'Risk owner', 'Risk champion', 'Inherent likelihood (1-5)', 'Inherent impact (1-5)', 'SLE', 'Cycle reference'] as const
 
-  // CSV Import State
-  const [parsedRows, setParsedRows] = useState<any[]>([])
-  const [importing, setImporting] = useState(false)
+type ImportRow = { line: number; values: Row; errors: string[] }
+type ImportResult = { ok: number; failed: { line: number; message: string }[] }
 
-  // 1. Data Fetching
-  const { data: risks = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['risks', assessmentId],
-    queryFn: () => oracleService.getIdentifyRisks(),
-  })
+export function RiskIdentificationPage() {
+  const confirm = useConfirm()
+  const { hasPermission } = useAuth()
+  const { money, band } = useOrgSettings()
 
-  // 2. Mutations
-  const createMutation = useMutation({
-    mutationFn: (data: any) => oracleService.createIdentifyRisk(data),
-    onSuccess: () => {
-      toast.success("Risk cataloged successfully")
-      setIsAddRiskOpen(false)
-      setRiskStatement('')
-      setInherentLikelihood('3')
-      setInherentImpact('3')
-      setJustification('')
-      queryClient.invalidateQueries({ queryKey: ['risks'] })
-      refetch()
-    },
-    onError: (err: any) => {
-      toast.error(`Failed to save risk: ${err.message}`)
-    }
-  })
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebounced(searchInput)
+  const [sort, setSort] = useState<SortState>({ sort: 'created_on', order: 'desc' })
+  const [category, setCategory] = useState('')
+  const [approval, setApproval] = useState('')
+  const [cycle, setCycle] = useState('')
+  const [rating, setRating] = useState('') // '' | band name | 'Not rated'
+  const [dialog, setDialog] = useState<{ open: boolean; risk: Row | null }>({ open: false, risk: null })
+  const [importOpen, setImportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string | number) => oracleService.deleteIdentifyRisk(id),
-    onSuccess: () => {
-      toast.success("Risk deleted from catalog")
-      queryClient.invalidateQueries({ queryKey: ['risks'] })
-      refetch()
-    },
-    onError: (err: any) => {
-      toast.error(`Failed to delete risk: ${err.message}`)
-    }
-  })
+  // ?cycle=<uuid> pre-selects a cycle (read once on the client).
+  useEffect(() => {
+    const c = new URLSearchParams(window.location.search).get('cycle')
+    if (c && /^\d+$/.test(c)) setCycle(c)
+  }, [])
 
-  const handleSaveRisk = () => {
-    if (!riskStatement.trim()) {
-      toast.error("Please enter a risk statement")
-      return
-    }
+  const filter = useMemo(() => {
+    const f: Record<string, string | number | null> = {}
+    if (category) f.risk_type = category
+    if (approval) f.approval_status = approval
+    if (cycle === NO_CYCLE) f.assessment_cycle_uuid = null
+    else if (cycle) f.assessment_cycle_uuid = Number(cycle)
+    return Object.keys(f).length ? f : undefined
+  }, [category, approval, cycle])
 
-    const likelihood = Number(inherentLikelihood) || 3
-    const impact = Number(inherentImpact) || 3
+  // The rating band is computed (likelihood × impact), so the API can't filter on it: when a
+  // band is chosen, load the server-filtered rows and filter / search / sort / page them here.
+  const clientMode = !!rating
+  const serverPage = useRowPage(RISK_TABLE, { page, pageSize: PAGE_SIZE, search, sort: sort.sort, order: sort.order, filter }, { enabled: !clientMode })
+  const clientRows = useRows(RISK_TABLE, { filter, enabled: clientMode })
+  const all = useRows(RISK_TABLE) // for filter options and the "not rated" prompt
+  const cycles = useRows(CYCLE_TABLE)
 
-    const payload = {
-      risk_statement: riskStatement.trim(),
-      risk_type: riskType,
-      inherent_sle: likelihood * impact * 10000,
-      risk_owner: riskOwner,
-      is_stage_complted: 'N',
-      approval_status: 'DRAFT',
-      status: 'Y',
-      business_process_name: riskOwner,
-    }
-
-    createMutation.mutate(payload)
-  }
-
-  // CSV Template Export
-  const downloadTemplate = () => {
-    const csvContent = [
-      'Risk Statement,Category,Department,Likelihood,Impact,Owner',
-      '"Cloud infrastructure outage during peak month-end payroll settlement","IT & Cyber","Information Technology",4,4,"Anthony Muller"',
-      '"Vendor SOC 2 attestation lapse on critical payment processor","Third Party","Procurement",3,4,"Priya Sharma"',
-      '"Foreign exchange currency volatility on cross-border supplier invoices","Financial","Finance & Treasury",3,3,"CFO"',
-      '"Key employee attrition in specialized actuarial compliance team","People","Human Resources",2,3,"HR Director"',
-    ].join('\n')
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'pericope_risk_register_template.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.info("Sample CSV template downloaded")
-  }
-
-  // Parse Raw CSV Text
-  const parseCSVText = (text: string) => {
-    const lines = text.split(/\r\n|\n/).filter(line => line.trim().length > 0)
-    if (lines.length <= 1) {
-      toast.error("CSV text is empty or missing data rows")
-      return
-    }
-
-    const rows: any[] = []
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i]
-      const matches = line.match(/(?:^|,)(?:"([^"]*)"|([^,]*))/g)
-      if (!matches) continue
-
-      const cleanValues = matches.map(m => m.replace(/^,/, '').replace(/^"|"$/g, '').trim())
-      if (cleanValues[0] && cleanValues[0].length > 0) {
-        const l = Math.max(1, Math.min(5, Number(cleanValues[3]) || 3))
-        const imp = Math.max(1, Math.min(5, Number(cleanValues[4]) || 3))
-        rows.push({
-          risk_statement: cleanValues[0],
-          risk_type: cleanValues[1] || 'Operational',
-          process_name: cleanValues[2] || 'Operations',
-          likelihood: l,
-          impact: imp,
-          inherent_sle: l * imp * 10000,
-          risk_owner: cleanValues[5] || 'Risk Owner',
-        })
-      }
-    }
-
-    setParsedRows(rows)
-    if (rows.length > 0) {
-      toast.success(`Parsed ${rows.length} risk records`)
-    } else {
-      toast.error("No valid risk rows found in CSV")
-    }
-  }
-
-  // CSV File Upload Handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      try {
-        const text = event.target?.result as string
-        parseCSVText(text)
-        setIsImportOpen(true)
-      } catch (err: any) {
-        toast.error("Failed to parse CSV file: " + err.message)
-      }
-    }
-    reader.readAsText(file)
-  }
-
-  // Execute Bulk Import
-  const executeBulkImport = async () => {
-    if (parsedRows.length === 0) return
-    setImporting(true)
-    let importedCount = 0
-
-    for (const r of parsedRows) {
-      try {
-        await oracleService.createIdentifyRisk({
-          risk_statement: r.risk_statement,
-          risk_type: r.risk_type,
-          inherent_sle: r.inherent_sle,
-          risk_owner: r.risk_owner,
-          process_name: r.process_name,
-          is_stage_complted: 'N',
-          approval_status: 'DRAFT',
-          status: 'Y',
-        })
-        importedCount++
-      } catch {
-        // Continue with other rows
-      }
-    }
-
-    setImporting(false)
-    setIsImportOpen(false)
-    setParsedRows([])
-    setPasteText('')
-    queryClient.invalidateQueries({ queryKey: ['risks'] })
-    refetch()
-    toast.success(`Successfully imported ${importedCount} risk records into register!`)
-    recordAudit({
-      action: 'CREATE',
-      entity: 'Risk Register',
-      description: `Bulk imported ${importedCount} risks via CSV spreadsheet upload`,
-      result: 'SUCCESS',
+  const clientPage = useMemo(() => {
+    if (!clientMode) return null
+    const term = search.trim().toLowerCase()
+    let rows = (clientRows.data ?? []).filter(r => {
+      const b = band(toRisk(r).inherentScore) ?? 'Not rated'
+      if (b !== rating) return false
+      return !term || SEARCH_COLS.some(c => r[c] != null && String(r[c]).toLowerCase().includes(term))
     })
+    const key = sort.sort
+    rows = [...rows].sort((x, y) => {
+      const a = x[key]
+      const b = y[key]
+      if (a == null || b == null) return a == null && b == null ? 0 : a == null ? 1 : -1
+      const d = typeof a === 'number' && typeof b === 'number' ? a - b : String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' })
+      return sort.order === 'desc' ? -d : d
+    })
+    return { total: rows.length, items: rows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), all: rows }
+  }, [clientMode, clientRows.data, rating, search, sort, page, band])
+
+  const query = clientMode ? clientRows : serverPage
+  const items = clientMode ? (clientPage?.items ?? []) : (serverPage.data?.items ?? [])
+  const total = clientMode ? (clientPage?.total ?? 0) : (serverPage.data?.total ?? 0)
+
+  const allRisks = useMemo(() => (all.data ?? []).map(toRisk), [all.data])
+  const categories = useMemo(() => [...new Set(allRisks.map(r => r.category).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b)), [allRisks])
+  const unrated = allRisks.filter(r => r.inherentScore == null).length
+  const cycleById = useMemo(() => new Map((cycles.data ?? []).map(c => [Number(c.uuid), c])), [cycles.data])
+
+  const del = useDeleteRow(RISK_TABLE)
+  async function remove(r: Risk) {
+    const ok = await confirm({ title: 'Delete this risk?', description: `${r.statement ?? `Risk ${r.uuid}`} — removed from the register permanently.`, confirmLabel: 'Delete risk', tone: 'danger' })
+    if (!ok) return
+    try {
+      await del.mutateAsync(r.uuid)
+      toast.success('Risk deleted')
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+    }
   }
 
-  // 3. Column Definitions
-  const columnHelper = createColumnHelper<any>()
-  
-  const columns = useMemo(() => [
-    columnHelper.accessor('uuid', {
-      header: 'ID',
-      cell: info => <span className="font-mono text-xs text-slate-500">REF-{String(info.getValue() || info.row.original.id || '100').slice(0, 6)}</span>,
-    }),
-    columnHelper.accessor('risk_statement', {
-      header: ({ column }) => (
-        <button className="flex items-center gap-1 hover:text-slate-900 font-semibold" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-          Risk Statement {column.getIsSorted() === 'asc' ? <ChevronUp className="w-3 h-3"/> : column.getIsSorted() === 'desc' ? <ChevronDown className="w-3 h-3"/> : <ChevronsUpDown className="w-3 h-3 opacity-30"/>}
-        </button>
-      ),
-      cell: info => (
-        <div>
-          <span className="font-medium text-slate-900 block">{info.getValue() || info.row.original.process_name || 'Risk entry'}</span>
-          <span className="text-[11px] text-slate-400">{info.row.original.risk_type || 'General'}</span>
-        </div>
-      ),
-    }),
-    columnHelper.accessor((row: any) => row.risk_owner || row.process_name || 'Finance & Treasury', {
-      id: 'risk_owner',
-      header: 'Owner / Department',
-      cell: info => <span className="text-slate-600">{info.getValue() as string}</span>,
-    }),
-    columnHelper.accessor('inherent_sle', {
-      header: 'Exposure (SLE)',
-      cell: info => {
-        const value = Number(info.getValue()) || 30000
-        const isCritical = value >= 160000
-        const isHigh = value >= 100000
-        return (
-          <div className="flex items-center gap-2">
-            <span className="font-medium tabular-nums text-slate-900">${value.toLocaleString()}</span>
-            <span className={cn(
-              "text-[10px] font-medium px-1.5 py-0.2 rounded border",
-              isCritical ? "bg-red-50 text-red-700 border-red-200" :
-              isHigh ? "bg-amber-50 text-amber-700 border-amber-200" :
-              "bg-slate-100 text-slate-700 border-slate-200"
-            )}>
-              {isCritical ? 'Critical' : isHigh ? 'High' : 'Moderate'}
-            </span>
-          </div>
-        )
-      },
-    }),
-    columnHelper.accessor('approval_status', {
-      header: 'Status',
-      cell: info => (
-        <StatusBadge status={info.getValue() === 'APPROVED' ? 'approved' : 'in-review'} label={info.getValue() || 'Draft'} />
-      ),
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-             <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-700">
-               <MoreVertical className="w-3.5 h-3.5" />
-             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44 text-xs bg-white">
-            <DropdownMenuItem onClick={() => router.push(`/rcsa/mitigation/${row.original.uuid || row.original.id}`)} className="cursor-pointer">
-              Map Controls
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push(`/heatmaps`)} className="cursor-pointer">
-              View on Heatmap
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
-                const id = row.original.uuid || row.original.id || row.original.identify_risk_uuid;
-                if(confirm("Delete this risk entry?")) {
-                  deleteMutation.mutate(id);
-                }
-              }} 
-              disabled={deleteMutation.isPending}
-              className="text-red-600 hover:bg-red-50 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-              Delete risk
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
-    }),
-  ], [router, deleteMutation.isPending])
-
-  const table = useReactTable({
-    data: risks,
-    columns,
-    state: { globalFilter },
-    onGlobalFilterChange: setGlobalFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  })
-
-  if (isError) {
-    return (
-      <div className="py-20 text-center text-slate-500">
-        <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
-        <h2 className="text-sm font-semibold text-slate-900">Database connection error</h2>
-        <p className="text-xs text-slate-500 mt-1">Unable to retrieve risks. Please check server status.</p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={() => refetch()}>
-          Retry
-        </Button>
-      </div>
-    )
+  const resetPage = <T,>(fn: (v: T) => void) => (v: T) => {
+    fn(v)
+    setPage(1)
   }
+
+  async function exportCsv() {
+    setExporting(true)
+    try {
+      let rows: Row[]
+      if (clientMode && clientPage) rows = clientPage.all
+      else {
+        const term = search.trim().toLowerCase()
+        rows = (await fetchAllRows(RISK_TABLE, filter)).filter(r => !term || SEARCH_COLS.some(c => r[c] != null && String(r[c]).toLowerCase().includes(term)))
+      }
+      const header = ['ID', ...CSV_COLUMNS, 'Inherent score', 'Inherent band', 'Residual likelihood', 'Residual impact', 'Residual score', 'Approval status', 'Created on']
+      const data = rows.map(row => {
+        const r = toRisk(row)
+        const cyc = r.cycleUuid != null ? cycleById.get(r.cycleUuid) : undefined
+        return [r.uuid, r.statement, r.category, r.process, r.subProcess, r.owner, r.champion, r.inherentLikelihood, r.inherentImpact, r.sle, cyc?.cycle_reference ?? '', r.inherentScore, band(r.inherentScore) ?? 'Not rated', r.residualLikelihood, r.residualImpact, r.residualScore, approvalLabel(r.approvalStatus), r.createdOn ? r.createdOn.slice(0, 10) : '']
+      })
+      downloadCsv(`risk-register-${new Date().toISOString().slice(0, 10)}.csv`, header, data)
+      recordAudit({ action: 'EXPORT', entity: 'Risk register', description: `Exported ${rows.length} risk${rows.length === 1 ? '' : 's'} to CSV`, result: 'SUCCESS' })
+      toast.success(`Exported ${rows.length} risk${rows.length === 1 ? '' : 's'}`)
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const filtered = !!(search || category || approval || cycle || rating)
+  const addButton = hasPermission('create') ? (
+    <Button size="sm" className="h-8" onClick={() => setDialog({ open: true, risk: null })}>
+      <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+      Add risk
+    </Button>
+  ) : null
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Stepper Bar */}
-      <div className="bg-white border border-slate-200 rounded p-3 text-xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400 font-medium">RCSA Lifecycle:</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/provisioning')}>01 Setup</span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">02 Identification (Active)</span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/mitigation')}>03 Controls & Mitigation</span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/monitoring')}>04 Monitoring</span>
-        </div>
+      <RcsaStepper active="identify" />
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => router.push('/rcsa/mitigation')}
-          className="text-xs h-7"
-        >
-          Next Stage: Controls &rarr;
-        </Button>
-      </div>
-
-      {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">
-            {assessmentId ? 'In-Scope Assessment Risks' : 'Risk Identification Register'}
-          </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Catalog enterprise risk statements with inherent likelihood and impact parameters
-          </p>
+          <h1 className="text-lg font-semibold text-slate-900">Risk register</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Every identified risk, with its inherent and residual rating and approval status.</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Hidden File Input for CSV Upload */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".csv"
-            className="hidden"
-          />
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={downloadTemplate}
-            className="h-8 text-xs font-normal"
-            title="Download sample CSV template"
-          >
-            <Download className="w-3.5 h-3.5 mr-1" />
-            CSV Template
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" className="h-8" onClick={exportCsv} disabled={exporting}>
+            <Download className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+            {exporting ? 'Exporting…' : 'Export CSV'}
           </Button>
-
-          {/* Import CSV Modal Trigger */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsImportOpen(true)}
-            className="h-8 text-xs font-normal"
-          >
-            <Upload className="w-3.5 h-3.5 mr-1" />
-            Import CSV
-          </Button>
-
-          {/* Add Risk Manual Modal */}
-          <Dialog open={isAddRiskOpen} onOpenChange={setIsAddRiskOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="h-8 text-xs font-medium bg-blue-900 hover:bg-blue-800 text-white rounded">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Add Risk
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md bg-white border-slate-200 rounded-lg p-5 space-y-4 text-xs">
-              <DialogHeader>
-                <DialogTitle className="text-sm font-semibold text-slate-900">Catalog Risk Scenario</DialogTitle>
-                <DialogDescription className="text-xs text-slate-500">
-                  Register a new risk statement with initial likelihood and impact scores.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Risk statement *</label>
-                  <textarea
-                    value={riskStatement}
-                    onChange={e => setRiskStatement(e.target.value)}
-                    placeholder="e.g. Failure of primary cloud database during quarterly reconciliation batch..."
-                    rows={2}
-                    className="w-full p-2 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Risk category</label>
-                    <select
-                      value={riskType}
-                      onChange={e => setRiskType(e.target.value)}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option>Operational</option>
-                      <option>Financial</option>
-                      <option>IT & Cyber</option>
-                      <option>Third Party</option>
-                      <option>Compliance</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Department / Function</label>
-                    <select
-                      value={riskOwner}
-                      onChange={e => setRiskOwner(e.target.value)}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option>Finance & Treasury</option>
-                      <option>Information Technology</option>
-                      <option>Operations & Logistics</option>
-                      <option>Legal & Compliance</option>
-                      <option>Human Resources</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Inherent likelihood (1-5)</label>
-                    <select
-                      value={inherentLikelihood}
-                      onChange={e => setInherentLikelihood(e.target.value)}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option value="1">1 - Rare (&lt;5%)</option>
-                      <option value="2">2 - Unlikely (5-20%)</option>
-                      <option value="3">3 - Possible (20-50%)</option>
-                      <option value="4">4 - Likely (50-80%)</option>
-                      <option value="5">5 - Almost Certain (&gt;80%)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Inherent impact (1-5)</label>
-                    <select
-                      value={inherentImpact}
-                      onChange={e => setInherentImpact(e.target.value)}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option value="1">1 - Insignificant (&lt;$25K)</option>
-                      <option value="2">2 - Minor ($25K-$100K)</option>
-                      <option value="3">3 - Moderate ($100K-$250K)</option>
-                      <option value="4">4 - Major ($250K-$1M)</option>
-                      <option value="5">5 - Severe (&gt;$1M)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="p-2.5 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-600 flex justify-between">
-                  <span>Calculated Single Loss Exposure (SLE):</span>
-                  <span className="font-semibold text-slate-900">${(Number(inherentLikelihood) * Number(inherentImpact) * 10000).toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                <Button variant="outline" size="sm" onClick={() => setIsAddRiskOpen(false)}>Cancel</Button>
-                <Button size="sm" onClick={handleSaveRisk} disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Saving...' : 'Save risk'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {hasPermission('create') && (
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setImportOpen(true)}>
+              <Upload className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+              Import CSV
+            </Button>
+          )}
+          {addButton}
         </div>
       </div>
 
-      {/* Filter Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="relative w-72">
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-          <Input
-            placeholder="Search risk statements..."
-            className="pl-8 h-8 text-xs bg-white"
-            value={globalFilter ?? ''}
-            onChange={e => setGlobalFilter(e.target.value)}
-          />
+      {unrated > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          <span>
+            {unrated} of {allRisks.length} risks have no inherent rating yet. Rate likelihood and impact so they appear on heatmaps and in band totals.
+          </span>
+          {rating !== 'Not rated' && (
+            <Button size="sm" variant="outline" onClick={() => (setRating('Not rated'), setPage(1))}>
+              Show unrated risks
+            </Button>
+          )}
         </div>
+      )}
 
-        <div className="flex items-center gap-4 text-xs text-slate-500">
-          <div>
-            <span>Total risks: </span>
-            <span className="font-semibold text-slate-900">{risks.length}</span>
-          </div>
-          <div>
-            <span>Critical exposure: </span>
-            <span className="font-semibold text-red-600">{risks.filter((r: any) => (Number(r.inherent_sle) || 0) >= 160000).length}</span>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label htmlFor="risk-search" className="block text-xs text-slate-600 mb-1">
+            Search
+          </label>
+          <div className="relative w-64">
+            <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+            <Input id="risk-search" placeholder="Statement, process, owner…" className="pl-8 h-8 text-xs bg-white" value={searchInput} onChange={e => resetPage(setSearchInput)(e.target.value)} />
           </div>
         </div>
+        <FilterSelect id="f-category" label="Category" value={category} onChange={resetPage(setCategory)} options={categories.map(c => [c, c])} allLabel="All categories" />
+        <FilterSelect id="f-rating" label="Inherent rating" value={rating} onChange={resetPage(setRating)} options={[...BANDS.map(b => [b, b] as [string, string]), ['Not rated', 'Not rated']]} allLabel="All ratings" />
+        <FilterSelect id="f-approval" label="Approval" value={approval} onChange={resetPage(setApproval)} options={APPROVAL_STATUSES.map(s => [s, approvalLabel(s)])} allLabel="All statuses" />
+        <FilterSelect
+          id="f-cycle"
+          label="Cycle"
+          value={cycle}
+          onChange={resetPage(setCycle)}
+          options={[[NO_CYCLE, 'Not in a cycle'], ...(cycles.data ?? []).map(c => [String(c.uuid), `${c.cycle_reference ? `${c.cycle_reference} · ` : ''}${c.cycle_name}`] as [string, string])]}
+          allLabel="All cycles"
+        />
+        {filtered && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={() => {
+              setSearchInput('')
+              setCategory('')
+              setApproval('')
+              setCycle('')
+              setRating('')
+              setPage(1)
+            }}
+          >
+            Clear filters
+          </Button>
+        )}
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded border border-slate-200 overflow-hidden">
-        <table className="enterprise-table">
-          <thead>
-            {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
-                  <th key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+        <DataState
+          query={query}
+          empty={items.length === 0}
+          emptyTitle={filtered ? 'No risks match these filters' : 'The risk register is empty'}
+          emptyDescription={filtered ? undefined : 'Add a risk or import a CSV to start the register.'}
+          emptyAction={filtered ? undefined : addButton}
+        >
+          <div className="overflow-x-auto">
+            <table className="enterprise-table">
+              <thead>
+                <tr>
+                  <SortHeader label="Risk" column="risk_statement" state={sort} onSort={resetPage(setSort)} className="w-[32%]" />
+                  <SortHeader label="Category" column="risk_type" state={sort} onSort={resetPage(setSort)} />
+                  <SortHeader label="Owner" column="risk_owner" state={sort} onSort={resetPage(setSort)} />
+                  <th>Cycle</th>
+                  <th>Inherent</th>
+                  <th>Residual</th>
+                  <SortHeader label="SLE" column="inherent_sle" state={sort} onSort={resetPage(setSort)} className="text-right" />
+                  <SortHeader label="Approval" column="approval_status" state={sort} onSort={resetPage(setSort)} />
+                  <SortHeader label="Created" column="created_on" state={sort} onSort={resetPage(setSort)} />
+                  <th className="text-right">
+                    <span className="sr-only">Actions</span>
                   </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="py-12 text-center text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-slate-400" />
-                  <p className="text-xs">Loading risk records...</p>
-                </td>
-              </tr>
-            ) : risks.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
-                  No risk entries cataloged. Click &quot;Add Risk&quot; or &quot;Import CSV&quot; to begin.
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map(row => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    <td key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {items.map(row => {
+                  const r = toRisk(row)
+                  const cyc = r.cycleUuid != null ? cycleById.get(r.cycleUuid) : undefined
+                  const controlsHref = r.cycleUuid != null ? `/rcsa/provisioning/${r.cycleUuid}/controls/${r.uuid}` : `/rcsa/mitigation/${r.uuid}`
+                  return (
+                    <tr key={r.uuid}>
+                      <td>
+                        <span className="font-medium text-slate-900 block">{r.statement ?? <span className="italic text-slate-400">No statement recorded</span>}</span>
+                        {(r.process || r.referenceNumber) && <span className="text-[11px] text-slate-500">{[r.referenceNumber, r.process, r.subProcess].filter(Boolean).join(' · ')}</span>}
+                      </td>
+                      <td>{r.category ?? '—'}</td>
+                      <td>{r.owner ?? '—'}</td>
+                      <td className="whitespace-nowrap">
+                        {cyc ? (
+                          <Link href={`/rcsa/provisioning/${cyc.uuid}`} className="text-blue-800 hover:underline">
+                            {cyc.cycle_reference || cyc.cycle_name}
+                          </Link>
+                        ) : r.cycleUuid != null ? (
+                          `#${r.cycleUuid}`
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap">
+                        <BandBadge score={r.inherentScore} />
+                        {r.inherentScore == null && hasPermission('update') && (
+                          <Link href={`/assessments/inherent?riskId=${r.uuid}`} className="block text-[11px] text-blue-800 hover:underline mt-0.5">
+                            Rate now
+                          </Link>
+                        )}
+                      </td>
+                      <td>
+                        <BandBadge score={r.residualScore} />
+                      </td>
+                      <td className="text-right tabular-nums whitespace-nowrap">{money(r.sle)}</td>
+                      <td>
+                        <ApprovalBadge status={r.approvalStatus} />
+                      </td>
+                      <td className="whitespace-nowrap">{formatDate(r.createdOn)}</td>
+                      <td className="text-right">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
+                          <Button asChild size="sm" variant="ghost" className="text-blue-800">
+                            <Link href={`/assessments/inherent?riskId=${r.uuid}`}>Assess</Link>
+                          </Button>
+                          <Button asChild size="sm" variant="ghost" className="text-blue-800">
+                            <Link href={controlsHref}>Controls</Link>
+                          </Button>
+                          <RiskDecisionButtons risk={row} compact />
+                          {hasPermission('update') && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Edit risk" onClick={() => setDialog({ open: true, risk: row })}>
+                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                            </Button>
+                          )}
+                          {hasPermission('delete') && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label="Delete risk" disabled={del.isPending} onClick={() => remove(r)}>
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} pageSize={PAGE_SIZE} total={total} onPage={setPage} busy={query.isFetching} />
+        </DataState>
       </div>
 
-      {/* Comprehensive CSV Import Modal */}
-      <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-        <DialogContent className="max-w-2xl bg-white border-slate-200 rounded-lg p-5 space-y-4 text-xs">
-          <DialogHeader>
-            <DialogTitle className="text-sm font-semibold text-slate-900">Bulk Import Risk Register (CSV)</DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
-              Upload a .csv spreadsheet or paste raw CSV rows to migrate your risk register into Pericope.
-            </DialogDescription>
-          </DialogHeader>
+      <RiskDialog open={dialog.open} risk={dialog.risk} onOpenChange={open => setDialog(d => ({ ...d, open }))} cycleUuid={cycle && cycle !== NO_CYCLE ? cycle : null} />
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} cycles={cycles.data ?? []} />
+    </div>
+  )
+}
 
-          <div className="space-y-4">
-            {/* File Upload Zone */}
-            <div 
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-300 hover:border-blue-700 rounded-lg p-5 text-center cursor-pointer bg-slate-50 hover:bg-blue-50/40 transition-colors"
-            >
-              <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <p className="font-semibold text-slate-800 text-xs">Click to browse or drag & drop .csv spreadsheet</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Supports: Risk Statement, Category, Department, Likelihood (1-5), Impact (1-5), Owner</p>
-            </div>
+function FilterSelect({ id, label, value, onChange, options, allLabel }: { id: string; label: string; value: string; onChange: (v: string) => void; options: [string, string][]; allLabel: string }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs text-slate-600 mb-1">
+        {label}
+      </label>
+      <select id={id} value={value} onChange={e => onChange(e.target.value)} className={`${selectClass} w-44`}>
+        <option value="">{allLabel}</option>
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
 
-            {/* Direct Paste Area */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-slate-700 font-medium">Or paste CSV text:</label>
-                <button
-                  type="button"
-                  onClick={downloadTemplate}
-                  className="text-blue-700 hover:underline text-[11px]"
-                >
-                  Download template.csv
-                </button>
+// ── CSV import ───────────────────────────────────────────────────────────────
+
+function normalizeHeader(h: string) {
+  return h.toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z]/g, '')
+}
+
+const HEADER_KEYS: Record<string, string> = {
+  riskstatement: 'risk_statement',
+  statement: 'risk_statement',
+  category: 'risk_type',
+  riskcategory: 'risk_type',
+  businessprocess: 'process_name',
+  process: 'process_name',
+  subprocess: 'sub_process_name',
+  riskowner: 'risk_owner',
+  owner: 'risk_owner',
+  riskchampion: 'risk_champion',
+  champion: 'risk_champion',
+  inherentlikelihood: 'inherent_likelihood',
+  likelihood: 'inherent_likelihood',
+  inherentimpact: 'inherent_impact',
+  impact: 'inherent_impact',
+  sle: 'inherent_sle',
+  inherentsle: 'inherent_sle',
+  cyclereference: 'cycle_reference',
+  cycle: 'cycle_reference',
+}
+
+function buildImportRows(text: string, cycles: Row[]): { rows: ImportRow[]; problem: string | null } {
+  const table = parseCsv(text)
+  if (table.length < 2) return { rows: [], problem: 'The file needs a header row and at least one data row.' }
+  const header = table[0]!.map(h => HEADER_KEYS[normalizeHeader(h)] ?? null)
+  if (!header.includes('risk_statement')) return { rows: [], problem: `No "Risk statement" column found. Use the template's header row: ${CSV_COLUMNS.join(', ')}.` }
+  const byRef = new Map(cycles.filter(c => c.cycle_reference).map(c => [String(c.cycle_reference).trim().toLowerCase(), c]))
+
+  const rows = table.slice(1).map((cells, idx): ImportRow => {
+    const raw: Record<string, string> = {}
+    header.forEach((key, i) => {
+      if (key) raw[key] = (cells[i] ?? '').trim()
+    })
+    const errors: string[] = []
+    const values: Row = {}
+    if (!raw.risk_statement) errors.push('Risk statement is empty')
+    else if (raw.risk_statement.length > 4000) errors.push('Risk statement is over 4000 characters')
+    values.risk_statement = raw.risk_statement ?? ''
+    for (const k of ['risk_type', 'process_name', 'sub_process_name', 'risk_owner', 'risk_champion']) if (raw[k]) values[k] = raw[k]
+    for (const k of ['inherent_likelihood', 'inherent_impact'] as const) {
+      const v = raw[k]
+      if (!v) continue
+      const n = Number(v)
+      if (!Number.isInteger(n) || n < 1 || n > 5) errors.push(`${k === 'inherent_likelihood' ? 'Likelihood' : 'Impact'} "${v}" must be a whole number 1–5`)
+      else values[k] = n
+    }
+    if (!!raw.inherent_likelihood !== !!raw.inherent_impact) errors.push('Give both likelihood and impact, or neither')
+    if (raw.inherent_sle) {
+      const n = Number(raw.inherent_sle.replace(/[,\s]/g, ''))
+      if (!Number.isFinite(n) || n < 0) errors.push(`SLE "${raw.inherent_sle}" is not a positive number`)
+      else values.inherent_sle = n
+    }
+    if (raw.cycle_reference) {
+      const c = byRef.get(raw.cycle_reference.toLowerCase())
+      if (!c) errors.push(`No cycle with reference "${raw.cycle_reference}"`)
+      else values.assessment_cycle_uuid = Number(c.uuid)
+    }
+    return { line: idx + 2, values, errors }
+  })
+  return { rows, problem: null }
+}
+
+function ImportDialog({ open, onOpenChange, cycles }: { open: boolean; onOpenChange: (o: boolean) => void; cycles: Row[] }) {
+  const create = useCreateRow(RISK_TABLE)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [text, setText] = useState('')
+  const [fileName, setFileName] = useState<string | null>(null)
+  const [rows, setRows] = useState<ImportRow[] | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [result, setResult] = useState<ImportResult | null>(null)
+
+  function reset() {
+    setText('')
+    setFileName(null)
+    setRows(null)
+    setProblem(null)
+    setResult(null)
+    setProgress(0)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function parse(src: string) {
+    const out = buildImportRows(src, cycles)
+    setProblem(out.problem)
+    setRows(out.problem ? null : out.rows)
+    setResult(null)
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFileName(file.name)
+    file
+      .text()
+      .then(t => {
+        setText(t)
+        parse(t)
+      })
+      .catch(err => setProblem(`Couldn't read the file: ${(err as Error).message}`))
+  }
+
+  function template() {
+    downloadCsv('risk-register-import-template.csv', [...CSV_COLUMNS], [])
+  }
+
+  const valid = rows?.filter(r => r.errors.length === 0) ?? []
+  const invalid = rows?.filter(r => r.errors.length > 0) ?? []
+
+  async function run() {
+    if (!valid.length) return
+    setImporting(true)
+    setProgress(0)
+    const failed: ImportResult['failed'] = invalid.map(r => ({ line: r.line, message: r.errors.join('; ') }))
+    let ok = 0
+    for (const r of valid) {
+      try {
+        await create.mutateAsync(r.values)
+        ok++
+      } catch (err) {
+        failed.push({ line: r.line, message: apiErrorMessage(err) })
+      }
+      setProgress(p => p + 1)
+    }
+    failed.sort((a, b) => a.line - b.line)
+    setImporting(false)
+    setResult({ ok, failed })
+    setRows(null)
+    if (failed.length === 0) toast.success(`Imported ${ok} risk${ok === 1 ? '' : 's'}`)
+    else if (ok === 0) toast.error(`No risks imported — ${failed.length} row${failed.length === 1 ? '' : 's'} failed`)
+    else toast.warning(`Imported ${ok} risk${ok === 1 ? '' : 's'}; ${failed.length} row${failed.length === 1 ? '' : 's'} failed`)
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={o => {
+        if (importing) return
+        if (!o) reset()
+        onOpenChange(o)
+      }}
+    >
+      <DialogContent className="max-w-3xl bg-white border-slate-200 rounded-lg p-5 text-xs max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-sm font-semibold text-slate-900">Import risks from CSV</DialogTitle>
+          <DialogDescription className="text-xs text-slate-500">
+            Columns: {CSV_COLUMNS.join(', ')}. Only the risk statement is required; ratings are whole numbers 1–5 and need both likelihood and impact. Cycle reference must match an existing cycle.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input id="risk-csv-file" ref={fileRef} type="file" accept=".csv,text/csv" onChange={onFile} className="sr-only" />
+            <Button asChild variant="outline" size="sm">
+              <label htmlFor="risk-csv-file" className="cursor-pointer">
+                <FileSpreadsheet className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                Choose CSV file
+              </label>
+            </Button>
+            {fileName && <span className="text-slate-600">{fileName}</span>}
+            <Button variant="ghost" size="sm" className="text-blue-800" onClick={template}>
+              <Download className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+              Download template
+            </Button>
+          </div>
+
+          <div>
+            <label htmlFor="risk-csv-text" className="block text-slate-700 font-medium mb-1">
+              Or paste CSV text (including the header row)
+            </label>
+            <textarea id="risk-csv-text" rows={4} value={text} onChange={e => setText(e.target.value)} className={`${textareaClass} font-mono bg-slate-50`} placeholder={CSV_COLUMNS.join(',')} />
+            <Button size="sm" variant="outline" className="mt-2" disabled={!text.trim() || importing} onClick={() => parse(text)}>
+              Check rows
+            </Button>
+          </div>
+
+          {problem && (
+            <p role="alert" className="rounded border border-red-200 bg-red-50 px-3 py-2 text-red-800">
+              {problem}
+            </p>
+          )}
+
+          {rows && (
+            <div className="space-y-2">
+              <p className="text-slate-700">
+                {rows.length} row{rows.length === 1 ? '' : 's'} read: <strong className="text-emerald-800">{valid.length} ready</strong>
+                {invalid.length > 0 && (
+                  <>
+                    , <strong className="text-red-700">{invalid.length} with problems (will be skipped)</strong>
+                  </>
+                )}
+                .
+              </p>
+              <div className="max-h-64 overflow-y-auto border border-slate-200 rounded">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Line</th>
+                      <th>Risk statement</th>
+                      <th>Category</th>
+                      <th>L × I</th>
+                      <th>Check</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map(r => (
+                      <tr key={r.line}>
+                        <td className="tabular-nums">{r.line}</td>
+                        <td className="max-w-xs truncate">{String(r.values.risk_statement || '—')}</td>
+                        <td>{String(r.values.risk_type ?? '—')}</td>
+                        <td className="tabular-nums">{r.values.inherent_likelihood && r.values.inherent_impact ? `${r.values.inherent_likelihood} × ${r.values.inherent_impact}` : 'Not rated'}</td>
+                        <td className={r.errors.length ? 'text-red-700' : 'text-emerald-800'}>{r.errors.length ? r.errors.join('; ') : 'OK'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <textarea
-                value={pasteText}
-                onChange={e => setPasteText(e.target.value)}
-                placeholder={'Risk Statement,Category,Department,Likelihood,Impact,Owner\n"Cloud database outage during payroll","IT & Cyber","IT",4,4,"Anthony Muller"'}
-                rows={3}
-                className="w-full p-2 border border-slate-200 rounded text-xs font-mono bg-slate-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-700"
-              />
-              {pasteText.trim().length > 0 && parsedRows.length === 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => parseCSVText(pasteText)}
-                  className="mt-2 text-xs"
-                >
-                  Parse Pasted CSV
-                </Button>
+            </div>
+          )}
+
+          {importing && (
+            <p role="status" aria-live="polite" className="text-slate-600">
+              Importing {progress} of {valid.length}…
+            </p>
+          )}
+
+          {result && (
+            <div role="status" className={`rounded border px-3 py-2 ${result.failed.length ? 'border-amber-200 bg-amber-50 text-amber-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'}`}>
+              <p className="font-medium">
+                Imported {result.ok} risk{result.ok === 1 ? '' : 's'}.{result.failed.length > 0 && ` ${result.failed.length} row${result.failed.length === 1 ? '' : 's'} not imported:`}
+              </p>
+              {result.failed.length > 0 && (
+                <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                  {result.failed.map(f => (
+                    <li key={f.line}>
+                      Line {f.line}: {f.message}
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
+          )}
+        </div>
 
-            {/* Parsed Rows Preview */}
-            {parsedRows.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-slate-900 text-xs">Parsed Records Preview ({parsedRows.length} rows):</span>
-                  <button onClick={() => setParsedRows([])} className="text-red-600 hover:underline text-[11px]">Clear preview</button>
-                </div>
-                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded">
-                  <table className="enterprise-table">
-                    <thead>
-                      <tr>
-                        <th>Risk Statement</th>
-                        <th>Category</th>
-                        <th>Department</th>
-                        <th className="text-center">Likelihood &times; Impact</th>
-                        <th className="text-right">Exposure (SLE)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedRows.map((r, idx) => (
-                        <tr key={idx}>
-                          <td className="font-medium text-slate-900">{r.risk_statement}</td>
-                          <td>{r.risk_type}</td>
-                          <td>{r.process_name}</td>
-                          <td className="text-center font-mono">{r.likelihood}/5 &times; {r.impact}/5</td>
-                          <td className="text-right font-medium tabular-nums text-slate-900">${(r.inherent_sle).toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-            <Button variant="outline" size="sm" onClick={() => { setIsImportOpen(false); setParsedRows([]); setPasteText('') }}>
-              Cancel
+        <DialogFooter className="pt-2 border-t border-slate-200">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={importing}
+            onClick={() => {
+              reset()
+              onOpenChange(false)
+            }}
+          >
+            {result ? 'Close' : 'Cancel'}
+          </Button>
+          {!result && (
+            <Button size="sm" onClick={run} disabled={importing || valid.length === 0}>
+              {importing ? 'Importing…' : `Import ${valid.length} risk${valid.length === 1 ? '' : 's'}`}
             </Button>
-            <Button size="sm" onClick={executeBulkImport} disabled={importing || parsedRows.length === 0}>
-              {importing ? 'Importing...' : `Import ${parsedRows.length} risks into database`}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

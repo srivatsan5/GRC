@@ -1,418 +1,255 @@
 'use client'
 
+/** /rcsa/provisioning — RCSA assessment cycles (erm_trn_assessment_cycle). */
 import React, { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Plus, ArrowRight, Loader2, Trash2, Search, Sparkles } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  useReactTable,
-  getCoreRowModel,
-  getSortedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  flexRender,
-  createColumnHelper,
-  SortingState,
-} from '@tanstack/react-table'
-import { oracleService } from '@/lib/oracleService'
-import { toast } from 'sonner'
 import { useConfirm } from '@/components/ui/confirm-dialog'
 import { useAuth } from '@/components/providers/auth-provider'
-import { StatusBadge } from '@/components/ui/status-badge'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DataState } from '@/components/data-state'
+import { Pager } from '@/components/pager'
+import { useDeleteRow, useRowPage, useRows, type Row } from '@/lib/data'
+import { toRisk } from '@/lib/risk'
+import { daysUntil, formatDate } from '@/lib/format'
+import { apiErrorMessage } from '@/lib/apiClient'
+import { RcsaStepper, SortHeader, selectClass, useDebounced, type SortState } from '@/components/rcsa/shared'
+import { CYCLE_STATUSES, CycleDialog, CycleStatusBadge } from '@/components/rcsa/cycle-dialog'
+import { CYCLE_TABLE, RISK_TABLE } from '@/components/rcsa/risk-dialog'
 
-const assessmentSchema = z.object({
-  assessment_code: z.string(),
-  department: z.string().min(1, 'Required'),
-  estimated_start_date: z.string().min(1, 'Required'),
-  estimated_end_date: z.string().min(1, 'Required'),
-  status: z.string().min(1, 'Required'),
-  risk_champion: z.string().min(2, 'Required'),
-})
+const PAGE_SIZE = 25
 
-type AssessmentFormValues = z.infer<typeof assessmentSchema>
-
-const DEPARTMENTS = ['Finance & Treasury', 'Information Technology', 'Operations & Logistics', 'Legal & Compliance', 'Human Resources', 'Internal Audit', 'Risk Management']
-
-const STARTER_PACKS = {
-  fintech: {
-    label: 'Fintech & Banking Starter Pack',
-    items: [
-      { code: 'RCSA-FIN-2026-001', dept: 'Finance & Treasury', champ: 'Priya Sharma', start: '2026-01-01', end: '2026-03-31', status: 'In Progress' },
-      { code: 'RCSA-AML-2026-002', dept: 'Legal & Compliance', champ: 'Lin Wei', start: '2026-01-15', end: '2026-04-15', status: 'In Progress' },
-      { code: 'RCSA-PAY-2026-003', dept: 'Information Technology', champ: 'Anthony Muller', start: '2026-02-01', end: '2026-05-01', status: 'In Progress' },
-    ]
-  },
-  saas: {
-    label: 'Tech / SaaS Cloud Security Pack',
-    items: [
-      { code: 'RCSA-SOC2-2026-101', dept: 'Information Technology', champ: 'Anthony Muller', start: '2026-01-01', end: '2026-03-31', status: 'In Progress' },
-      { code: 'RCSA-GDPR-2026-102', dept: 'Legal & Compliance', champ: 'Lin Wei', start: '2026-02-01', end: '2026-05-01', status: 'In Progress' },
-      { code: 'RCSA-AWS-2026-103', dept: 'Operations & Logistics', champ: 'Priya Sharma', start: '2026-03-01', end: '2026-06-30', status: 'In Progress' },
-    ]
-  },
-  healthcare: {
-    label: 'Healthcare & HIPAA Compliance Pack',
-    items: [
-      { code: 'RCSA-HIPAA-2026-201', dept: 'Legal & Compliance', champ: 'Lin Wei', start: '2026-01-01', end: '2026-04-30', status: 'In Progress' },
-      { code: 'RCSA-EHR-2026-202', dept: 'Information Technology', champ: 'Anthony Muller', start: '2026-02-01', end: '2026-05-30', status: 'In Progress' },
-    ]
-  }
-}
-
-function safeCode(code: string | undefined, fallbackId: string) {
-  if (!code) return `RCSA-${fallbackId.slice(0, 6).toUpperCase()}`
-  if (/^-\d{4}-\d+$/.test(code)) return `RCSA-DEFAULT${code}`
-  return code
+interface CycleCounts {
+  risks: number
+  rated: number
+  approved: number
 }
 
 export function ProvisioningAllAssessmentsPage() {
-  const router = useRouter()
-  const queryClient = useQueryClient()
   const confirm = useConfirm()
   const { hasPermission } = useAuth()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [page, setPage] = useState(1)
+  const [searchInput, setSearchInput] = useState('')
+  const search = useDebounced(searchInput)
+  const [status, setStatus] = useState('')
+  const [sort, setSort] = useState<SortState>({ sort: 'created_on', order: 'desc' })
+  const [dialog, setDialog] = useState<{ open: boolean; cycle: Row | null }>({ open: false, cycle: null })
 
-  const { data: assessments = [], isLoading } = useQuery({
-    queryKey: ['assessments-list'],
-    queryFn: () => oracleService.getIdentifyRisks(),
-  })
+  const cycles = useRowPage(CYCLE_TABLE, { page, pageSize: PAGE_SIZE, search, sort: sort.sort, order: sort.order, filter: status ? { status } : undefined })
+  const items = cycles.data?.items ?? []
+  const ids = useMemo(() => items.map(c => Number(c.uuid)).filter(Number.isFinite), [items])
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<AssessmentFormValues>({
-    resolver: zodResolver(assessmentSchema),
-    defaultValues: {
-      assessment_code: '',
-      department: '',
-      estimated_start_date: '',
-      estimated_end_date: '',
-      status: 'In Progress',
-      risk_champion: '',
+  const risks = useRows(RISK_TABLE, { filter: { assessment_cycle_uuid: ids }, enabled: ids.length > 0 })
+  const counts = useMemo(() => {
+    const m = new Map<number, CycleCounts>()
+    for (const row of risks.data ?? []) {
+      const r = toRisk(row)
+      if (r.cycleUuid == null) continue
+      const c = m.get(r.cycleUuid) ?? { risks: 0, rated: 0, approved: 0 }
+      c.risks++
+      if (r.inherentScore != null) c.rated++
+      if (r.approvalStatus === 'APPROVED') c.approved++
+      m.set(r.cycleUuid, c)
     }
-  })
+    return m
+  }, [risks.data])
 
-  const watchDepartment = watch('department')
+  const unassigned = useRowPage(RISK_TABLE, { page: 1, pageSize: 1, filter: { assessment_cycle_uuid: null } })
+  const del = useDeleteRow(CYCLE_TABLE)
 
-  React.useEffect(() => {
-    const deptCode = (watchDepartment || '').split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 3) || 'GEN'
-    const yyyymm = new Date().toISOString().slice(0, 7).replace('-', '')
-    const seq = Math.floor(100 + Math.random() * 900)
-    setValue('assessment_code', `RCSA-${deptCode}-${yyyymm}-${seq}`)
-  }, [watchDepartment, setValue])
-
-  const createMutation = useMutation({
-    mutationFn: (data: any) => oracleService.createIdentifyRisk({
-      assessment_reference_number: data.assessment_code,
-      process_name: data.department,
-      start_date: new Date(data.estimated_start_date).toISOString(),
-      end_date: new Date(data.estimated_end_date).toISOString(),
-      risk_statement: `RCSA assessment cycle for ${data.department}`,
-      assessment_registered_date: new Date().toISOString(),
-      is_stage_complted: data.status === 'Completed' ? 'Y' : 'N',
-      status: 'Y',
-      risk_champion: data.risk_champion,
-      approval_status: 'DRAFT',
-    }),
-    onSuccess: (result: any) => {
-      queryClient.invalidateQueries({ queryKey: ['assessments-list'] })
-      toast.success('Assessment created')
-      setIsDialogOpen(false)
-      reset()
-    },
-    onError: (err: any) => {
-      toast.error(`Failed to create assessment: ${err.message}`)
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string | number) => oracleService.deleteIdentifyRisk(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: ['assessments-list'] })
-      toast.success('Assessment deleted')
-    },
-    onError: (err: any) => {
-      toast.error(`Failed to delete: ${err.message}`)
-    },
-  })
-
-  const handleDelete = async (id: string, code: string) => {
-    const ok = await confirm({
-      title: `Delete ${code}?`,
-      description: 'This will remove the assessment entry from the register.',
-      confirmLabel: 'Delete assessment',
-      tone: 'danger',
-    })
+  async function remove(c: Row) {
+    const n = counts.get(Number(c.uuid))?.risks ?? 0
+    if (n > 0) {
+      toast.error(`This cycle has ${n} risk${n === 1 ? '' : 's'}. Move or delete them before deleting the cycle.`)
+      return
+    }
+    const ok = await confirm({ title: `Delete ${c.cycle_reference || c.cycle_name}?`, description: 'The cycle record is removed permanently.', confirmLabel: 'Delete cycle', tone: 'danger' })
     if (!ok) return
-    deleteMutation.mutate(id)
-  }
-
-  const loadStarterPack = async (packKey: keyof typeof STARTER_PACKS) => {
-    const pack = STARTER_PACKS[packKey]
-    toast.info(`Seeding ${pack.label}...`)
-    for (const item of pack.items) {
-      await oracleService.createIdentifyRisk({
-        assessment_reference_number: item.code,
-        process_name: item.dept,
-        start_date: new Date(item.start).toISOString(),
-        end_date: new Date(item.end).toISOString(),
-        risk_statement: `RCSA cycle for ${item.dept}`,
-        assessment_registered_date: new Date().toISOString(),
-        is_stage_complted: 'N',
-        status: 'Y',
-        risk_champion: item.champ,
-        approval_status: 'DRAFT',
-      })
+    try {
+      await del.mutateAsync(c.uuid)
+      toast.success('Cycle deleted')
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
     }
-    queryClient.invalidateQueries({ queryKey: ['assessments-list'] })
-    toast.success(`${pack.label} seeded successfully!`)
   }
 
-  const onSubmit = (data: AssessmentFormValues) => {
-    createMutation.mutate(data)
+  const onSort = (s: SortState) => {
+    setSort(s)
+    setPage(1)
   }
 
-  const columnHelper = createColumnHelper<any>()
-  const columns = useMemo(() => [
-    columnHelper.accessor('assessment_reference_number', {
-      header: 'Assessment code',
-      cell: info => <span className="font-mono text-xs font-semibold text-slate-800">{safeCode(info.getValue(), String(info.row.original.uuid || ''))}</span>,
-    }),
-    columnHelper.accessor((row: any) => row.process_name || row.risk_statement || 'General', {
-      id: 'department',
-      header: 'Department / Scope',
-      cell: info => <span className="font-medium text-slate-900">{info.getValue() as string}</span>,
-    }),
-    columnHelper.accessor('start_date', {
-      header: 'Start date',
-      cell: info => info.getValue() ? new Date(info.getValue() as string).toLocaleDateString() : '—',
-    }),
-    columnHelper.accessor('end_date', {
-      header: 'End date',
-      cell: info => info.getValue() ? new Date(info.getValue() as string).toLocaleDateString() : '—',
-    }),
-    columnHelper.accessor((row: any) => row.is_stage_complted === 'Y' ? 'Completed' : 'In Progress', {
-      id: 'status',
-      header: 'Status',
-      cell: info => {
-        const v = info.getValue() as string
-        return (
-          <StatusBadge status={v === 'Completed' ? 'completed' : 'in-review'} label={v} />
-        )
-      },
-    }),
-    columnHelper.accessor((row: any) => row.risk_champion || row.risk_owner || 'Assessor', {
-      id: 'risk_champion',
-      header: 'Risk owner',
-      cell: info => <span className="text-slate-600">{info.getValue() as string}</span>,
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-1">
-          {hasPermission('delete') && (
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:bg-red-50" onClick={() => handleDelete(row.original.uuid, row.original.assessment_reference_number || row.original.uuid)} disabled={deleteMutation.isPending}>
-              <Trash2 className="w-3.5 h-3.5" />
-            </Button>
-          )}
-          <Button size="sm" variant="ghost" className="h-7 text-xs text-blue-700 hover:text-blue-900 font-medium" onClick={() => router.push(`/rcsa/provisioning/${row.original.uuid || row.original.id}`)}>
-            Open &rarr;
-          </Button>
-        </div>
-      ),
-    }),
-  ], [router, deleteMutation.isPending, hasPermission])
-
-  const table = useReactTable({
-    data: assessments,
-    columns,
-    state: { globalFilter, sorting },
-    onGlobalFilterChange: setGlobalFilter,
-    onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 10 } },
-  })
+  const filtered = !!search || !!status
+  const newButton = hasPermission('create') ? (
+    <Button size="sm" className="h-8" onClick={() => setDialog({ open: true, cycle: null })}>
+      <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+      New assessment cycle
+    </Button>
+  ) : null
 
   return (
     <div className="space-y-6 font-sans">
-      {/* Stepper Bar */}
-      <div className="bg-white border border-slate-200 rounded p-3 text-xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400 font-medium">RCSA Lifecycle:</span>
-          <span className="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">01 Setup (Active)</span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/identification')}>02 Identification</span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/mitigation')}>03 Controls & Mitigation</span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/monitoring')}>04 Monitoring</span>
-        </div>
+      <RcsaStepper active="setup" />
 
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-7 text-xs">
-                Demo starter packs
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 text-xs bg-white">
-              <DropdownMenuItem onClick={() => loadStarterPack('fintech')} className="cursor-pointer">
-                Fintech & Banking Pack
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => loadStarterPack('saas')} className="cursor-pointer">
-                SaaS & Tech Security Pack
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => loadStarterPack('healthcare')} className="cursor-pointer">
-                Healthcare Compliance Pack
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => router.push('/rcsa/identification')}
-            className="text-xs h-7"
-          >
-            Next Stage: Identify &rarr;
-          </Button>
-        </div>
-      </div>
-
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
         <div>
-          <h1 className="text-lg font-semibold text-slate-900">RCSA Assessment Setup</h1>
-          <p className="text-xs text-slate-500">Provision and manage quarterly risk and control self-assessment cycles</p>
+          <h1 className="text-lg font-semibold text-slate-900">Assessment cycles</h1>
+          <p className="text-xs text-slate-500">Plan RCSA rounds and track how many of their risks are rated and approved.</p>
         </div>
+        {newButton}
+      </div>
 
-        {hasPermission('create') && (
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="h-8 text-xs bg-blue-900 hover:bg-blue-800 text-white">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                New assessment cycle
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md bg-white border-slate-200 rounded-lg p-5 space-y-4 text-xs">
-              <DialogHeader>
-                <DialogTitle className="text-sm font-semibold text-slate-900">Provision Assessment Cycle</DialogTitle>
-              </DialogHeader>
-
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Assessment reference code</label>
-                  <Input {...register('assessment_code')} disabled className="h-8 text-xs font-mono bg-slate-50" />
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Department *</label>
-                  <select {...register('department')} className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white">
-                    <option value="">Select department...</option>
-                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                  {errors.department && <span className="text-[11px] text-red-600">{errors.department.message}</span>}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Start date *</label>
-                    <Input type="date" {...register('estimated_start_date')} className="h-8 text-xs" />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">End date *</label>
-                    <Input type="date" {...register('estimated_end_date')} className="h-8 text-xs" />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Risk owner / Champion *</label>
-                  <Input {...register('risk_champion')} placeholder="e.g. Priya Sharma" className="h-8 text-xs" />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                  <Button type="button" variant="outline" size="sm" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                  <Button type="submit" size="sm" disabled={createMutation.isPending}>
-                    {createMutation.isPending ? 'Provisioning...' : 'Create cycle'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label htmlFor="cycle-search" className="block text-xs text-slate-600 mb-1">
+              Search
+            </label>
+            <div className="relative w-72">
+              <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+              <Input
+                id="cycle-search"
+                placeholder="Reference, name, period…"
+                value={searchInput}
+                onChange={e => {
+                  setSearchInput(e.target.value)
+                  setPage(1)
+                }}
+                className="pl-8 h-8 text-xs bg-white"
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="cycle-status-filter" className="block text-xs text-slate-600 mb-1">
+              Status
+            </label>
+            <select
+              id="cycle-status-filter"
+              value={status}
+              onChange={e => {
+                setStatus(e.target.value)
+                setPage(1)
+              }}
+              className={`${selectClass} w-44`}
+            >
+              <option value="">All statuses</option>
+              {CYCLE_STATUSES.map(s => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        {unassigned.data && unassigned.data.total > 0 && (
+          <p className="text-xs text-slate-500">
+            {unassigned.data.total} risk{unassigned.data.total === 1 ? ' is' : 's are'} not in any cycle.{' '}
+            <Link href="/rcsa/identification" className="text-blue-800 hover:underline">
+              Open the risk register
+            </Link>
+          </p>
         )}
       </div>
 
-      {/* Filter Row */}
-      <div className="flex items-center justify-between">
-        <div className="relative w-72">
-          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" />
-          <Input
-            placeholder="Search assessments..."
-            value={globalFilter}
-            onChange={e => setGlobalFilter(e.target.value)}
-            className="pl-8 h-8 text-xs bg-white"
-          />
-        </div>
-        <span className="text-xs text-slate-500">{assessments.length} assessment cycles</span>
+      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+        <DataState
+          query={cycles}
+          empty={items.length === 0}
+          emptyTitle={filtered ? 'No cycles match these filters' : 'No assessment cycles yet'}
+          emptyDescription={filtered ? undefined : 'Create a cycle to group the risks you assess together.'}
+          emptyAction={filtered ? undefined : newButton}
+        >
+          <div className="overflow-x-auto">
+            <table className="enterprise-table">
+              <thead>
+                <tr>
+                  <SortHeader label="Reference" column="cycle_reference" state={sort} onSort={onSort} />
+                  <SortHeader label="Name" column="cycle_name" state={sort} onSort={onSort} />
+                  <SortHeader label="Start" column="cycle_start_date" state={sort} onSort={onSort} />
+                  <SortHeader label="End" column="cycle_end_date" state={sort} onSort={onSort} />
+                  <SortHeader label="Deadline" column="submission_deadline" state={sort} onSort={onSort} />
+                  <SortHeader label="Status" column="status" state={sort} onSort={onSort} />
+                  <th className="text-right">Risks</th>
+                  <th>Rated</th>
+                  <th>Approved</th>
+                  <th className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map(c => {
+                  const n = counts.get(Number(c.uuid))
+                  const due = daysUntil(c.submission_deadline)
+                  const overdue = due != null && due < 0 && c.status !== 'Completed'
+                  return (
+                    <tr key={c.uuid}>
+                      <td className="font-mono text-xs text-slate-800">{c.cycle_reference || '—'}</td>
+                      <td>
+                        <Link href={`/rcsa/provisioning/${c.uuid}`} className="font-medium text-slate-900 hover:underline">
+                          {c.cycle_name}
+                        </Link>
+                        {(c.cycle_period || c.cycle_type) && <span className="block text-[11px] text-slate-500">{[c.cycle_type, c.cycle_period].filter(Boolean).join(' · ')}</span>}
+                      </td>
+                      <td className="whitespace-nowrap">{formatDate(c.cycle_start_date)}</td>
+                      <td className="whitespace-nowrap">{formatDate(c.cycle_end_date)}</td>
+                      <td className="whitespace-nowrap">
+                        {formatDate(c.submission_deadline)}
+                        {overdue && <span className="ml-1 text-[11px] font-medium text-red-700">Overdue</span>}
+                      </td>
+                      <td>
+                        <CycleStatusBadge status={c.status} />
+                      </td>
+                      <td className="text-right tabular-nums">{risks.isLoading ? '…' : risks.isError ? '—' : (n?.risks ?? 0)}</td>
+                      <td>
+                        <Progress part={n?.rated ?? 0} whole={n?.risks ?? 0} loading={risks.isLoading} failed={risks.isError} />
+                      </td>
+                      <td>
+                        <Progress part={n?.approved ?? 0} whole={n?.risks ?? 0} loading={risks.isLoading} failed={risks.isError} />
+                      </td>
+                      <td className="text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {hasPermission('update') && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={`Edit ${c.cycle_name}`} onClick={() => setDialog({ open: true, cycle: c })}>
+                              <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                            </Button>
+                          )}
+                          {hasPermission('delete') && (
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600 hover:bg-red-50" aria-label={`Delete ${c.cycle_name}`} disabled={del.isPending} onClick={() => remove(c)}>
+                              <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                            </Button>
+                          )}
+                          <Button asChild size="sm" variant="ghost" className="text-blue-800">
+                            <Link href={`/rcsa/provisioning/${c.uuid}`}>Open &rarr;</Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} pageSize={PAGE_SIZE} total={cycles.data?.total ?? 0} onPage={setPage} busy={cycles.isFetching} />
+        </DataState>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
-        <table className="enterprise-table">
-          <thead>
-            {table.getHeaderGroups().map(headerGroup => (
-              <tr key={headerGroup.id}>
-                {headerGroup.headers.map(header => (
-                  <th key={header.id}>
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-slate-400" />
-                  <p className="text-xs">Loading assessments...</p>
-                </td>
-              </tr>
-            ) : assessments.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                  No assessments provisioned. Use &quot;New assessment cycle&quot; or select a &quot;Demo starter pack&quot;.
-                </td>
-              </tr>
-            ) : (
-              table.getRowModel().rows.map(row => (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map(cell => (
-                    <td key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <CycleDialog open={dialog.open} cycle={dialog.cycle} onOpenChange={open => setDialog(d => ({ ...d, open }))} />
+    </div>
+  )
+}
+
+function Progress({ part, whole, loading, failed }: { part: number; whole: number; loading?: boolean; failed?: boolean }) {
+  if (loading) return <span className="text-slate-400">…</span>
+  if (failed || whole === 0) return <span className="text-slate-400">—</span>
+  const pct = Math.round((part / whole) * 100)
+  return (
+    <div className="flex items-center gap-2 min-w-[96px]">
+      <div className="h-1.5 w-14 rounded bg-slate-100" aria-hidden="true">
+        <div className="h-1.5 rounded bg-blue-800" style={{ width: `${pct}%` }} />
       </div>
+      <span className="text-[11px] tabular-nums text-slate-600">
+        {part}/{whole}
+      </span>
     </div>
   )
 }

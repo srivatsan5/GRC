@@ -1,341 +1,356 @@
 'use client'
 
-import React, { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  useReactTable,
-  getCoreRowModel,
-  flexRender,
-  createColumnHelper,
-} from '@tanstack/react-table'
-import { 
-  Plus, 
-  Shield, 
-  Search, 
-  ArrowRight, 
-  Save, 
-  Trash2, 
-  Loader2, 
-  Check, 
-  RotateCcw,
-  AlertCircle
-} from 'lucide-react'
+import React, { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
+import { Download, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { FadeIn } from '@/components/ui/fade-in'
-import { motion, AnimatePresence } from 'framer-motion'
-import { oracleService } from '@/lib/oracleService'
-import { useToast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { useAuth } from '@/components/providers/auth-provider'
+import { DataState } from '@/components/data-state'
+import { Pager } from '@/components/pager'
+import { BandBadge } from '@/components/band-badge'
+import { useRows, type Row } from '@/lib/data'
+import { apiErrorMessage } from '@/lib/apiClient'
+import { recordAudit } from '@/lib/auditLog'
+import { currentScore, toRisk, type Risk } from '@/lib/risk'
+import { DASH } from '@/lib/format'
+import { ControlImplementationDialog, useRemoveAppliedControl } from '@/components/treatment/control-dialog'
+import {
+  OPERATING_OPTIONS,
+  ValueChip,
+  controlName,
+  downloadCsv,
+  labelCls,
+  numOrNull,
+  pageSlice,
+  riskLabel,
+  rowId,
+  selectCls,
+  text,
+} from '@/components/treatment/shared'
+
+const PAGE_SIZE = 25
+const NOT_ASSESSED = '__none__'
 
 export function AssessmentscontrolsPage() {
-  const { toast } = useToast()
-  const queryClient = useQueryClient()
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [editedRows, setEditedRows] = useState<Record<string, any>>({})
+  const { hasPermission } = useAuth()
+  const confirm = useConfirm()
+  const params = useSearchParams()
+  const initialRisk = numOrNull(params.get('riskId'))
 
-  // 1. Data Fetching
-  const { data: controls = [], isLoading, isError, error } = useQuery({
-    queryKey: ['assessments-controls'],
-    queryFn: () => oracleService.getAssessmentsControls(),
-  })
+  const implQ = useRows('per_trn_control_implementation')
+  const risksQ = useRows('per_trn_identify_risk')
+  const libraryQ = useRows('erm_mst_control')
+  const { remove, isPending: removing } = useRemoveAppliedControl()
 
-  // 2. Mutations
-  const updateMutation = useMutation({
-    mutationFn: async (payload: { id: string | number, data: any }[]) => {
-      const updates = payload.map(p => oracleService.updateControlAssessment(p.id, p.data))
-      return Promise.all(updates)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assessments-controls'] })
-      setEditedRows({})
-      toast({ title: 'Success', description: 'Control assessments synchronized.' })
-    },
-    onError: () => {
-      toast({ title: 'Sync Failure', description: 'Failed to update records.', variant: 'destructive' })
+  const [search, setSearch] = useState('')
+  const [effFilter, setEffFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'' | 'Y' | 'N'>('')
+  const [riskFilter, setRiskFilter] = useState<number | null>(initialRisk)
+  const [page, setPage] = useState(1)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<Row | null>(null)
+
+  useEffect(() => setPage(1), [search, effFilter, statusFilter, riskFilter])
+
+  const risks = useMemo(() => {
+    const m = new Map<number, Risk>()
+    for (const r of risksQ.data ?? []) {
+      const risk = toRisk(r)
+      if (Number.isFinite(risk.uuid)) m.set(risk.uuid, risk)
     }
-  })
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      return oracleService.createControlImplementation({
-        identify_risk_uuid: 1,
-        assessment_reference_number_uuid: 1,
-        control_design_effectiveness: 90,
-        control_frequency: 1,
-        is_stage_complted: 'N',
-        approval_status: 'DRAFT',
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assessments-controls'] })
-      toast({ title: 'Success', description: 'New control created.' })
-    },
-    onError: () => {
-      toast({ title: 'Creation Failure', description: 'Failed to create control.', variant: 'destructive' })
+    return m
+  }, [risksQ.data])
+  const library = useMemo(() => {
+    const m = new Map<number, Row>()
+    for (const c of libraryQ.data ?? []) {
+      const id = rowId(c)
+      if (id != null) m.set(id, c)
     }
-  })
+    return m
+  }, [libraryQ.data])
 
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string | number) => {
-      // Use deleteControlImplementation if it exists, otherwise deleteMitigationPlan which maps to the same table
-      return (oracleService as any).deleteControlImplementation 
-        ? (oracleService as any).deleteControlImplementation(id) 
-        : oracleService.deleteMitigationPlan(id);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assessments-controls'] })
-      toast({ title: 'Success', description: 'Control deleted.' })
-    },
-    onError: (err: any) => {
-      toast({ title: 'Deletion Failure', description: err.message || 'Failed to delete control.', variant: 'destructive' })
-    }
-  })
-
-  // 3. Column Definitions
-  const columnHelper = createColumnHelper<any>()
-  
-  const columns = useMemo(() => [
-    columnHelper.accessor('root_cause', {
-      header: 'Root Cause',
-      cell: info => <span className="font-bold text-foreground block max-w-[200px] truncate">{info.getValue() || info.row.original.control_description || 'Unknown'}</span>,
-    }),
-    columnHelper.accessor('inh_score', {
-      header: 'Score',
-      cell: info => {
-        const score = info.getValue() || info.row.original.inherent_sle || 0;
-        return (
-          <span className={cn(
-            "px-2 py-0.5 rounded text-[10px] font-black tracking-tighter shadow-sm",
-            score >= 15 ? "bg-destructive/10 text-destructive border border-destructive/20" : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
-          )}>
-            {score}
-          </span>
-        );
-      },
-    }),
-    columnHelper.accessor('control_id', {
-      header: 'ID',
-      cell: info => <span className="font-mono text-[11px] text-muted-foreground/70">{info.getValue() || String(info.row.original.uuid || '').slice(0, 8) || 'NEW'}</span>,
-    }),
-    columnHelper.accessor('control_design_effectiveness', {
-      header: 'Design Eff.',
-      cell: info => {
-        const val = info.getValue()
-        const label = val >= 70 ? 'Effective' : val >= 40 ? 'Needs Improvement' : val ? 'Ineffective' : 'Unset'
-        return <span className="font-semibold text-foreground/90">{label} {val ? `(${val})` : ''}</span>
-      },
-    }),
-    columnHelper.accessor('control_frequency', {
-      header: 'Frequency',
-      cell: ({ row, getValue }) => (
-        <select 
-          className="w-full bg-secondary/50 border border-border/40 rounded px-2 py-1 text-[11px] font-bold outline-none focus:ring-1 focus:ring-primary/30"
-          value={editedRows[row.original.uuid]?.control_frequency ?? getValue() ?? 1}
-          onChange={(e) => {
-            const val = Number(e.target.value)
-            setEditedRows(prev => ({
-              ...prev,
-              [row.original.uuid]: { ...(prev[row.original.uuid] || row.original), control_frequency: val }
-            }))
-          }}
-        >
-          <option value={1}>Continuous</option>
-          <option value={2}>Daily</option>
-          <option value={3}>Weekly</option>
-        </select>
-      )
-    }),
-    columnHelper.accessor('is_stage_complted', {
-      header: 'Oper. Status',
-      cell: ({ row, getValue }) => (
-        <select 
-          className="w-full bg-secondary/50 border border-border/40 rounded px-2 py-1 text-[11px] font-bold outline-none focus:ring-1 focus:ring-primary/30"
-          value={editedRows[row.original.uuid]?.is_stage_complted ?? getValue() ?? 'N'}
-          onChange={(e) => {
-            const val = e.target.value
-            setEditedRows(prev => ({
-              ...prev,
-              [row.original.uuid]: { ...(prev[row.original.uuid] || row.original), is_stage_complted: val }
-            }))
-          }}
-        >
-          <option value="Y">Complete</option>
-          <option value="N">In Progress</option>
-        </select>
-      )
-    }),
-    columnHelper.display({
-      id: 'overall',
-      header: 'Overall Status',
-      cell: ({ row }) => {
-        const edits = editedRows[row.original.uuid] || row.original
-        const isGreen = edits.is_stage_complted === 'Y'
-        return (
-          <div className="flex items-center gap-2 px-1">
-             <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]", isGreen ? "bg-emerald-500 text-emerald-500" : "bg-amber-500 text-amber-500")} />
-             <span className={cn("text-[10px] font-black uppercase tracking-widest", isGreen ? "text-emerald-500" : "text-amber-500")}>
-               {isGreen ? 'Green' : 'Amber'}
-             </span>
-          </div>
-        )
-      }
-    }),
-    columnHelper.display({
-      id: 'actions',
-      header: 'Act',
-      cell: ({ row }) => (
-        <button 
-          onClick={() => deleteMutation.mutate(row.original.uuid || row.original.id || row.original.control_id)}
-          disabled={deleteMutation.isPending}
-          className="p-1.5 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded-md disabled:opacity-50"
-        >
-          {deleteMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-        </button>
-      )
+  const rows = useMemo(() => {
+    const all = implQ.data ?? []
+    const term = search.trim().toLowerCase()
+    return all.filter(c => {
+      const riskId = numOrNull(c.identify_risk_uuid)
+      if (riskFilter != null && riskId !== riskFilter) return false
+      if (statusFilter && (c.is_stage_complted === 'Y' ? 'Y' : 'N') !== statusFilter) return false
+      const eff = text(c.control_effectiveness_rating)
+      if (effFilter === NOT_ASSESSED ? eff != null : effFilter && eff?.toLowerCase() !== effFilter.toLowerCase()) return false
+      if (!term) return true
+      const { code, name } = controlName(c.control_id, library)
+      const risk = riskId != null ? risks.get(riskId) : undefined
+      return [code, name, risk?.statement, text(c.evidence_notes), text(c.control_frequency), text(c.control_type), eff]
+        .some(v => v && v.toLowerCase().includes(term))
     })
-  ], [editedRows, deleteMutation.isPending])
+  }, [implQ.data, search, effFilter, statusFilter, riskFilter, library, risks])
 
-  // 4. Table instance
-  const table = useReactTable({
-    data: controls,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-  })
+  const counts = useMemo(() => {
+    const all = implQ.data ?? []
+    const by = (v: string) => all.filter(c => text(c.control_effectiveness_rating)?.toLowerCase() === v.toLowerCase()).length
+    return {
+      total: all.length,
+      effective: by('Effective'),
+      partial: by('Partially Effective'),
+      ineffective: by('Ineffective'),
+      notAssessed: all.filter(c => !text(c.control_effectiveness_rating) || text(c.control_effectiveness_rating)?.toLowerCase() === 'not tested').length,
+    }
+  }, [implQ.data])
 
-  const hasChanges = Object.keys(editedRows).length > 0
-
-  const handleSave = () => {
-    const payload = Object.entries(editedRows).map(([id, data]) => ({ id, data }))
-    updateMutation.mutate(payload)
+  const openNew = () => {
+    setEditing(null)
+    setDialogOpen(true)
   }
 
+  const handleDelete = async (row: Row) => {
+    const { name } = controlName(row.control_id, library)
+    const ok = await confirm({
+      title: 'Delete this applied control?',
+      description: `The test record for “${name}” will be permanently deleted. The library control itself is kept.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    })
+    if (!ok) return
+    try {
+      await remove(row)
+      toast.success('Applied control deleted')
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+    }
+  }
+
+  const exportCsv = () => {
+    downloadCsv(
+      `control-testing-${new Date().toISOString().slice(0, 10)}.csv`,
+      ['ID', 'Control code', 'Control', 'Risk ID', 'Risk', 'Type', 'Frequency', 'Design effectiveness', 'Operating effectiveness', 'Evidence', 'Assessment complete'],
+      rows.map(c => {
+        const { code, name } = controlName(c.control_id, library)
+        const riskId = numOrNull(c.identify_risk_uuid)
+        return [
+          rowId(c),
+          code,
+          name,
+          riskId,
+          riskId != null ? risks.get(riskId)?.statement : null,
+          text(c.control_type),
+          text(c.control_frequency),
+          text(c.control_design_effectiveness),
+          text(c.control_effectiveness_rating),
+          text(c.evidence_notes),
+          c.is_stage_complted === 'Y' ? 'Yes' : 'No',
+        ]
+      }),
+    )
+    recordAudit({ action: 'EXPORT', entity: 'Control testing', description: `Exported ${rows.length} applied controls to CSV`, result: 'SUCCESS' })
+  }
+
+  const filtered = search || effFilter || statusFilter || riskFilter != null
+
   return (
-    <div className="flex-1 pb-10 flex flex-col h-full bg-background/30">
-      <FadeIn delay={0.1} direction="none">
-        <div className="border-b border-border/40 px-6 py-5 bg-background/60 backdrop-blur-xl sticky top-0 z-40 flex justify-between items-center shadow-sm">
-          <div>
-            <h1 className="text-lg font-bold text-foreground tracking-tight">Control Implementation</h1>
-            <p className="text-[12px] text-muted-foreground font-medium">Mitigation mapping and effectiveness telemetry</p>
-          </div>
-          <div className="flex items-center gap-3">
-             <Button 
-                variant="outline" 
-                size="sm" 
-                className={cn("h-8 text-[11px] font-black uppercase tracking-tighter gap-2", hasChanges ? "border-amber-500/50 text-amber-600 bg-amber-500/5" : "opacity-50")}
-                onClick={() => setEditedRows({})}
-                disabled={!hasChanges}
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset
-              </Button>
-              <Button 
-                size="sm" 
-                className={cn("h-8 text-[11px] font-black uppercase tracking-tighter gap-2 shadow-lg", !hasChanges && "opacity-50 grayscale transition-all")}
-                onClick={handleSave}
-                disabled={updateMutation.isPending || !hasChanges}
-              >
-                {updateMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                Sync Changes
-              </Button>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Control testing</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Controls applied to risks, with their design and operating effectiveness and test evidence.</p>
         </div>
-      </FadeIn>
-
-      <div className="p-6 flex-1 flex flex-col min-h-0">
-        <div className="mb-6 flex gap-4">
-           <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground/60" />
-              <Input placeholder="Search controls..." className="pl-10 h-9 bg-card/40 border-border/40 text-[13px] font-medium" />
-           </div>
-           <Button 
-              size="sm" 
-              variant="ghost" 
-              className="h-9 px-4 text-[11px] font-bold uppercase tracking-widest border border-border/40 bg-card/20"
-              onClick={() => createMutation.mutate()}
-              disabled={createMutation.isPending}
-            >
-              {createMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-2" />}
-              New Control
-           </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
+            <Download className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+            Export CSV
+          </Button>
+          {hasPermission('create') && (
+            <Button size="sm" onClick={openNew}>
+              <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+              New applied control
+            </Button>
+          )}
         </div>
-
-        <FadeIn delay={0.2} className="flex-1 min-h-0">
-          <div className="glass-card rounded-2xl overflow-hidden shadow-2xl border border-border/40 flex flex-col h-full bg-card/20 backdrop-blur-md">
-            <div className="overflow-x-auto flex-1 scrollbar-thin scrollbar-thumb-border/20">
-              {isLoading ? (
-                <div className="py-40 text-center">
-                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary/40 mb-4" />
-                   <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground animate-pulse">Synchronizing with GRC Core...</p>
-                </div>
-              ) : isError ? (
-                <div className="py-40 text-center">
-                   <AlertCircle className="w-10 h-10 mx-auto text-destructive/40 mb-4" />
-                   <p className="text-sm font-bold text-foreground">Traceability Link Interrupted</p>
-                   <p className="text-[11px] text-muted-foreground mt-2 italic">{(error as any)?.message}</p>
-                </div>
-              ) : (
-                <table className="w-full text-left text-[13px] border-collapse">
-                  <thead className="sticky top-0 z-20 bg-secondary/80 backdrop-blur-md">
-                    {table.getHeaderGroups().map(hg => (
-                      <tr key={hg.id} className="border-b border-border/40">
-                         {hg.headers.map(h => (
-                           <th key={h.id} className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-r border-border/10 last:border-r-0">
-                              {flexRender(h.column.columnDef.header, h.getContext())}
-                           </th>
-                         ))}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    <AnimatePresence initial={false}>
-                      {table.getRowModel().rows.map(row => (
-                        <motion.tr 
-                          key={row.id} 
-                          layout="position"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className={cn(
-                            "group border-b border-border/20 transition-all hover:bg-secondary/40",
-                            editedRows[row.original.uuid] && "bg-primary/5 hover:bg-primary/10"
-                          )}
-                        >
-                           {row.getVisibleCells().map(cell => (
-                             <td key={cell.id} className="px-5 py-4 border-r border-border/10 last:border-r-0">
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                             </td>
-                           ))}
-                        </motion.tr>
-                      ))}
-                    </AnimatePresence>
-                  </tbody>
-                </table>
-              )}
-            </div>
-            
-            <div className="bg-secondary/40 px-6 py-3 border-t border-border/40 flex items-center justify-between">
-               <div className="flex items-center gap-6">
-                 <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-primary" />
-                    <span className="text-[11px] font-black uppercase tracking-tighter text-muted-foreground">Certified Traceability</span>
-                 </div>
-                 <div className="w-px h-4 bg-border/40" />
-                 <span className="text-[11px] font-bold text-foreground">{controls.length} Registered Nodes</span>
-               </div>
-               
-               {hasChanges && (
-                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-                    <span className="text-[10px] font-black uppercase text-amber-500 flex items-center gap-2">
-                       <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-                       Unsaved local cache detected
-                    </span>
-                 </motion.div>
-               )}
-            </div>
-          </div>
-        </FadeIn>
       </div>
+
+      {implQ.data && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            ['Applied controls', counts.total],
+            ['Effective', counts.effective],
+            ['Partially effective', counts.partial],
+            ['Ineffective', counts.ineffective],
+            ['Not tested / not assessed', counts.notAssessed],
+          ].map(([label, value]) => (
+            <div key={label} className="bg-white border border-slate-200 rounded p-3">
+              <span className="block text-[11px] text-slate-500">{label}</span>
+              <span className="text-lg font-semibold text-slate-900 tabular-nums">{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="bg-white border border-slate-200 rounded">
+        <div className="p-3 border-b border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label htmlFor="ctl-search" className={labelCls}>
+              Search
+            </label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+              <Input id="ctl-search" className="pl-8 h-9" placeholder="Control, risk, evidence…" value={search} onChange={e => setSearch(e.target.value)} />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="ctl-eff" className={labelCls}>
+              Operating effectiveness
+            </label>
+            <select id="ctl-eff" className={selectCls} value={effFilter} onChange={e => setEffFilter(e.target.value)}>
+              <option value="">All</option>
+              {OPERATING_OPTIONS.map(o => (
+                <option key={o}>{o}</option>
+              ))}
+              <option value={NOT_ASSESSED}>Not assessed</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="ctl-status" className={labelCls}>
+              Assessment
+            </label>
+            <select id="ctl-status" className={selectCls} value={statusFilter} onChange={e => setStatusFilter(e.target.value as '' | 'Y' | 'N')}>
+              <option value="">All</option>
+              <option value="N">In progress</option>
+              <option value="Y">Complete</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="ctl-risk-filter" className={labelCls}>
+              Risk
+            </label>
+            <select
+              id="ctl-risk-filter"
+              className={selectCls}
+              value={riskFilter ?? ''}
+              onChange={e => setRiskFilter(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">All risks</option>
+              {riskFilter != null && !risks.has(riskFilter) && <option value={riskFilter}>Risk #{riskFilter}</option>}
+              {[...risks.values()].map(r => (
+                <option key={r.uuid} value={r.uuid}>
+                  #{r.uuid} · {(r.statement ?? 'No statement').slice(0, 70)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <DataState
+          query={[implQ, risksQ, libraryQ]}
+          empty={rows.length === 0}
+          emptyTitle={filtered ? 'No applied controls match these filters' : 'No controls have been applied to risks yet'}
+          emptyDescription={filtered ? 'Clear the search or filters to see more.' : 'Apply a library control to a risk to start testing it.'}
+          emptyAction={
+            !filtered && hasPermission('create') ? (
+              <Button size="sm" onClick={openNew}>
+                <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                New applied control
+              </Button>
+            ) : undefined
+          }
+        >
+          <div className="overflow-x-auto">
+            <table className="enterprise-table">
+              <thead>
+                <tr>
+                  <th>Control</th>
+                  <th>Risk</th>
+                  <th>Frequency</th>
+                  <th>Design</th>
+                  <th>Operating</th>
+                  <th>Evidence</th>
+                  <th>Assessment</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageSlice(rows, page, PAGE_SIZE).map(c => {
+                  const id = rowId(c)
+                  const { code, name } = controlName(c.control_id, library)
+                  const riskId = numOrNull(c.identify_risk_uuid)
+                  const risk = riskId != null ? risks.get(riskId) : undefined
+                  return (
+                    <tr key={id ?? JSON.stringify(c)}>
+                      <td>
+                        <span className="font-medium text-slate-900 block">{name}</span>
+                        <span className="text-[11px] text-slate-500 font-mono">
+                          {code ?? DASH}
+                          {text(c.control_type) ? ` · ${text(c.control_type)}` : ''}
+                        </span>
+                      </td>
+                      <td className="max-w-[260px]">
+                        {riskId != null ? (
+                          <Link href={`/rcsa/mitigation/${riskId}`} className="text-xs text-blue-700 hover:underline line-clamp-2">
+                            {riskLabel(risk, riskId)}
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-slate-400">No risk linked</span>
+                        )}
+                        {risk && <BandBadge score={currentScore(risk)} className="mt-1" />}
+                      </td>
+                      <td className="text-slate-600 text-xs">{text(c.control_frequency) ?? DASH}</td>
+                      <td>
+                        <ValueChip value={c.control_design_effectiveness} />
+                      </td>
+                      <td>
+                        <ValueChip value={c.control_effectiveness_rating} />
+                      </td>
+                      <td className="max-w-[220px]">
+                        <span className="line-clamp-2 text-xs text-slate-600">{text(c.evidence_notes) ?? DASH}</span>
+                      </td>
+                      <td className="text-xs text-slate-600">{c.is_stage_complted === 'Y' ? 'Complete' : 'In progress'}</td>
+                      <td className="text-right whitespace-nowrap">
+                        {hasPermission('update') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label={`Edit ${name}`}
+                            onClick={() => {
+                              setEditing(c)
+                              setDialogOpen(true)
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
+                        {hasPermission('delete') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-600 hover:bg-red-50"
+                            aria-label={`Delete ${name}`}
+                            disabled={removing}
+                            onClick={() => handleDelete(c)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Pager page={page} pageSize={PAGE_SIZE} total={rows.length} onPage={setPage} />
+        </DataState>
+      </div>
+
+      <ControlImplementationDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        row={editing}
+        defaultRiskId={riskFilter}
+      />
     </div>
   )
 }

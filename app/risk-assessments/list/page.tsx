@@ -1,5 +1,6 @@
-import { RiskAssessmentsListPage } from '@/components/pages/risk-assessments-list'
+import { redirect } from 'next/navigation'
 
+/** Superseded by the assessment cycles page. */
 export default function Page() {
-  return <RiskAssessmentsListPage />
+  redirect('/rcsa/provisioning')
 }

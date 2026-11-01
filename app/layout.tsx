@@ -16,6 +16,7 @@ import { QueryProvider } from '@/components/providers/query-provider'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { ConfirmDialogProvider } from '@/components/ui/confirm-dialog'
 import { Toaster as SonnerToaster } from '@/components/ui/sonner'
+import { SettingsBoundary } from '@/lib/settings'
 
 export default function RootLayout({
   children,
@@ -34,9 +35,11 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <AuthProvider>
-              <ConfirmDialogProvider>
-                {children}
-              </ConfirmDialogProvider>
+              <SettingsBoundary>
+                <ConfirmDialogProvider>
+                  {children}
+                </ConfirmDialogProvider>
+              </SettingsBoundary>
             </AuthProvider>
             <Toaster />
             <SonnerToaster position="bottom-right" />

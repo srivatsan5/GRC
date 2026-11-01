@@ -1,5 +1,12 @@
-import { AssessmentsaccessPage } from '@/components/pages/assessments-access' 
+'use client'
+
+import { PericopeLayout } from '@/components/pericope-layout'
+import { AssessmentsaccessPage } from '@/components/pages/assessments-access'
 
 export default function Page() {
-  return <AssessmentsaccessPage />
+  return (
+    <PericopeLayout>
+      <AssessmentsaccessPage />
+    </PericopeLayout>
+  )
 }

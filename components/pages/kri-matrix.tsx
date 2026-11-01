@@ -1,229 +1,158 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Search, Download, TrendingUp, TrendingDown, MoreVertical, AlertTriangle, Loader2 } from 'lucide-react'
+/** /kri/matrix — each KRI against its last six recorded readings, coloured by traffic light. */
+import React, { useMemo, useState } from 'react'
+import Link from 'next/link'
+import { Download, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { FadeIn } from '@/components/ui/fade-in'
-import { motion, AnimatePresence } from 'framer-motion'
-import { oracleService } from '@/lib/oracleService'
+import { DataState, EmptyState } from '@/components/data-state'
+import { formatDate, formatNumber, toDateInput } from '@/lib/format'
+import { LIGHT_STYLES, kriLight, type KriLight, type KriReading } from '@/lib/kri'
+import { cn } from '@/lib/utils'
+import { exportCsv } from '@/components/controls/form-bits'
+import { DIRECTION_LABELS, LightBadge, thresholdText, useKriData } from '@/components/kri/kri-shared'
+
+const SLOTS = 6
 
 export function KrimatrixPage() {
-  const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<any[]>([])
+  const { data, queries, defsQ } = useKriData()
+  const [search, setSearch] = useState('')
+  const [showInactive, setShowInactive] = useState(false)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const items = await oracleService.getKriMatrix()
-        setData(items)
-      } catch (error) {
-        console.error('Failed to fetch KRI matrix:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchData()
-  }, [])
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return data
+      .filter(d => showInactive || d.kri.active)
+      .filter(d => !term || [d.kri.code, d.kri.name, d.kri.owner, d.kri.category].some(v => v?.toLowerCase().includes(term)))
+      .map(d => {
+        const last = d.readings.slice(-SLOTS)
+        // Right-align so the latest reading is always in the last column.
+        const slots: (KriReading | null)[] = [...Array<null>(SLOTS - last.length).fill(null), ...last]
+        return { ...d, slots }
+      })
+  }, [data, search, showInactive])
 
-  const mappedData = data.map((d: any) => ({
-    id: d.uuid ? `KRI-${d.uuid}` : (d.ID || d.KRI_ID || 'N/A'),
-    dept: d.monitoring_goal || d.DEPT || d.DEPARTMENT || 'Operations',
-    value: d.is_stage_complted === 'Y' ? 100 : 65,
-    score: d.is_stage_complted === 'Y' ? 'Green' : 'Amber',
-    prevValue: 50,
-    prevScore: 'Amber',
-    threshold: 80,
-    nextBound: 60,
-    breach: d.is_stage_complted === 'Y' ? 'Safe' : 'Warning',
-    owner: d.mitigation_owner || d.OWNER || 'Unassigned',
-    freq: 'Monthly',
-    target: 100,
-    type: 'LGI',
-    source: 'Oracle ADW',
-    updated: d.actual_start_date?.split('T')[0] || d.estimated_start_date?.split('T')[0] || 'N/A',
-    trend: d.is_stage_complted === 'Y' ? 'up' : 'down'
-  }))
+  const lightOf = (r: KriReading, d: (typeof rows)[number]): KriLight | null => r.light ?? kriLight(r.value, d.kri)
 
-  const filtered = mappedData.filter(d => 
-    d.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    d.dept.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  const redCount = mappedData.filter(d => d.score?.toLowerCase() === 'red').length
-  const amberCount = mappedData.filter(d => ['amber', 'yellow'].includes(d.score?.toLowerCase())).length
-  const greenCount = mappedData.filter(d => d.score?.toLowerCase() === 'green').length
+  const handleExport = () => {
+    const header = ['KRI code', 'KRI name', 'Unit', ...Array.from({ length: SLOTS }, (_, i) => (i === SLOTS - 1 ? 'Latest' : `Latest −${SLOTS - 1 - i}`)).flatMap(h => [`${h} date`, `${h} value`, `${h} light`])]
+    exportCsv(
+      'kri-matrix.csv',
+      header,
+      rows.map(d => [d.kri.code, d.kri.name, d.kri.unit, ...d.slots.flatMap(r => (r ? [toDateInput(r.date), r.value, lightOf(r, d) ?? ''] : ['', '', '']))]),
+      'KRI matrix',
+    )
+  }
 
   return (
-    <div className="flex-1 pb-10 flex flex-col h-full">
-      <FadeIn delay={0.1} direction="none">
-        <div className="border-b border-border/50 px-6 py-5 bg-background/50 backdrop-blur-md sticky top-0 z-40 flex justify-between items-center">
-          <div>
-            <h1 className="text-lg font-semibold text-foreground tracking-tight">KRI Matrix</h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5 font-medium">Comprehensive monitoring matrix for all Key Risk Indicators</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <motion.div whileTap={{ scale: 0.95 }}>
-              <Button variant="outline" size="sm" className="gap-2 h-8 text-xs font-semibold bg-card/50 border-border/50 hover:bg-secondary shadow-sm">
-                <Download className="w-3.5 h-3.5" />
-                Export Matrix
-              </Button>
-            </motion.div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
+        <div>
+          <h1 className="text-lg font-semibold text-slate-900">KRI readings matrix</h1>
+          <p className="text-xs text-slate-500">
+            Each indicator’s last {SLOTS} recorded readings, oldest to latest, coloured by the traffic light recorded with the reading. Record readings on{' '}
+            <Link href="/kri" className="text-blue-700 hover:underline">
+              Key Risk Indicators
+            </Link>
+            .
+          </p>
         </div>
-      </FadeIn>
+        <Button variant="outline" size="sm" onClick={handleExport} disabled={rows.length === 0}>
+          <Download className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" />
+          Export CSV
+        </Button>
+      </div>
 
-      <div className="p-6 flex-1 flex flex-col min-h-0">
-        <FadeIn delay={0.2} className="flex-1 min-h-0">
-          <div className="glass-card rounded-xl overflow-hidden shadow-sm flex flex-col h-full">
-            
-            <div className="p-4 border-b border-border/50 bg-secondary/30 flex justify-between items-center">
-              <div className="relative max-w-sm flex-1">
-                <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by ID, Department..."
-                  className="pl-9 h-9 text-[13px] bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center gap-4 text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-4">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-destructive" /> Red: {redCount}</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500" /> Amber: {amberCount}</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500" /> Green: {greenCount}</div>
-              </div>
-            </div>
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        <div className="relative w-full sm:w-72">
+          <label htmlFor="kri-matrix-search" className="sr-only">
+            Search indicators
+          </label>
+          <Search className="absolute left-2.5 top-2 w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+          <Input id="kri-matrix-search" placeholder="Search code, name, owner, category…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-8 text-xs bg-white" />
+        </div>
+        <div className="flex items-center gap-4">
+          <ul className="flex items-center gap-3 text-[11px] text-slate-600" aria-label="Legend">
+            {(['GREEN', 'AMBER', 'RED'] as const).map(l => (
+              <li key={l} className="flex items-center gap-1">
+                <span className={cn('h-2.5 w-2.5 rounded-sm', LIGHT_STYLES[l].dot)} aria-hidden="true" />
+                {LIGHT_STYLES[l].label}
+              </li>
+            ))}
+          </ul>
+          <label className="flex items-center gap-1.5 text-xs text-slate-600" htmlFor="kri-matrix-inactive">
+            <input id="kri-matrix-inactive" type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
+            Show inactive
+          </label>
+        </div>
+      </div>
 
-            <div className="overflow-x-auto flex-1">
-              <table className="w-full text-left text-[12px] whitespace-nowrap">
-                <thead className="sticky top-0 z-10 bg-secondary/90 backdrop-blur-md border-b border-border/50 shadow-sm">
-                  <tr className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
-                    <th className="px-4 py-3 sticky left-0 bg-secondary/90 z-20 border-r border-border/50 shadow-sm">KRI ID</th>
-                    <th className="px-4 py-3 text-center border-r border-border/50" colSpan={2}>Current Status</th>
-                    <th className="px-4 py-3 text-center border-r border-border/50" colSpan={2}>Previous Period</th>
-                    <th className="px-4 py-3">Threshold</th>
-                    <th className="px-4 py-3">Next Bound</th>
-                    <th className="px-4 py-3 border-r border-border/50">Breach</th>
-                    <th className="px-4 py-3 min-w-[120px]">Department</th>
-                    <th className="px-4 py-3">Owner</th>
-                    <th className="px-4 py-3">Frequency</th>
-                    <th className="px-4 py-3 font-mono">Target</th>
-                    <th className="px-4 py-3 text-center">Type</th>
-                    <th className="px-4 py-3 min-w-[150px]">Data Source</th>
-                    <th className="px-4 py-3 border-l border-border/50">Last Updated</th>
-                    <th className="px-3 py-3 text-center sticky right-0 bg-secondary/90 z-20 border-l border-border/50 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">Act</th>
-                  </tr>
-                  <tr className="bg-background/20 text-[9px] text-muted-foreground font-medium border-b border-border/30">
-                    <th className="px-4 py-1.5 sticky left-0 bg-secondary/90 border-r border-border/50 border-t border-border/30"></th>
-                    <th className="px-4 py-1.5 text-center text-foreground border-t border-border/30 border-r border-border/50">Value</th>
-                    <th className="px-4 py-1.5 text-center text-foreground border-t border-border/30 border-r border-border/50">Score</th>
-                    <th className="px-4 py-1.5 text-center border-t border-border/30 border-r border-border/50">Value</th>
-                    <th className="px-4 py-1.5 text-center border-t border-border/30 border-r border-border/50">Score</th>
-                    <th colSpan={11} className="border-t border-border/30 px-4 py-1.5"></th>
+      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+        <DataState query={queries} empty={(defsQ.data?.length ?? 0) === 0} emptyTitle="No KRI definitions yet" emptyDescription="Define indicators and record readings on the Key Risk Indicators page.">
+          {rows.length === 0 ? (
+            <EmptyState title="No indicators match" compact />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="enterprise-table">
+                <thead>
+                  <tr>
+                    <th className="min-w-[220px]">Indicator</th>
+                    {Array.from({ length: SLOTS }, (_, i) => (
+                      <th key={i} className="text-center">
+                        {i === SLOTS - 1 ? 'Latest' : `−${SLOTS - 1 - i}`}
+                      </th>
+                    ))}
+                    <th>Current status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <AnimatePresence>
-                    {filtered.map((row, idx) => (
-                      <motion.tr 
-                        layout="position"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        key={row.id || idx} 
-                        className="border-b border-border/30 hover:bg-secondary/20 transition-colors last:border-0 group"
-                      >
-                        <td className="px-4 py-3 font-mono font-bold text-foreground sticky left-0 bg-background group-hover:bg-secondary/20 transition-colors border-r border-border/50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                          {row.id}
-                        </td>
-                        
-                        <td className="px-4 py-3 text-center border-r border-border/50 bg-secondary/10">
-                          <div className="flex items-center justify-center gap-2 font-mono text-[13px] font-bold text-foreground">
-                            {row.value}
-                            {row.trend === 'up' ? <TrendingUp className="w-3.5 h-3.5 text-emerald-500" /> : <TrendingDown className="w-3.5 h-3.5 text-amber-500" />}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center border-r border-border/50 bg-secondary/10">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${row.score === 'Green' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
-                            {row.score}
-                          </span>
-                        </td>
-                        
-                        <td className="px-4 py-3 text-center border-r border-border/50 font-mono text-muted-foreground">{row.prevValue}</td>
-                        <td className="px-4 py-3 text-center border-r border-border/50">
-                          <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border opacity-70 bg-amber-500/10 text-amber-500 border-amber-500/20`}>
-                            {row.prevScore}
-                          </span>
-                        </td>
-                        
-                        <td className="px-4 py-3 font-mono text-amber-500 font-semibold">{row.threshold}</td>
-                        <td className="px-4 py-3 font-mono text-destructive font-semibold">{row.nextBound}</td>
-                        
-                        <td className="px-4 py-3 border-r border-border/50">
-                          <span className={`flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider ${row.breach === 'Warning' ? 'text-amber-500' : 'text-emerald-500'}`}>
-                            {row.breach === 'Warning' && <AlertTriangle className="w-3 h-3" />}
-                            {row.breach}
-                          </span>
-                        </td>
-                        
-                        <td className="px-4 py-3 font-medium text-foreground">{row.dept.substring(0, 30)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{row.owner}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{row.freq}</td>
-                        <td className="px-4 py-3 font-mono text-emerald-500 font-semibold bg-emerald-500/5">{row.target}</td>
-                        
-                        <td className="px-4 py-3 text-center">
-                          <span className="inline-block px-1.5 py-0.5 rounded bg-secondary text-muted-foreground text-[10px] font-bold uppercase tracking-wider border border-border/50">
-                            {row.type}
-                          </span>
-                        </td>
-                        
-                        <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground truncate max-w-[150px]">{row.source}</td>
-                        <td className="px-4 py-3 border-l border-border/50 font-mono text-[11px] text-muted-foreground">{row.updated}</td>
-                        
-                        <td className="px-3 py-3 text-center sticky right-0 bg-background group-hover:bg-secondary/20 transition-colors border-l border-border/50 z-10 shadow-[-2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button className="p-1.5 rounded hover:bg-secondary text-muted-foreground transition-colors">
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg rounded-xl">
-                               <DropdownMenuItem onClick={() => router.push(`/monitoring?kriId=${row.id}`)} className="text-[11px] font-bold hover:bg-secondary cursor-pointer uppercase tracking-wider text-muted-foreground">
-                                 Monitor Indicator
-                               </DropdownMenuItem>
-                               <DropdownMenuItem onClick={() => router.push(`/rcsa?kriId=${row.id}`)} className="text-[11px] font-bold hover:bg-secondary cursor-pointer uppercase tracking-wider text-muted-foreground">
-                                 Trigger Provisioning
-                               </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
+                  {rows.map(d => (
+                    <tr key={d.kri.uuid}>
+                      <th scope="row" className="text-left font-normal">
+                        <div className="font-mono text-[11px] text-slate-500">{d.kri.code}</div>
+                        <div className="font-medium text-slate-900">{d.kri.name}</div>
+                        <div className="text-[11px] text-slate-500">
+                          {d.kri.unit ?? 'No unit'} · {DIRECTION_LABELS[d.kri.direction]}
+                          {!d.kri.active && ' · Inactive'}
+                        </div>
+                        <div className="text-[10px] text-slate-400">{thresholdText(d.kri)}</div>
+                      </th>
+                      {d.slots.map((r, i) => {
+                        if (!r)
+                          return (
+                            <td key={i} className="text-center text-slate-300">
+                              <span className="sr-only">No reading</span>
+                              <span aria-hidden="true">—</span>
+                            </td>
+                          )
+                        const l = lightOf(r, d)
+                        const st = l ? LIGHT_STYLES[l] : null
+                        return (
+                          <td key={r.uuid} className="text-center p-1">
+                            <div
+                              className={cn('rounded border px-2 py-1.5', st ? [st.bg, st.border, st.text] : 'bg-slate-50 border-slate-200 text-slate-600')}
+                              title={r.notes ?? undefined}
+                            >
+                              <div className="text-xs font-semibold tabular-nums">{formatNumber(r.value, 4)}</div>
+                              <div className="text-[10px] opacity-80">{formatDate(r.date)}</div>
+                              <span className="sr-only">{l ? `, ${LIGHT_STYLES[l].label}` : ', no status'}</span>
+                            </div>
+                          </td>
+                        )
+                      })}
+                      <td>
+                        <LightBadge light={d.light} />
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              {filtered.length === 0 && (
-                <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
-                  <p className="font-medium text-xs">No indicators found.</p>
-                </div>
-              )}
             </div>
-            
-            <div className="bg-slate-50 p-2.5 border-t border-slate-200 text-xs text-slate-500 flex justify-between items-center px-4">
-              <span>{filtered.length} Key Risk Indicators</span>
-            </div>
-          </div>
-        </FadeIn>
+          )}
+        </DataState>
       </div>
+      <p className="text-[11px] text-slate-500">Current status applies today’s thresholds to the latest reading; cell colours show the status recorded at the time of each reading.</p>
     </div>
   )
 }

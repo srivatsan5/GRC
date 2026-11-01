@@ -1,381 +1,277 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ArrowLeft, Plus, Trash2, Loader2, ShieldCheck, CheckCircle2 } from 'lucide-react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { oracleService } from '@/lib/oracleService'
+import React, { useMemo, useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'sonner'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
-
-interface ControlEntry {
-  id: number
-  control: string
-  residual_impact: string
-  likelihood: string
-  control_owner: string
-  control_frequency: string
-  control_effectiveness: string
-}
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useConfirm } from '@/components/ui/confirm-dialog'
+import { useAuth } from '@/components/providers/auth-provider'
+import { DataState, EmptyState, ErrorState, LoadingState } from '@/components/data-state'
+import { useRow, useRows, type Row } from '@/lib/data'
+import { apiErrorCode, apiErrorMessage } from '@/lib/apiClient'
+import { toRisk } from '@/lib/risk'
+import { useOrgSettings } from '@/lib/settings'
+import { DASH } from '@/lib/format'
+import { ResidualRating } from '@/components/treatment/residual-rating'
+import { ControlImplementationDialog, useRemoveAppliedControl } from '@/components/treatment/control-dialog'
+import { ValueChip, controlName, numOrNull, rowId, text } from '@/components/treatment/shared'
 
 interface Props {
   assessmentId: string
   riskId: string
 }
 
+const RISK = 'per_trn_identify_risk'
+const IMPL = 'per_trn_control_implementation'
+
 export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props) {
-  const router = useRouter()
-  const queryClient = useQueryClient()
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [deleteId, setDeleteId] = useState<string | number | null>(null)
+  const { hasPermission } = useAuth()
+  const { money } = useOrgSettings()
+  const confirm = useConfirm()
+  const riskNum = Number(riskId)
+  const validId = Number.isInteger(riskNum) && riskNum > 0
 
-  // 1. Fetch Controls
-  const { data: rawControls = [], isLoading } = useQuery({
-    queryKey: ['applied-controls', riskId],
-    queryFn: () => oracleService.getControlImplementations(),
-  })
+  const riskQ = useRow(RISK, validId ? riskNum : null)
+  const controlsQ = useRows(IMPL, { filter: { identify_risk_uuid: riskNum }, enabled: validId })
+  const libraryQ = useRows('erm_mst_control')
+  const { remove, isPending: removing } = useRemoveAppliedControl()
 
-  // 2. Fetch Risk details
-  const { data: allRisks = [] } = useQuery({
-    queryKey: ['applied-controls-risk-info'],
-    queryFn: () => oracleService.getIdentifyRisks(),
-  })
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState<Row | null>(null)
 
-  const currentRisk = useMemo(() => {
-    // No invented placeholder risk: show plainly when the record can't be found.
-    return allRisks.find((r: any) => String(r.uuid) === String(riskId) || String(r.id) === String(riskId)) || {
-      uuid: riskId,
-      risk_statement: '(risk not found)',
-      process_name: '—',
-      inherent_sle: 0,
+  const risk = useMemo(() => (riskQ.data ? toRisk(riskQ.data) : null), [riskQ.data])
+  const controls = controlsQ.data ?? []
+  const library = useMemo(() => {
+    const m = new Map<number, Row>()
+    for (const c of libraryQ.data ?? []) {
+      const id = rowId(c)
+      if (id != null) m.set(id, c)
     }
-  }, [allRisks, riskId])
+    return m
+  }, [libraryQ.data])
 
-  // Only controls actually linked to this risk. (Matching on the assessment id pulled in every control
-  // of the assessment, and the old sample rows had ids that a Delete click would send to the database.)
-  const controls = useMemo(() => {
-    return rawControls.filter((c: any) =>
-      String(c.risk_uuid) === String(riskId) ||
-      String(c.identify_risk_uuid) === String(riskId)
+  const handleRemove = async (row: Row) => {
+    const { name } = controlName(row.control_id, library)
+    const ok = await confirm({
+      title: 'Remove this control from the risk?',
+      description: `“${name}” will no longer be recorded as mitigating this risk. The library control itself is not deleted.`,
+      confirmLabel: 'Remove control',
+      tone: 'danger',
+    })
+    if (!ok) return
+    try {
+      await remove(row)
+      toast.success('Control removed from the risk')
+    } catch (err) {
+      toast.error(apiErrorMessage(err))
+    }
+  }
+
+  const stepper = (
+    <nav aria-label="Assessment steps" className="bg-white border border-slate-200 rounded p-3 text-xs flex flex-wrap items-center justify-between gap-2">
+      <ol className="flex flex-wrap items-center gap-2">
+        <li>
+          <Link href="/rcsa/provisioning" className="text-slate-600 hover:underline">
+            01 Setup
+          </Link>
+        </li>
+        <li aria-hidden="true" className="text-slate-300">
+          &rarr;
+        </li>
+        <li>
+          <Link href={`/rcsa/provisioning/${encodeURIComponent(assessmentId)}`} className="text-slate-600 hover:underline">
+            02 Assessment details
+          </Link>
+        </li>
+        <li aria-hidden="true" className="text-slate-300">
+          &rarr;
+        </li>
+        <li aria-current="step" className="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+          03 Controls &amp; residual rating
+        </li>
+        <li aria-hidden="true" className="text-slate-300">
+          &rarr;
+        </li>
+        <li>
+          <Link href={`/rcsa/monitoring?assessmentId=${encodeURIComponent(assessmentId)}`} className="text-slate-600 hover:underline">
+            04 Monitoring
+          </Link>
+        </li>
+      </ol>
+      <Button asChild size="sm" variant="outline" className="text-xs h-7">
+        <Link href={`/rcsa/provisioning/${encodeURIComponent(assessmentId)}`}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+          Back to assessment details
+        </Link>
+      </Button>
+    </nav>
+  )
+
+  if (!validId) {
+    return (
+      <div className="space-y-6">
+        {stepper}
+        <EmptyState title="Risk not found" description={`“${riskId}” is not a valid risk id.`} />
+      </div>
     )
-  }, [rawControls, riskId])
-
-  const [newControl, setNewControl] = useState<ControlEntry>({
-    id: 0,
-    control: '',
-    residual_impact: '2',
-    likelihood: '2',
-    control_owner: 'IT Security',
-    control_frequency: 'Daily',
-    control_effectiveness: 'Effective',
-  })
-
-  const createMutation = useMutation({
-    mutationFn: (data: ControlEntry) => oracleService.createControlImplementation({
-      // Never fall back to a made-up id: an unlinked control is better than one linked to the wrong risk.
-      identify_risk_uuid: Number(riskId) || undefined,
-      assessment_reference_number_uuid: Number(assessmentId) || undefined,
-      risk_uuid: Number(riskId) || undefined,
-      residual_likelihood: Number(data.likelihood) || 2,
-      inherent_likelihood: Number(data.residual_impact) || 2,
-      control_effectiveness_rating: data.control_effectiveness,
-      // CONTROL_OWNER is a numeric user id in Oracle. Until owners are picked from the user list,
-      // keep a free-text owner in the notes instead of writing a wrong id.
-      evidence_notes: /^\d+$/.test(String(data.control_owner).trim()) ? data.control : `${data.control}\nOwner: ${data.control_owner}`,
-      control_owner: /^\d+$/.test(String(data.control_owner).trim()) ? Number(data.control_owner) : undefined,
-      control_frequency: data.control_frequency,
-      is_stage_complted: 'N',
-      approval_status: 'DRAFT',
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applied-controls', riskId] })
-      toast.success('Control mapped to risk successfully')
-      setNewControl({
-        id: 0,
-        control: '',
-        residual_impact: '2',
-        likelihood: '2',
-        control_owner: 'IT Security',
-        control_frequency: 'Daily',
-        control_effectiveness: 'Effective',
-      })
-      setIsDialogOpen(false)
-    },
-    onError: (err: any) => {
-      toast.error(`Failed to add control: ${err.message}`)
-    },
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string | number) => oracleService.deleteControlImplementation(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['applied-controls', riskId] })
-      toast.success('Control removed')
-      setDeleteId(null)
-    },
-    onError: (err: any) => {
-      toast.error(`Failed to remove control: ${err.message}`)
-      setDeleteId(null)
-    },
-  })
-
-  const handleAddControl = () => {
-    if (!newControl.control.trim()) {
-      toast.error('Control title/description is required')
-      return
-    }
-    createMutation.mutate(newControl)
   }
-
-  const handleRemoveControl = (id: string | number) => {
-    if (confirm('Remove this control from the risk?')) {
-      setDeleteId(id)
-      deleteMutation.mutate(id)
-    }
+  if (riskQ.isLoading) return <div className="space-y-6">{stepper}<LoadingState /></div>
+  if (riskQ.isError) {
+    return (
+      <div className="space-y-6">
+        {stepper}
+        {apiErrorCode(riskQ.error) === 'NOT_FOUND' ? (
+          <EmptyState title="Risk not found" description={`There is no risk with id ${riskNum} in the register.`} />
+        ) : (
+          <ErrorState error={riskQ.error} onRetry={riskQ.refetch} />
+        )}
+      </div>
+    )
   }
+  if (!risk) return null
 
   return (
-    <div className="space-y-6 font-sans">
-      {/* Stepper Navigation Bar */}
-      <div className="bg-white border border-slate-200 rounded p-3 text-xs flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-slate-400 font-medium">Lifecycle:</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push('/rcsa/provisioning')}>
-            01 Setup
-          </span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push(`/rcsa/provisioning/${assessmentId}`)}>
-            02 Assessment Details
-          </span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="font-semibold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-            03 Controls Mapping (Active)
-          </span>
-          <span className="text-slate-300">&rarr;</span>
-          <span className="text-slate-500 hover:underline cursor-pointer" onClick={() => router.push(`/rcsa/monitoring?assessmentId=${assessmentId}`)}>
-            04 Monitoring
-          </span>
-        </div>
+    <div className="space-y-6">
+      {stepper}
 
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => router.push(`/rcsa/provisioning/${assessmentId}`)}
-          className="text-xs h-7"
-        >
-          &larr; Back to Assessment Details
-        </Button>
-      </div>
-
-      {/* Risk Context Card */}
-      <div className="bg-white rounded border border-slate-200 p-5 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs text-slate-500">REF-{String(riskId).slice(0, 6)}</span>
-              <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded border border-slate-200">
-                {currentRisk.process_name || 'Finance & Treasury'}
-              </span>
+      <section className="bg-white rounded border border-slate-200 p-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-mono text-xs text-slate-500">{risk.referenceNumber ?? `Risk #${risk.uuid}`}</span>
+              {risk.process && (
+                <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 rounded border border-slate-200">{risk.process}</span>
+              )}
+              {risk.category && (
+                <span className="text-[11px] bg-slate-100 text-slate-600 px-1.5 rounded border border-slate-200">{risk.category}</span>
+              )}
             </div>
-            <h1 className="text-lg font-bold text-slate-900 mt-1">{currentRisk.risk_statement}</h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Inherent Exposure: <strong className="text-slate-800">${Number(currentRisk.inherent_sle || 0).toLocaleString()} SLE</strong> &middot; Mapped Controls: <strong className="text-emerald-700">{controls.length}</strong>
+            <h1 className="text-lg font-bold text-slate-900 mt-1">{risk.statement ?? `Risk #${risk.uuid} (no statement recorded)`}</h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Owner: <strong className="text-slate-800">{risk.owner ?? DASH}</strong> · Inherent SLE:{' '}
+              <strong className="text-slate-800">{money(risk.sle)}</strong> · Controls applied:{' '}
+              <strong className="text-slate-800">{controlsQ.data ? controls.length : DASH}</strong>
             </p>
           </div>
-
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="h-8 text-xs bg-blue-900 hover:bg-blue-800 text-white">
-                <Plus className="w-3.5 h-3.5 mr-1" />
-                Map Control to Risk
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md bg-white border-slate-200 rounded-lg p-5 space-y-4 text-xs">
-              <DialogHeader>
-                <DialogTitle className="text-sm font-semibold text-slate-900">Map Control to Risk</DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Control title / description *</label>
-                  <textarea
-                    value={newControl.control}
-                    onChange={(e) => setNewControl({ ...newControl, control: e.target.value })}
-                    placeholder="e.g. Multi-factor authentication enforced on production database..."
-                    rows={2}
-                    className="w-full p-2 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Control owner</label>
-                    <Input
-                      value={newControl.control_owner}
-                      onChange={(e) => setNewControl({ ...newControl, control_owner: e.target.value })}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Testing frequency</label>
-                    <select
-                      value={newControl.control_frequency}
-                      onChange={(e) => setNewControl({ ...newControl, control_frequency: e.target.value })}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option>Continuous</option>
-                      <option>Daily</option>
-                      <option>Weekly</option>
-                      <option>Monthly</option>
-                      <option>Quarterly</option>
-                      <option>Annual</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Residual Likelihood (1-5)</label>
-                    <select
-                      value={newControl.likelihood}
-                      onChange={(e) => setNewControl({ ...newControl, likelihood: e.target.value })}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option value="1">1 - Rare</option>
-                      <option value="2">2 - Unlikely</option>
-                      <option value="3">3 - Possible</option>
-                      <option value="4">4 - Likely</option>
-                      <option value="5">5 - Certain</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-medium mb-1">Residual Impact (1-5)</label>
-                    <select
-                      value={newControl.residual_impact}
-                      onChange={(e) => setNewControl({ ...newControl, residual_impact: e.target.value })}
-                      className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                    >
-                      <option value="1">1 - Insignificant</option>
-                      <option value="2">2 - Minor</option>
-                      <option value="3">3 - Moderate</option>
-                      <option value="4">4 - Major</option>
-                      <option value="5">5 - Severe</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-700 font-medium mb-1">Operating effectiveness</label>
-                  <select
-                    value={newControl.control_effectiveness}
-                    onChange={(e) => setNewControl({ ...newControl, control_effectiveness: e.target.value })}
-                    className="w-full h-8 px-2 border border-slate-200 rounded text-xs bg-white"
-                  >
-                    <option value="Effective">Effective (Tested & Verified)</option>
-                    <option value="Partially Effective">Partially Effective (Minor gap)</option>
-                    <option value="Ineffective">Ineffective (Remediation required)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-slate-200">
-                <Button variant="outline" size="sm" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-                <Button size="sm" onClick={handleAddControl} disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Mapping...' : 'Save Control'}
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          {hasPermission('create') && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditing(null)
+                setDialogOpen(true)
+              }}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+              Apply control
+            </Button>
+          )}
         </div>
+      </section>
 
-        {/* Residual Exposure Reduction Box */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="p-3 bg-slate-50 rounded border border-slate-200">
-            <span className="text-[11px] text-slate-500 block">Gross Inherent SLE</span>
-            <span className="text-base font-bold text-slate-900 tabular-nums">${Number(currentRisk.inherent_sle || 0).toLocaleString()}</span>
-          </div>
-          <div className="p-3 bg-slate-50 rounded border border-slate-200">
-            <span className="text-[11px] text-slate-500 block">Net Residual SLE</span>
-            <span className="text-base font-bold text-blue-800 tabular-nums">${Math.round(Number(currentRisk.inherent_sle || 0) * 0.25).toLocaleString()}</span>
-          </div>
-          <div className="p-3 bg-slate-50 rounded border border-slate-200">
-            <span className="text-[11px] text-slate-500 block">Exposure Mitigated</span>
-            <span className="text-base font-bold text-emerald-700 tabular-nums">75% Reduction</span>
-          </div>
-          <div className="p-3 bg-slate-50 rounded border border-slate-200">
-            <span className="text-[11px] text-slate-500 block">Controls Operating</span>
-            <span className="text-base font-bold text-slate-900 tabular-nums">{controls.length} Active</span>
-          </div>
-        </div>
-      </div>
+      <ResidualRating risk={risk} canEdit={hasPermission('update')} />
 
-      {/* Applied Controls Table */}
-      <div className="bg-white rounded border border-slate-200 overflow-hidden">
+      <section className="bg-white rounded border border-slate-200 overflow-hidden" aria-labelledby="applied-heading">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Internal Controls Mitigating this Risk</h2>
-          <span className="text-xs text-slate-500">{controls.length} controls mapped</span>
+          <h2 id="applied-heading" className="text-sm font-semibold text-slate-900">
+            Controls mitigating this risk
+          </h2>
+          {controlsQ.data && <span className="text-xs text-slate-500">{controls.length} applied</span>}
         </div>
-
-        <table className="enterprise-table">
-          <thead>
-            <tr>
-              <th className="w-[35%]">Control Description & Objectives</th>
-              <th className="w-[15%]">Owner</th>
-              <th className="w-[12%]">Frequency</th>
-              <th className="w-[14%] text-center">Residual (L &times; I)</th>
-              <th className="w-[14%] text-center">Effectiveness</th>
-              <th className="w-[10%] text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {controls.map((control: any, idx: number) => {
-              const resL = control.residual_likelihood || 2
-              const resI = control.inherent_likelihood || control.residual_impact || 2
-              const title = control.evidence_notes || control.control_name || control.control_id || 'Operational Internal Control'
-              return (
-                <tr key={control.uuid || idx}>
-                  <td>
-                    <span className="font-medium text-slate-900 block">{title}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">ID: CTL-{control.uuid || idx + 100}</span>
-                  </td>
-                  <td className="text-slate-600">{control.control_owner || 'IT Security'}</td>
-                  <td className="text-slate-600">{control.control_frequency || 'Daily'}</td>
-                  <td className="text-center font-mono text-xs">
-                    <span className="font-semibold text-slate-800">{resL}/5 &times; {resI}/5</span>
-                    <span className="block text-[10px] text-slate-400">(Score: {resL * resI})</span>
-                  </td>
-                  <td className="text-center">
-                    <StatusBadge status="completed" label={control.control_effectiveness_rating || 'Effective'} />
-                  </td>
-                  <td className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveControl(control.uuid)}
-                      disabled={deleteMutation.isPending && deleteId === control.uuid}
-                      className="h-7 w-7 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </td>
+        <DataState
+          query={[controlsQ, libraryQ]}
+          empty={controls.length === 0}
+          emptyTitle="No controls applied yet"
+          emptyDescription="Apply controls from the library to record how this risk is mitigated."
+          emptyAction={
+            hasPermission('create') ? (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setEditing(null)
+                  setDialogOpen(true)
+                }}
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+                Apply control
+              </Button>
+            ) : undefined
+          }
+        >
+          <div className="overflow-x-auto">
+            <table className="enterprise-table">
+              <thead>
+                <tr>
+                  <th>Control</th>
+                  <th>Type</th>
+                  <th>Frequency</th>
+                  <th>Design</th>
+                  <th>Operating</th>
+                  <th>Evidence</th>
+                  <th>Assessment</th>
+                  <th className="text-right">Actions</th>
                 </tr>
-              )
-            })}
-            {controls.length === 0 && (
-              <tr>
-                <td colSpan={6} className="py-8 text-center text-slate-400">
-                  No controls mapped to this risk yet. Click &quot;Map Control to Risk&quot; above.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
+              <tbody>
+                {controls.map(c => {
+                  const id = rowId(c)
+                  const { code, name } = controlName(c.control_id, library)
+                  return (
+                    <tr key={id ?? JSON.stringify(c)}>
+                      <td>
+                        <span className="font-medium text-slate-900 block">{name}</span>
+                        {code && <span className="text-[11px] text-slate-500 font-mono">{code}</span>}
+                      </td>
+                      <td className="text-slate-600">{text(c.control_type) ?? DASH}</td>
+                      <td className="text-slate-600">{text(c.control_frequency) ?? DASH}</td>
+                      <td>
+                        <ValueChip value={c.control_design_effectiveness} />
+                      </td>
+                      <td>
+                        <ValueChip value={c.control_effectiveness_rating} />
+                      </td>
+                      <td className="text-slate-600 max-w-[240px]">
+                        <span className="line-clamp-2 text-xs">{text(c.evidence_notes) ?? DASH}</span>
+                      </td>
+                      <td className="text-xs text-slate-600">{c.is_stage_complted === 'Y' ? 'Complete' : 'In progress'}</td>
+                      <td className="text-right whitespace-nowrap">
+                        {hasPermission('update') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            aria-label={`Edit ${name}`}
+                            onClick={() => {
+                              setEditing(c)
+                              setDialogOpen(true)
+                            }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
+                        {hasPermission('delete') && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-600 hover:bg-red-50"
+                            aria-label={`Remove ${name}`}
+                            disabled={removing}
+                            onClick={() => handleRemove(c)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </DataState>
+      </section>
+
+      <ControlImplementationDialog open={dialogOpen} onOpenChange={setDialogOpen} row={editing} riskId={numOrNull(risk.uuid)} />
     </div>
   )
 }

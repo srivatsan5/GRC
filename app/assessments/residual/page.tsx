@@ -1,5 +1,12 @@
-import { AssessmentsresidualPage } from '@/components/pages/assessments-residual' 
+'use client'
+
+import { PericopeLayout } from '@/components/pericope-layout'
+import { AssessmentsresidualPage } from '@/components/pages/assessments-residual'
 
 export default function Page() {
-  return <AssessmentsresidualPage />
+  return (
+    <PericopeLayout>
+      <AssessmentsresidualPage />
+    </PericopeLayout>
+  )
 }

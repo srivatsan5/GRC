@@ -1,5 +1,12 @@
-import { AssessmentsinherentPage } from '@/components/pages/assessments-inherent' 
+'use client'
 
-export default function Page() {
-  return <AssessmentsinherentPage />
+import { PericopeLayout } from '@/components/pericope-layout'
+import { AssessmentsinherentPage } from '@/components/pages/assessments-inherent'
+
+export default function InherentAssessmentRoute() {
+  return (
+    <PericopeLayout>
+      <AssessmentsinherentPage />
+    </PericopeLayout>
+  )
 }

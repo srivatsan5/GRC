@@ -1,14 +1,14 @@
 'use client'
 
-import { AssessmentAnalytics } from '@/components/analytics/assessment-analytics'
+import { RatingAnalytics } from '@/components/reports/rating-analytics'
 
-/** /assessments/residual: analytics over residual ratings only (risk remaining after controls). */
+/** /assessments/residual: analytics over residual ratings (risk remaining after controls), with the movement view. */
 export function AssessmentsresidualPage() {
   return (
-    <AssessmentAnalytics
+    <RatingAnalytics
       which="residual"
-      title="Residual risk analysis"
-      description="Risk remaining after controls, from the residual likelihood and impact ratings recorded on each risk"
+      title="Residual analysis"
+      description="Risk remaining after controls, from the residual likelihood and impact recorded on each risk, and how far controls moved it."
     />
   )
 }

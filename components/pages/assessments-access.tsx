@@ -1,14 +1,14 @@
 'use client'
 
-import { AssessmentAnalytics } from '@/components/analytics/assessment-analytics'
+import { RatingAnalytics } from '@/components/reports/rating-analytics'
 
 /** /assessments/access: analytics over the inherent ratings recorded on the risk register. */
 export function AssessmentsaccessPage() {
   return (
-    <AssessmentAnalytics
+    <RatingAnalytics
       which="inherent"
       title="Assessment analytics"
-      description="Inherent risk (before controls) across active risks, from the likelihood and impact ratings recorded on each risk"
+      description="Risk before controls across active risks, from the likelihood and impact recorded on each risk."
     />
   )
 }

@@ -49,14 +49,14 @@ export function AppShell({ children, className }: { children: React.ReactNode; c
   }, [])
 
   return (
-    <div className="flex min-h-dvh bg-sidebar">
+    <div className="flex min-h-dvh bg-sidebar print:min-h-0 print:bg-transparent">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[60] focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:shadow-popover">
         Skip to content
       </a>
       <Sidebar collapsed={collapsed} onToggle={toggle} />
 
       <div className="flex min-w-0 flex-1 flex-col lg:py-2 lg:pr-2 print:p-0">
-        <div className="flex min-h-full flex-1 flex-col bg-background lg:rounded-xl lg:shadow-[0_0_0_1px_var(--border)] print:shadow-none">
+        <div className="flex min-h-full flex-1 flex-col bg-background lg:rounded-xl print:min-h-0 print:bg-transparent lg:shadow-[0_0_0_1px_var(--border)] print:shadow-none">
           <header className="sticky top-0 z-30 flex h-(--layout-topbar-height) shrink-0 items-center gap-3 border-b border-transparent bg-background/90 px-4 backdrop-blur-[2px] sm:px-6 lg:rounded-t-xl lg:px-(--layout-page-gutter) print:hidden">
             <button type="button" onClick={() => setDrawer(true)} aria-label="Open navigation" className="inline-flex size-9 items-center justify-center rounded-md text-foreground-secondary hover:bg-hover lg:hidden focus-ring">
               <Menu className="size-5" aria-hidden="true" />

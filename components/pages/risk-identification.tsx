@@ -9,7 +9,7 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Check, CircleCheck, Columns3, Download, Ellipsis, FileSpreadsheet, OctagonAlert, Pencil, Plus, Rows3, Rows4, ShieldCheck, SquareArrowOutUpRight, Trash2, Upload, X } from 'lucide-react'
+import { Check, CircleCheck, Columns3, Download, Ellipsis, FileSpreadsheet, Gauge, OctagonAlert, Pencil, Plus, Rows3, Rows4, ShieldCheck, SquareArrowOutUpRight, Trash2, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -217,7 +217,8 @@ export function RiskIdentificationPage() {
 
   // Columns: Category is hidden by default while no risk has one.
   const [hiddenPref, setHiddenPref] = useColumnPrefs(user?.id)
-  const hidden = useMemo(() => new Set<ColKey>(hiddenPref ?? (hasCategory ? [] : ['category'])), [hiddenPref, hasCategory])
+  // Category and Created are hidden by default (as designed) so the table fits beside the expanded sidebar; users can show them from Columns.
+  const hidden = useMemo(() => new Set<ColKey>(hiddenPref ?? ['category', 'created']), [hiddenPref])
   const show = (k: ColKey) => !hidden.has(k)
   const toggleColumn = (k: ColKey, on: boolean) => setHiddenPref(COLUMNS.map(c => c.key).filter(c => (c === k ? !on : hidden.has(c))))
 
@@ -532,7 +533,7 @@ export function RiskIdentificationPage() {
           emptyAction={filtered ? undefined : addButton}
         >
           <div className="relative max-h-[max(26rem,calc(100dvh-15rem))] overflow-auto [contain:inline-size]">
-            <table className="enterprise-table min-w-[1060px]">
+            <table className="enterprise-table min-w-[1060px] max-2xl:[--cell-padding-x:10px]">
               <thead>
                 <tr>
                   <th className="w-11 pl-4">
@@ -578,7 +579,7 @@ export function RiskIdentificationPage() {
                         <Checkbox checked={isChecked} onCheckedChange={v => toggle(r.uuid, v === true)} aria-label={`Select ${short}`} className="align-middle" />
                       </td>
                       <td>
-                        <button type="button" onClick={() => setOpenId(r.uuid)} className={cn('block rounded-xs text-left focus-ring', compact ? 'max-w-[20rem]' : 'max-w-[15rem]')} title={statement} aria-label={`Open details: ${statement}`}>
+                        <button type="button" onClick={() => setOpenId(r.uuid)} className={cn('block rounded-xs text-left focus-ring', compact ? 'max-w-[20rem]' : 'max-w-[13rem] 2xl:max-w-[15rem]')} title={statement} aria-label={`Open details: ${statement}`}>
                           {compact ? (
                             <span className="flex min-w-0 items-baseline gap-2">
                               <span className={cn('truncate font-medium text-foreground', !r.statement && 'font-normal text-muted-foreground')}>{statement}</span>
@@ -597,9 +598,9 @@ export function RiskIdentificationPage() {
                       </td>
                       {show('category') && <td className="whitespace-nowrap text-foreground-secondary">{r.category ?? <span className="text-muted-foreground">—</span>}</td>}
                       {show('owner') && (
-                        <td className="max-w-[12rem]">
+                        <td className="max-w-[10rem]">
                           {r.owner ? (
-                            <Person name={r.owner} />
+                            <Person name={r.owner} className="flex max-w-[7.5rem] 2xl:max-w-[12rem]" />
                           ) : canUpdate ? (
                             <button type="button" onClick={() => setDialog({ open: true, risk: row })} className="rounded-xs font-medium whitespace-nowrap text-primary hover:underline focus-ring">
                               Assign owner
@@ -638,9 +639,11 @@ export function RiskIdentificationPage() {
                       <td className="w-px pr-3 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-0.5">
                           {canUpdate && (
-                            <Button asChild variant="ghost" size="sm" className="text-primary hover:text-primary">
-                              <Link href={inherentRateHref(r)}>
-                                Assess<span className="sr-only">: {short}</span>
+                            <Button asChild variant="ghost" size="sm" className="px-2 text-primary hover:text-primary 2xl:px-3">
+                              <Link href={inherentRateHref(r)} title={`Assess ${short}`}>
+                                <Gauge className="2xl:hidden" aria-hidden="true" />
+                                <span className="max-2xl:sr-only">Assess</span>
+                                <span className="sr-only">: {short}</span>
                               </Link>
                             </Button>
                           )}

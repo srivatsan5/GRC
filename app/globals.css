@@ -598,6 +598,8 @@
    -------------------------------------------------------------------------- */
 @media print {
   @page { margin: 12mm 15mm; size: A4 portrait; }
+  /* next-themes sets an inline color-scheme on <html>; force light paper margins. */
+  html { color-scheme: light !important; background: oklch(1 0 0) !important; }
   .dark {
     color-scheme: light;
 

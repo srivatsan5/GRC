@@ -593,8 +593,8 @@
   "incidents": [
     {
       "id": "INC-001",
-      "title": "Payment gateway API 503 latency spike during peak settlement",
-      "description": "Payment API returned 503 for 12 minutes during morning batch run.",
+      "title": "Online payment gateway errors during month-end order peak",
+      "description": "Customer card payments failed for 12 minutes during the month-end order run.",
       "severity": "High",
       "status": "Mitigated",
       "category": "IT & Cyber",
@@ -657,8 +657,8 @@
   "bcp": [
     {
       "id": "BCP-001",
-      "name": "Core Payment Gateway Failover",
-      "scope": "Treasury & settlement infrastructure",
+      "name": "ERP and Order Processing Failover",
+      "scope": "ERP, order-to-cash and payment systems",
       "rto": 4,
       "rpo": 1,
       "owner": "CTO",

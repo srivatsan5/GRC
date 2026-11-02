@@ -7,7 +7,7 @@ This folder sets up a fresh Autonomous Database (ADW or ATP, 23ai or 26ai) for P
 - REST endpoints and an OAuth client for the API
 
 **Tested** end to end on Oracle Database 23ai Free:
-- 216 tables, 1,334 demo rows, 247 foreign keys and 0 invalid objects, with no errors.
+- 216 tables, 1,379 demo rows, 247 foreign keys and 0 invalid objects, with no errors.
 - Re-running the whole install gives the same result.
 
 The ORDS steps (REST endpoints and OAuth client) can only run on Autonomous Database.
@@ -41,7 +41,7 @@ The ORDS steps (REST endpoints and OAuth client) can only run on Autonomous Data
    1. Restart the API.
    2. Run `cd api && npm run check:ords-anon`. Every table must answer **401** without a token.
    3. Open `/ready` on the API, which should show `"database":"ok"`.
-   4. Sign in to the app: the dashboard, register, heat map and reports show the demo bank's data.
+   4. Sign in to the app: the dashboard, register, heat map and reports show the demo company's data.
 
 ## What the script runs, step by step
 
@@ -85,12 +85,12 @@ The source is the export you pasted from the old database: [`source/pericope_erm
 
 ### The demo data
 
-- **A fictional bank, "Meridian Group".** Every person is invented and every e-mail address ends in `@example.com`.
+- **A fictional enterprise, "Meridian Group"**: 10 departments (Finance, HR, Sales & Marketing, Procurement & Supply Chain, Manufacturing & Operations, IT, Legal & Compliance, Customer Service, R&D, Risk & Internal Audit) and ERP process areas (Order to Cash, Procure to Pay, Record to Report, Hire to Retire, Plan to Produce, Inventory & Logistics …). Every person is invented and every e-mail address ends in `@example.com`.
 - **Hand-written rows** (`tools/mock-curated.mjs`) for everything the app shows:
   - org units, people and roles
   - risk taxonomy, likelihood and impact scales, processes and the control taxonomy
   - three quarterly RCSA cycles
-  - **15 risks**: approved, submitted, draft, one rejected and one not yet rated
+  - **17 risks** across the departments: approved, submitted, draft, one rejected and one not yet rated
   - inherent assessments, applied controls, monitoring actions, a mitigation-plan hierarchy
   - KPIs with six months of actuals
 - **Generated rows** (`tools/mock.mjs`): 5 per table for the other ~160 tables, mostly the old APEX app's governance, audit, vendor and AI tables. They respect each table's types, lengths, NOT NULL, CHECK lists and ranges, unique keys and foreign keys.

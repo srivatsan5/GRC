@@ -24,7 +24,7 @@ If you keep using an existing database instead, run migration **V5**.
   - Foreign keys are added after all tables exist.
   - Nine scratch/test tables are left out.
 - **Demo data in every table:**
-  - Hand-written rows for everything the app shows: a fictional bank with 15 risks and their assessments, controls, monitoring actions, plans, cycles and KPIs.
+  - Hand-written rows for everything the app shows: a fictional multi-department enterprise running an ERP, with 17 risks and their assessments, controls, monitoring actions, plans, cycles and KPIs.
   - Generated rows for the other ~160 tables. They respect each table's types, CHECK rules, unique keys and foreign keys.
 - **Fixes so the old tables accept what the app writes.** These are applied by step 04 on a new database and by migration V5 on an existing one:
   - **Monitoring items:** gain their risk link columns, and `ROOT_CAUSE` becomes text. Saving an action plan's root cause used to fail on a number column.
@@ -38,7 +38,7 @@ If you keep using an existing database instead, run migration **V5**.
 ## How it was checked
 
 - The whole install was run on **Oracle Database 23ai Free**, twice:
-  - 216 tables, 1,334 rows and 247 enabled foreign keys, with 0 invalid objects and no errors.
+  - 216 tables, 1,379 rows and 247 enabled foreign keys, with 0 invalid objects and no errors.
   - New rows get fresh ids.
 - Migration V5 was run on a schema built the old way, then run again.
 - API tests and type checks pass.

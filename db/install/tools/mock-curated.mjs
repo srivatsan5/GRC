@@ -1,7 +1,8 @@
 /**
  * Hand-written demo rows for the tables the web app shows: lookups, people, assessment cycles,
  * the risk register and everything hung off it (assessments, controls, monitoring, plans), KPIs.
- * A fictional bank; every person and e-mail address is invented (example.com).
+ * A fictional multi-department enterprise running an ERP ("Meridian Group"); every person and
+ * e-mail address is invented (example.com).
  *
  * Ids are fixed (UUID 1, 2, …) so rows can point at each other. A reference to a row created by
  * the module seed (db/seed/demo_data.sql: controls, incidents, KRIs …) is written
@@ -22,34 +23,48 @@ const ORG_LEVELS = [
 // name, short code, level, parent, manager
 const ORG = [
   ['Meridian Group', 'GRP', 1, null, 'Asha Menon'],
-  ['Retail Banking', 'RTL', 2, 1, 'Daniel Okafor'],
-  ['Corporate Banking', 'CORP', 2, 1, 'Grace Mensah'],
-  ['Technology', 'TECH', 2, 1, 'Marcus Lee'],
-  ['Finance & Treasury', 'FIN', 2, 1, 'Elena Petrova'],
-  ['Operations', 'OPS', 2, 1, 'Tom Becker'],
-  ['Compliance', 'CMP', 2, 1, 'Fatima Al-Sayed'],
+  ['Finance', 'FIN', 2, 1, 'Elena Petrova'],
+  ['Human Resources', 'HR', 2, 1, 'Nadia Rahman'],
+  ['Sales & Marketing', 'SLS', 2, 1, 'Carlos Mendes'],
+  ['Procurement & Supply Chain', 'SCM', 2, 1, 'Kenji Watanabe'],
+  ['Manufacturing & Operations', 'OPS', 2, 1, 'Tom Becker'],
+  ['Information Technology', 'IT', 2, 1, 'Marcus Lee'],
+  ['Legal & Compliance', 'LGL', 2, 1, 'Fatima Al-Sayed'],
+  ['Customer Service', 'CS', 2, 1, 'Sofia Rossi'],
+  ['Research & Development', 'RND', 2, 1, 'Lina Park'],
+  ['Risk & Internal Audit', 'RSK', 2, 1, 'Grace Mensah'],
 ]
 const DESIGNATIONS = [
   ['Chief Risk Officer', 'Owns the enterprise risk framework and reports to the board risk committee.'],
-  ['Risk Manager', 'Runs RCSA cycles for a division and approves risk assessments.'],
+  ['Risk Manager', 'Runs RCSA cycles with the departments and approves risk assessments.'],
   ['Risk Analyst', 'Prepares assessments, maintains the register and tracks actions.'],
-  ['Chief Information Officer', 'Accountable for technology and information-security risk.'],
-  ['Chief Financial Officer', 'Accountable for financial, treasury and reporting risk.'],
-  ['Head of Operations', 'Accountable for operational processes and third parties.'],
-  ['Chief Compliance Officer', 'Accountable for regulatory compliance.'],
+  ['Chief Information Officer', 'Accountable for the ERP, IT systems and information security.'],
+  ['Chief Financial Officer', 'Accountable for finance, treasury and financial reporting.'],
+  ['Chief Operating Officer', 'Accountable for manufacturing, quality and health & safety.'],
+  ['Chief Compliance Officer', 'Accountable for legal and regulatory compliance.'],
   ['Internal Auditor', 'Provides independent assurance over controls.'],
+  ['Head of Supply Chain', 'Accountable for procurement, suppliers, inventory and logistics.'],
+  ['Chief Human Resources Officer', 'Accountable for people, payroll and workplace policies.'],
+  ['Head of Sales', 'Accountable for customers, orders and revenue.'],
+  ['Head of R&D', 'Accountable for product development and launches.'],
+  ['Head of Customer Service', 'Accountable for customer support and complaints.'],
 ]
 // name, designation, org unit, risk owner?, risk champion?
 export const PEOPLE = [
   ['Asha Menon', 1, 1, 'Y', 'N'],
-  ['Daniel Okafor', 2, 2, 'Y', 'Y'],
-  ['Priya Raman', 3, 2, 'N', 'Y'],
-  ['Marcus Lee', 4, 4, 'Y', 'N'],
-  ['Elena Petrova', 5, 5, 'Y', 'N'],
+  ['Daniel Okafor', 2, 11, 'Y', 'Y'],
+  ['Priya Raman', 3, 11, 'N', 'Y'],
+  ['Marcus Lee', 4, 7, 'Y', 'N'],
+  ['Elena Petrova', 5, 2, 'Y', 'N'],
   ['Tom Becker', 6, 6, 'Y', 'N'],
-  ['Fatima Al-Sayed', 7, 7, 'Y', 'N'],
-  ['Lucas Moreau', 8, 1, 'N', 'N'],
-  ['Grace Mensah', 2, 3, 'Y', 'Y'],
+  ['Fatima Al-Sayed', 7, 8, 'Y', 'N'],
+  ['Lucas Moreau', 8, 11, 'N', 'N'],
+  ['Grace Mensah', 2, 11, 'Y', 'Y'],
+  ['Kenji Watanabe', 9, 5, 'Y', 'N'],
+  ['Nadia Rahman', 10, 3, 'Y', 'N'],
+  ['Carlos Mendes', 11, 4, 'Y', 'N'],
+  ['Lina Park', 12, 10, 'Y', 'N'],
+  ['Sofia Rossi', 13, 9, 'Y', 'N'],
 ]
 const email = name => `${name.toLowerCase().replace(/[^a-z]+/g, '.')}@example.com`
 const personId = name => PEOPLE.findIndex(p => p[0] === name) + 1
@@ -61,15 +76,15 @@ const ROLES = [
   ['Viewer', 'Read only.'],
 ]
 const USER_ROLES = [
-  [1, 1], [2, 2], [3, 3], [4, 3], [5, 3], [6, 3], [7, 2], [8, 4], [9, 2],
+  [1, 1], [2, 2], [3, 3], [4, 3], [5, 3], [6, 3], [7, 2], [8, 4], [9, 2], [10, 3], [11, 3], [12, 3], [13, 3], [14, 5],
 ]
 
 // ------------------------------------------------------------------ risk taxonomy
-export const CATEGORIES = ['Technology', 'Operational', 'Financial', 'Compliance', 'Third Party', 'Strategic', 'Reputational']
+export const CATEGORIES = ['Technology', 'Operational', 'Financial', 'Compliance', 'Third Party', 'Strategic', 'Reputational', 'People', 'Health & Safety']
 const SUB_CATEGORIES = [
-  [1, 'Cyber security'], [1, 'System availability'], [2, 'Process execution'], [2, 'Fraud'], [2, 'People'],
-  [3, 'Credit'], [3, 'Market & liquidity'], [3, 'Financial reporting'], [4, 'Financial crime'], [4, 'Regulatory reporting'],
-  [4, 'Conduct'], [5, 'Outsourcing'], [6, 'Competition'], [7, 'Data privacy'],
+  [1, 'Cyber security'], [1, 'System availability'], [1, 'Access management'], [2, 'Process execution'], [2, 'Fraud'],
+  [3, 'Financial reporting'], [3, 'Credit'], [4, 'Data privacy'], [4, 'Regulatory change'], [5, 'Supply chain'],
+  [5, 'Outsourcing'], [6, 'Market'], [6, 'Project delivery'], [7, 'Product quality'], [8, 'Talent'], [9, 'Workplace safety'],
 ]
 const subId = name => SUB_CATEGORIES.findIndex(s => s[1] === name) + 1
 const CAUSAL_FACTORS = ['People', 'Process', 'Systems', 'External events']
@@ -107,7 +122,7 @@ const IMPACT = [
   ['Minor', 'Loss $50k–$250k; limited customer impact.', '#7CB342'],
   ['Moderate', 'Loss $250k–$1m; regulatory notification possible.', '#F9A825'],
   ['Major', 'Loss $1m–$5m; regulatory action or media coverage.', '#EF6C00'],
-  ['Severe', 'Loss over $5m; licence, solvency or national media impact.', '#C62828'],
+  ['Severe', 'Loss over $5m; regulatory sanction, loss of a major customer or national media coverage.', '#C62828'],
 ]
 const IMPACT_CATEGORIES = [
   ['Financial', 'Direct monetary loss or write-off.'],
@@ -118,26 +133,29 @@ const IMPACT_CATEGORIES = [
 ]
 const IMPACT_SUB = [
   [1, 'Direct loss'], [1, 'Write-off'], [2, 'Fine or penalty'], [2, 'Licence condition'],
-  [3, 'Media coverage'], [4, 'Service outage'], [4, 'Data exposure'], [5, 'Backlog'],
+  [3, 'Media coverage'], [4, 'Service outage'], [4, 'Data exposure'], [5, 'Production stoppage'], [5, 'Backlog'],
 ]
 const IMPACT_PARTIES = [
-  ['Customers', 'Retail and corporate customers.'],
+  ['Customers', 'Business and consumer customers.'],
   ['Employees', 'Staff and contractors.'],
-  ['Regulators', 'Banking and data-protection supervisors.'],
+  ['Regulators', 'Tax, data-protection, health & safety and industry regulators.'],
   ['Shareholders', 'Investors and the board.'],
   ['Suppliers', 'Third-party providers.'],
 ]
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'INR', 'AED']
 
 // ------------------------------------------------------------------ processes
+// ERP process areas (end-to-end processes across departments)
 const PROCESSES = [
-  ['Payments', 'Card, wire and cash payment processing.', ['Card settlement', 'Wire transfers']],
-  ['Lending', 'Credit origination, approval and collections.', ['Credit approval', 'Collections']],
-  ['Treasury', 'Liquidity, funding and balance-sheet management.', ['Liquidity management', 'Asset-liability management']],
-  ['Customer Onboarding', 'Account opening and know-your-customer checks.', ['KYC screening', 'Account opening']],
-  ['IT Operations', 'Running and securing the bank’s technology.', ['Infrastructure', 'Access management']],
-  ['Financial Reporting', 'Ledger, reconciliations and regulatory returns.', ['Reconciliation', 'Regulatory reporting']],
-  ['Procurement', 'Buying from and managing suppliers.', ['Vendor management', 'Purchasing']],
+  ['Order to Cash', 'Customer orders, invoicing and collections.', ['Order management', 'Billing & collections']],
+  ['Procure to Pay', 'Buying goods and services and paying suppliers.', ['Supplier onboarding', 'Purchasing & payments']],
+  ['Record to Report', 'Ledger, month-end close and statutory reporting.', ['Reconciliation', 'Statutory reporting']],
+  ['Hire to Retire', 'Recruitment, onboarding, payroll and exits.', ['Recruitment & onboarding', 'Payroll']],
+  ['Plan to Produce', 'Production planning, manufacturing and quality.', ['Production line', 'Quality control']],
+  ['Inventory & Logistics', 'Warehousing, stock control and deliveries.', ['Warehousing', 'Distribution']],
+  ['IT Operations', 'Running and securing the ERP and other systems.', ['ERP administration', 'Access management']],
+  ['Customer Service', 'Support, complaints and field service.', ['Complaints handling', 'Field service']],
+  ['Product Development', 'Research, design and product launches.', ['R&D projects', 'Product launch']],
 ]
 const SUB_PROCESSES = PROCESSES.flatMap((p, i) => p[2].map(s => [i + 1, s]))
 const processId = name => PROCESSES.findIndex(p => p[0] === name) + 1
@@ -151,6 +169,7 @@ const CONTROL_CATEGORIES = [
   ['Monitoring', 'Ongoing review of activity or indicators.'],
   ['Training & awareness', 'Making sure people know the rules.'],
   ['Resilience', 'Backup, recovery and continuity.'],
+  ['Quality & safety', 'Inspections and checks on products and workplaces.'],
 ]
 const CONTROL_TYPES = [
   ['Preventive', 'Stops the event from happening.'],
@@ -175,14 +194,15 @@ const MITIGATION_TYPES = [
 ]
 // name, description, category, type, classification, owner
 const CONTROL_REGISTER = [
-  ['Multi-factor authentication', 'MFA for all privileged and remote access.', 1, 1, 1, 'Marcus Lee'],
-  ['Daily bank reconciliation', 'Bank statements reconciled to the ledger every day.', 2, 2, 1, 'Elena Petrova'],
-  ['Dual authorisation of payments', 'Two people approve every payment above $10k.', 3, 1, 1, 'Daniel Okafor'],
-  ['Sanctions screening', 'Automated screening of customers and payments against sanctions lists.', 4, 1, 1, 'Fatima Al-Sayed'],
+  ['Multi-factor authentication', 'MFA for ERP administrators and all remote access.', 1, 1, 1, 'Marcus Lee'],
+  ['Daily bank reconciliation', 'Bank statements reconciled to the ERP ledger every day.', 2, 2, 1, 'Elena Petrova'],
+  ['Three-way match', 'Supplier invoices paid only when they match the purchase order and goods receipt.', 3, 1, 1, 'Elena Petrova'],
+  ['Segregation of duties in the ERP', 'No one can both create a supplier and approve its payments.', 3, 1, 1, 'Marcus Lee'],
+  ['Supplier due diligence', 'Risk questionnaire and checks before a supplier is approved.', 4, 1, 2, 'Kenji Watanabe'],
+  ['Backup and restore testing', 'Encrypted off-site ERP backups, restored and tested quarterly.', 6, 3, 1, 'Marcus Lee'],
   ['Security awareness training', 'Annual training and quarterly phishing simulations.', 5, 1, 2, 'Marcus Lee'],
-  ['Backup and restore testing', 'Encrypted off-site backups, restored and tested quarterly.', 6, 3, 1, 'Marcus Lee'],
-  ['Vendor due diligence', 'Risk questionnaire and review before onboarding a supplier.', 4, 1, 2, 'Tom Becker'],
-  ['Regulatory calendar review', 'Monthly review of upcoming filing deadlines.', 4, 2, 2, 'Fatima Al-Sayed'],
+  ['Incoming quality inspection', 'Sample inspection of critical components at goods-in.', 7, 2, 1, 'Tom Becker'],
+  ['Line safety checks', 'Daily safety checklist on every production line.', 7, 1, 1, 'Tom Becker'],
 ]
 
 // ------------------------------------------------------------------ cycles and the risk register
@@ -195,21 +215,23 @@ const CYCLES = [
 // statement, category, sub-category, process, sub-process, owner, champion, [L, I], [rL, rI] | null,
 // status, cycle, SLE ($), cause, controls (codes from the module seed)
 export const RISKS = [
-  ['Payment gateway outage stops card settlement for more than four hours', 'Technology', 'System availability', 'Payments', 'Card settlement', 'Marcus Lee', 'Priya Raman', [4, 5], [3, 3], 'APPROVED', 2, 1800000, 3, ['CTL-OPS-INC-03', 'CTL-IT-BCK-05']],
-  ['Ransomware encrypts core banking servers', 'Technology', 'Cyber security', 'IT Operations', 'Infrastructure', 'Marcus Lee', 'Priya Raman', [3, 5], [2, 4], 'APPROVED', 2, 4500000, 4, ['CTL-IT-AUTH-01', 'CTL-IT-BCK-05']],
-  ['Weak KYC checks let sanctioned customers open accounts', 'Compliance', 'Financial crime', 'Customer Onboarding', 'KYC screening', 'Fatima Al-Sayed', 'Daniel Okafor', [3, 5], [2, 4], 'SUBMITTED', 3, 3000000, 1, ['CTL-COMP-MON-08']],
-  ['Commercial real-estate lending concentration exceeds appetite', 'Financial', 'Credit', 'Lending', 'Credit approval', 'Elena Petrova', 'Grace Mensah', [3, 4], [3, 3], 'APPROVED', 2, 2500000, 7, []],
-  ['Manual reconciliation errors misstate the general ledger', 'Financial', 'Financial reporting', 'Financial Reporting', 'Reconciliation', 'Elena Petrova', 'Priya Raman', [4, 3], [2, 2], 'APPROVED', 1, 400000, 2, ['CTL-FIN-REC-02']],
-  ['Critical cloud provider misses its recovery-time objective', 'Third Party', 'Outsourcing', 'Procurement', 'Vendor management', 'Tom Becker', 'Priya Raman', [3, 4], [3, 3], 'SUBMITTED', 3, 1200000, 5, ['CTL-VEN-DUE-06']],
-  ['Key-person dependency on the treasury dealing desk', 'Operational', 'People', 'Treasury', 'Liquidity management', 'Elena Petrova', 'Grace Mensah', [2, 3], null, 'DRAFT', 3, 300000, 1, []],
-  ['Late regulatory returns lead to supervisory penalties', 'Compliance', 'Regulatory reporting', 'Financial Reporting', 'Regulatory reporting', 'Fatima Al-Sayed', 'Priya Raman', [2, 4], [1, 3], 'APPROVED', 1, 750000, 1, ['CTL-COMP-MON-08']],
-  ['Phishing compromises employee credentials', 'Technology', 'Cyber security', 'IT Operations', 'Access management', 'Marcus Lee', 'Priya Raman', [4, 4], [2, 3], 'APPROVED', 2, 900000, 4, ['CTL-IT-AUTH-01', 'CTL-COMP-TRN-04']],
-  ['Interest-rate shock compresses net interest margin', 'Financial', 'Market & liquidity', 'Treasury', 'Asset-liability management', 'Elena Petrova', 'Grace Mensah', [3, 4], [3, 3], 'SUBMITTED', 3, 6000000, 7, []],
-  ['Customer data shared with unauthorised third parties', 'Reputational', 'Data privacy', 'Customer Onboarding', 'Account opening', 'Fatima Al-Sayed', 'Daniel Okafor', [2, 5], [2, 3], 'REJECTED', 3, 2000000, 2, ['CTL-COMP-TRN-04']],
-  ['Fraudulent wire transfers bypass dual authorisation', 'Operational', 'Fraud', 'Payments', 'Wire transfers', 'Daniel Okafor', 'Priya Raman', [3, 4], [2, 3], 'APPROVED', 2, 1500000, 4, ['CTL-FIN-SOD-07']],
-  ['Collections practices breach consumer-protection rules', 'Compliance', 'Conduct', 'Lending', 'Collections', 'Daniel Okafor', 'Grace Mensah', [2, 3], null, 'DRAFT', 3, 250000, 2, []],
-  ['Digital-only competitors take retail market share', 'Strategic', 'Competition', 'Customer Onboarding', 'Account opening', 'Asha Menon', 'Daniel Okafor', [3, 4], [3, 3], 'DRAFT', 3, 5000000, 7, []],
-  ['Fictitious suppliers used to divert payments', 'Operational', 'Fraud', 'Procurement', 'Purchasing', 'Tom Becker', 'Priya Raman', null, null, 'DRAFT', 3, null, 4, []],
+  ['ERP outage stops order processing and invoicing for more than a day', 'Technology', 'System availability', 'Order to Cash', 'Order management', 'Marcus Lee', 'Priya Raman', [4, 5], [3, 3], 'APPROVED', 2, 2000000, 3, ['CTL-OPS-INC-03', 'CTL-IT-BCK-05']],
+  ['Ransomware encrypts the ERP and file servers', 'Technology', 'Cyber security', 'IT Operations', 'ERP administration', 'Marcus Lee', 'Priya Raman', [3, 5], [2, 4], 'APPROVED', 2, 4500000, 4, ['CTL-IT-AUTH-01', 'CTL-IT-BCK-05']],
+  ['Failure of a single-source supplier halts a production line', 'Third Party', 'Supply chain', 'Plan to Produce', 'Production line', 'Kenji Watanabe', 'Grace Mensah', [4, 4], [3, 3], 'SUBMITTED', 3, 3000000, 5, ['CTL-VEN-DUE-06']],
+  ['Duplicate or fraudulent supplier payments', 'Operational', 'Fraud', 'Procure to Pay', 'Purchasing & payments', 'Elena Petrova', 'Daniel Okafor', [3, 4], [2, 3], 'APPROVED', 2, 800000, 4, ['CTL-FIN-SOD-07']],
+  ['Month-end close errors misstate the financial statements', 'Financial', 'Financial reporting', 'Record to Report', 'Reconciliation', 'Elena Petrova', 'Priya Raman', [4, 3], [2, 2], 'APPROVED', 1, 400000, 2, ['CTL-FIN-REC-02']],
+  ['Customer personal data exposed through a CRM misconfiguration', 'Compliance', 'Data privacy', 'Customer Service', 'Complaints handling', 'Fatima Al-Sayed', 'Daniel Okafor', [3, 5], [2, 4], 'SUBMITTED', 3, 2500000, 1, ['CTL-COMP-TRN-04', 'CTL-IT-AUTH-01']],
+  ['Key engineers leave for competitors', 'People', 'Talent', 'Hire to Retire', 'Recruitment & onboarding', 'Nadia Rahman', 'Grace Mensah', [3, 3], null, 'DRAFT', 3, 600000, 1, []],
+  ['Payroll errors pay staff incorrectly', 'Operational', 'Process execution', 'Hire to Retire', 'Payroll', 'Nadia Rahman', 'Priya Raman', [2, 3], [1, 2], 'APPROVED', 1, 150000, 2, []],
+  ['Serious workplace injury on the factory floor', 'Health & Safety', 'Workplace safety', 'Plan to Produce', 'Production line', 'Tom Becker', 'Grace Mensah', [3, 4], [2, 3], 'APPROVED', 2, 1000000, 2, []],
+  ['Product recall caused by a quality defect', 'Reputational', 'Product quality', 'Plan to Produce', 'Quality control', 'Tom Becker', 'Grace Mensah', [2, 5], [2, 4], 'SUBMITTED', 3, 5000000, 1, []],
+  ['Stock-outs caused by inaccurate inventory records', 'Operational', 'Process execution', 'Inventory & Logistics', 'Warehousing', 'Kenji Watanabe', 'Priya Raman', [4, 3], [3, 2], 'APPROVED', 2, 500000, 2, []],
+  ['New e-invoicing and data-protection rules not implemented on time', 'Compliance', 'Regulatory change', 'Record to Report', 'Statutory reporting', 'Fatima Al-Sayed', 'Daniel Okafor', [3, 3], [2, 3], 'REJECTED', 3, 300000, 6, ['CTL-COMP-MON-08']],
+  ['Three largest customers make up 45% of revenue', 'Strategic', 'Market', 'Order to Cash', 'Order management', 'Carlos Mendes', 'Daniel Okafor', [3, 4], [3, 3], 'DRAFT', 3, 6000000, 7, []],
+  ['Bad debts from late-paying customers', 'Financial', 'Credit', 'Order to Cash', 'Billing & collections', 'Elena Petrova', 'Priya Raman', [3, 3], null, 'DRAFT', 3, 700000, 7, []],
+  ['New product launch delayed by R&D overruns', 'Strategic', 'Project delivery', 'Product Development', 'Product launch', 'Lina Park', 'Grace Mensah', null, null, 'DRAFT', 3, null, 1, []],
+  ['Excessive ERP access rights allow unauthorised changes', 'Technology', 'Access management', 'IT Operations', 'Access management', 'Marcus Lee', 'Priya Raman', [3, 4], [2, 3], 'APPROVED', 2, 900000, 1, ['CTL-IT-AUTH-01', 'CTL-FIN-SOD-07']],
+  ['Logistics partner fails to deliver during peak season', 'Third Party', 'Outsourcing', 'Inventory & Logistics', 'Distribution', 'Kenji Watanabe', 'Daniel Okafor', [3, 3], [2, 3], 'SUBMITTED', 3, 400000, 5, ['CTL-VEN-DUE-06']],
 ]
 
 const cycleDates = c => CYCLES[c - 1]
@@ -297,7 +319,7 @@ export function curatedRows() {
       CREATED_ON: created, RISK_CHAMPION_UUID: personId(champ), STATUS: 'Y', APPROVAL_STATUS: status,
       APPROVER_COMMENTS: status === 'REJECTED' ? 'Impact looks understated: include regulatory fines for data breaches and resubmit.' : status === 'APPROVED' ? 'Agreed. Rating and controls reviewed.' : null,
       APPROVED_BY: decided ? email(cycle === 1 ? 'Asha Menon' : 'Daniel Okafor') : null, APPROVED_ON: decided ? addDays(created, 28) : null,
-      RISK_OWNER: owner, RISK_CHAMPION: champ, RISK_APPETITE: ['Strategic', 'Financial'].includes(cat) ? 'Open' : 'Cautious',
+      RISK_OWNER: owner, RISK_CHAMPION: champ, RISK_APPETITE: ['Strategic', 'Financial'].includes(cat) ? 'Open' : ['Health & Safety', 'Compliance'].includes(cat) ? 'Averse' : 'Cautious',
       INHERENT_LIKELIHOOD: inh?.[0] ?? null, INHERENT_IMPACT: inh?.[1] ?? null, RESIDUAL_LIKELIHOOD: res?.[0] ?? null, RESIDUAL_IMPACT: res?.[1] ?? null,
       LAST_UPDATED_BY: 'demo-seed', LAST_UPDATED_ON: created,
     }
@@ -318,7 +340,7 @@ export function curatedRows() {
       IS_STAGE_COMPLTED: 'Y', RISK_UUID: i + 1, IDENTIFY_RISK_UUID: i + 1, RISK_STATEMENT_UUID: i + 1, RISK_IMPACT_UUID: inh[1],
       CREATED_ON: addDays(CYCLES[cycle - 1][3], i + 3), CREATED_BY: 'priya.raman@example.com',
     })
-    const impactCat = { Financial: 1, Compliance: 2, Reputational: 3, Technology: 4, 'Third Party': 4 }[cat] ?? 5
+    const impactCat = { Financial: 1, Compliance: 2, Reputational: 3, Technology: 4, 'Third Party': 5, 'Health & Safety': 5 }[cat] ?? 5
     const sub2 = IMPACT_SUB.findIndex(s => s[0] === impactCat) + 1 || null
     out.PER_TRN_IMPACT_CATEGORY.push({
       UUID: out.PER_TRN_IMPACT_CATEGORY.length + 1, IMPACT_CATEGORY_UUID: impactCat, INHERENT_RISK_ASSESSMENT_UUID: id,
@@ -352,13 +374,14 @@ export function curatedRows() {
 
   // Monitoring / action items on risks.
   const MONITORING = [
-    [1, 'Add a second payment gateway with automatic failover', 'Card settlement continues within 30 minutes if the primary gateway fails.', 'Single gateway provider with no failover.', 'Marcus Lee', '2026-07-15', '2026-12-15', 60, 'CONTROL_ENHANCEMENT'],
-    [2, 'Quarterly restore test of core banking backups', 'Prove a full restore inside the 8-hour RTO.', 'Restore never tested end to end.', 'Marcus Lee', '2026-07-01', '2026-09-30', 100, 'PERIODIC_REVIEW'],
-    [4, 'Lower the CRE concentration limit to 25% of the book', 'Bring commercial real estate exposure back within appetite.', 'Rapid growth of CRE lending in 2025.', 'Elena Petrova', '2026-08-01', '2027-03-31', 35, 'NEW_CONTROL_PROPOSAL'],
-    [5, 'Automate bank-to-ledger reconciliation matching', 'Remove manual matching for 95% of entries.', 'Manual spreadsheet reconciliation.', 'Elena Petrova', '2026-04-15', '2026-06-30', 100, 'CONTROL_ENHANCEMENT'],
-    [9, 'Run monthly phishing simulations for all staff', 'Click rate under 3% by year end.', 'Click rate of 9% in the last simulation.', 'Marcus Lee', '2026-07-01', '2026-12-31', 50, 'PERIODIC_REVIEW'],
-    [12, 'Callback verification for new payee bank details', 'Every change of payee details confirmed by phone before payment.', 'Fraudsters impersonating suppliers by e-mail.', 'Daniel Okafor', '2026-08-01', '2026-10-31', 80, 'NEW_CONTROL_PROPOSAL'],
-    [6, 'Contractual RTO and exit plan for the cloud provider', 'Signed RTO of 4 hours and a tested exit plan.', 'Contract has no recovery commitments.', 'Tom Becker', '2026-10-05', '2027-01-31', 10, 'NEW_CONTROL_PROPOSAL'],
+    [1, 'Set up a standby ERP environment with automatic failover', 'Order processing resumes within 4 hours if the primary ERP fails.', 'The ERP runs in one data centre with no standby.', 'Marcus Lee', '2026-07-15', '2026-12-15', 60, 'CONTROL_ENHANCEMENT'],
+    [2, 'Quarterly restore test of ERP backups', 'Prove a full ERP restore inside the 8-hour RTO.', 'Restore never tested end to end.', 'Marcus Lee', '2026-07-01', '2026-09-30', 100, 'PERIODIC_REVIEW'],
+    [3, 'Qualify a second supplier for critical components', 'Two approved suppliers for every A-class component.', 'Three critical components rely on one supplier.', 'Kenji Watanabe', '2026-10-05', '2027-03-31', 20, 'NEW_CONTROL_PROPOSAL'],
+    [4, 'Enforce three-way match before any supplier payment', 'No invoice paid without a matching purchase order and goods receipt.', 'Invoices without a purchase order were paid manually.', 'Elena Petrova', '2026-07-01', '2026-09-30', 100, 'CONTROL_ENHANCEMENT'],
+    [5, 'Automate bank-to-ledger reconciliation in the ERP', 'Remove manual matching for 95% of entries.', 'Manual spreadsheet reconciliation.', 'Elena Petrova', '2026-04-15', '2026-06-30', 100, 'CONTROL_ENHANCEMENT'],
+    [9, 'Monthly safety walk-throughs on every production line', 'Lost-time injury rate below 0.5 per 200,000 hours worked.', 'Two near misses on line 3 in Q2.', 'Tom Becker', '2026-07-01', '2026-12-31', 50, 'PERIODIC_REVIEW'],
+    [16, 'Quarterly review of ERP user access', 'Access no longer needed is removed within 5 days of each review.', 'Leavers kept ERP access for weeks after leaving.', 'Marcus Lee', '2026-08-01', '2026-10-31', 80, 'PERIODIC_REVIEW'],
+    [17, 'Standby logistics partner for peak season', 'Signed standby contract in place before November.', 'One carrier handles 90% of deliveries.', 'Kenji Watanabe', '2026-10-05', '2026-11-30', 10, 'NEW_CONTROL_PROPOSAL'],
   ]
   out.PER_TRN_RISK_MONITORING = MONITORING.map(([risk, title, goal, cause, owner, start, end, pct, type], i) => {
     const impl = implFor(risk)
@@ -374,13 +397,13 @@ export function curatedRows() {
 
   // Mitigation plans, as a small hierarchy (programme → workstreams).
   const PLANS = [
-    [null, 'Programme', 'Cyber resilience programme 2026', 'Raise cyber maturity to level 4 across the group.', 'In Progress', 2, 'Marcus Lee', '2026-04-01', '2027-03-31'],
-    [1, 'Reduce', 'Roll out phishing-resistant MFA', 'Replace SMS codes with FIDO2 keys for all administrators.', 'In Progress', 9, 'Marcus Lee', '2026-07-01', '2026-12-31'],
-    [1, 'Reduce', 'Immutable backups for core banking', 'Write-once backups held in a separate cloud account.', 'Completed', 2, 'Marcus Lee', '2026-04-01', '2026-09-30'],
-    [null, 'Programme', 'Financial crime remediation', 'Close the KYC and sanctions gaps raised by the regulator.', 'In Progress', 3, 'Fatima Al-Sayed', '2026-10-01', '2027-06-30'],
-    [4, 'Reduce', 'Re-screen the existing customer base', 'Screen every existing customer against the new sanctions lists.', 'Not Started', 3, 'Fatima Al-Sayed', '2026-11-15', '2027-02-28'],
-    [null, 'Transfer', 'Cyber insurance renewal', 'Renew the cyber policy with a $10m limit.', 'Completed', 2, 'Elena Petrova', '2026-05-01', '2026-06-30'],
-    [null, 'Reduce', 'Supplier master-data clean-up', 'Remove dormant suppliers and verify bank details of active ones.', 'On Hold', 15, 'Tom Becker', '2026-10-15', '2027-01-31'],
+    [null, 'Programme', 'Cyber resilience programme 2026', 'Raise cyber maturity across the group and protect the ERP.', 'In Progress', 2, 'Marcus Lee', '2026-04-01', '2027-03-31'],
+    [1, 'Reduce', 'Phishing-resistant MFA for ERP administrators', 'Replace SMS codes with security keys for all administrators.', 'In Progress', 16, 'Marcus Lee', '2026-07-01', '2026-12-31'],
+    [1, 'Reduce', 'Immutable backups for the ERP', 'Write-once backups held in a separate cloud account.', 'Completed', 2, 'Marcus Lee', '2026-04-01', '2026-09-30'],
+    [null, 'Programme', 'Supply-chain resilience', 'Remove single points of failure across suppliers and logistics.', 'In Progress', 3, 'Kenji Watanabe', '2026-10-01', '2027-06-30'],
+    [4, 'Reduce', 'Dual-source critical components', 'Qualify alternative suppliers for 12 A-class components.', 'Not Started', 3, 'Kenji Watanabe', '2026-11-15', '2027-03-31'],
+    [null, 'Transfer', 'Product liability and recall insurance renewal', 'Renew the policy with a $10m limit.', 'Completed', 10, 'Elena Petrova', '2026-05-01', '2026-06-30'],
+    [null, 'Reduce', 'Retention plan for key engineers', 'Retention bonuses and career paths for 25 critical roles.', 'On Hold', 7, 'Nadia Rahman', '2026-10-15', '2027-01-31'],
   ]
   out.PER_TRN_MITIGATION_PLANS = PLANS.map(([parent, type, statement, activities, status, risk, owner, start, end], i) => ({
     UUID: i + 1, PARENT_PLAN_UUID: parent, PLAN_TYPE: type, PLAN_STATEMENT: statement, PLAN_ACTIVITIES: activities,
@@ -390,7 +413,7 @@ export function curatedRows() {
 
   // Incidents from the module seed, linked to the risks they relate to.
   out.ERM_LNK_INCIDENT_RISK = [
-    ['INC-001', 1], ['INC-002', 9], ['INC-003', 5], ['INC-004', 6],
+    ['INC-001', 1], ['INC-002', 2], ['INC-003', 5], ['INC-004', 17],
   ].map(([inc, risk]) => ({ INCIDENT_UUID: ref('ERM_TRN_INCIDENT', 'INCIDENT_REF', inc), RISK_UUID: risk, CREATED_BY: 'demo-seed' }))
 
   // KPIs with six months of actuals.

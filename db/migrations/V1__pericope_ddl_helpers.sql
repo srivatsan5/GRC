@@ -152,7 +152,12 @@ CREATE OR REPLACE PACKAGE BODY pericope_ddl AS
     log_msg('INFO', 'added foreign key ' || p_constraint);
   EXCEPTION
     WHEN OTHERS THEN
-      log_msg('WARNING', 'could not add ' || p_constraint || ' on ' || p_table || ': ' || SQLERRM);
+      IF SQLCODE = -2275 THEN
+        -- ORA-02275: the same key already exists under another name (e.g. from the original schema)
+        log_msg('INFO', 'skip ' || p_constraint || ': ' || p_table || '.' || p_column || ' already has this foreign key');
+      ELSE
+        log_msg('WARNING', 'could not add ' || p_constraint || ' on ' || p_table || ': ' || SQLERRM);
+      END IF;
   END;
 
   PROCEDURE enable_rest(p_object VARCHAR2, p_type VARCHAR2 DEFAULT 'TABLE') IS

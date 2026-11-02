@@ -8,7 +8,12 @@ your **Oracle Autonomous Database**, reached through ORDS.
 
 ## 1. Prepare the database (once)
 
-1. Run the migrations in `db/migrations` in order, as the schema owner. See [db/README.md](../db/README.md).
+1. **A new, empty Autonomous Database:** follow [db/install/README.md](../db/install/README.md).
+   One script creates the tables, keys and demo data, REST-enables them and creates the API's OAuth client.
+   Skip step 2.
+
+   **An existing database:** run the migrations in `db/migrations` in order, as the schema owner.
+   See [db/README.md](../db/README.md).
 2. Give the API's ORDS OAuth client access to the REST endpoints.
 3. Check that nothing is readable without a token:
 
@@ -97,7 +102,7 @@ Then sign in at `https://erm.example.com`. Next:
 ## Go-live checklist
 
 - [ ] Oracle OAuth client secret rotated. The old one was committed to git before Phase 0.
-- [ ] Migrations V1–V4 run; `npm run check:ords-anon` shows 401 for every table.
+- [ ] Database installed (`db/install`) or migrations V1–V5 run; `npm run check:ords-anon` shows 401 for every table.
 - [ ] `JWT_SECRET` and `AUDIT_HMAC_KEY` are long, random and stored in a password manager.
 - [ ] HTTPS on both hostnames; `COOKIE_SECURE=true`; `CORS_ORIGINS` lists only the web app.
 - [ ] Bootstrap password removed after the first sign-in; real users created with the right roles.

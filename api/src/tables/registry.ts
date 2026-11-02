@@ -193,6 +193,8 @@ export const TABLES: Record<string, TableDef> = {
       IDENTIFY_RISK_UUID: 'id',
       RISK_STATEMENT_UUID: 'id',
     },
+    // Columns added by db/install/04_app_alignment.sql (or db/migrations V5 on an existing schema).
+    serverColumns: { created_by: 'CREATED_BY', created_on: 'CREATED_ON' },
   },
   per_trn_mitigation_plans: {
     access: 'write',

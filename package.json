@@ -11,7 +11,8 @@
     "api:types": "openapi-typescript api/openapi.json -o lib/api-types.ts",
     "test": "vitest run",
     "e2e": "node e2e/run.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:install": "node db/install/tools/build-all.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "1.2.12",

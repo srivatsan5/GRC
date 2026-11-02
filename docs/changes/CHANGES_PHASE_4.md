@@ -102,11 +102,8 @@ CI now runs:
 
 ## Still open
 
-- **Inherent assessment history** shows "—" for date and author. The API doesn't stamp
-  `PER_TRN_INHERENT_RISK_ASSESSMENT` rows, and that table's columns aren't defined in this repo.
-  To fix:
-  1. Confirm whether `CREATED_ON` / `CREATED_BY` exist in Oracle, and add them with a migration if not.
-  2. Add `serverColumns` for the table in `api/src/tables/registry.ts`.
+- ~~**Inherent assessment history** shows "—" for date and author.~~ Fixed in
+  [CHANGES_NEW_DATABASE.md](CHANGES_NEW_DATABASE.md).
 - **Lint warnings:** 44 React Compiler advisories remain, mostly "setState inside an effect" used to
   reset paging when filters change. They are reported as warnings and are safe to tidy up over time.
 - **Feature ideas** for after go-live are in [../AUDIT_REPORT.md](../AUDIT_REPORT.md) §11: frameworks

@@ -1,7 +1,11 @@
 # Database (Oracle Autonomous Database + ORDS)
 
+**New, empty database?** Use [install/README.md](install/README.md). It creates the whole
+schema with demo data in one script.
+
 ```
 db/
+  install/      fresh install on a new Autonomous Database: tables, keys, migrations, demo data, REST, OAuth
   migrations/   versioned schema changes (Flyway naming: V<n>__<name>.sql) — run in order, once
   seed/         optional demo content for the new modules (demo_data.sql) and its source
   scripts/      one-off, review-first helpers (orphan finder, legacy assessment migration, old fix script)
@@ -15,6 +19,7 @@ db/
 | V2 | Likelihood & impact (inherent and residual, 1–5) on the risk register; CHECKs; indexes on join columns; foreign keys `ENABLE NOVALIDATE`; KRI owner and direction |
 | V3 | Tables for controls, policies, incidents, vendors, BCP, scenarios, risk appetite, approval workflow, settings (+ link tables), REST-enabled with authentication |
 | V4 | Correctly spelled read-only views over `…_CLASIFICATION` / `…_COMPUATION_…` |
+| V5 | Aligns an existing schema with the app: risk links and a text root cause on monitoring items, created date/author on inherent assessments, IN_REVIEW / PENDING approval states |
 
 Every migration is safe to re-run (objects that already exist are skipped and reported).
 
@@ -36,6 +41,7 @@ flyway -url="jdbc:oracle:thin:@<tns_alias>?TNS_ADMIN=/path/to/wallet" \
 @db/migrations/V2__risk_scoring_and_integrity.sql
 @db/migrations/V3__erm_module_tables.sql
 @db/migrations/V4__correctly_spelled_views.sql
+@db/migrations/V5__app_alignment.sql
 ```
 
 (In SQLcl/SQL Developer run `SET SERVEROUTPUT ON` first to see progress.)

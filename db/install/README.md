@@ -27,7 +27,8 @@ The ORDS steps (REST endpoints and OAuth client) can only run on Autonomous Data
    3. Wait a few minutes. The **Script Output** pane shows `===== Step 01` … `Step 08`.
    4. **It erases everything in the PERICOPE_ERM schema first.** It refuses to erase anything when signed in as ADMIN.
 4. **Copy the OAuth client into `api/.env`.**
-   1. The last result of the script shows `CLIENT_ID` and `CLIENT_SECRET`.
+   1. The **Script Output** (or **DBMS Output**) pane shows `ORDS_CLIENT_ID=…` and `ORDS_CLIENT_SECRET=…`. The secret is shown only once.
+      If it isn't there, run [`09_oauth_client.sql`](09_oauth_client.sql) on its own: it creates the client again and prints both.
    2. Put them in `api/.env` on your server, never in chat or git:
       ```
       ORDS_BASE_URL=https://<your-adb-host>/ords/pericope_erm
@@ -56,7 +57,8 @@ You can also run the files one by one, in this order, in the same way.
 | 05 | `../migrations/V1` … `V5` | The app's migrations: scoring columns, module tables (controls, policies, incidents, vendors …), views, alignment |
 | 06 | `../seed/demo_data.sql` | Demo controls, policies, incidents, vendors, BCP plans, scenarios, risk appetite, KRIs, approvals |
 | 07 | `07_mock_data.sql` | Demo data for every other table (below) |
-| 08 | `08_finish.sql` | Re-points the control keys, REST-enables the 62 tables the API uses, creates the OAuth client `pericope-api` |
+| 08 | `08_finish.sql` | Re-points the control keys, REST-enables the 62 tables the API uses, creates the OAuth client `pericope-api` and prints its id and secret |
+| 09 | `09_oauth_client.sql` | **Only if needed:** re-creates the OAuth client and prints a new id and secret |
 
 `install_all.sql` is these files (01 → 08) joined together.
 
@@ -99,7 +101,9 @@ The source is the export you pasted from the old database: [`source/pericope_erm
 
 ## If something goes wrong
 
-- **`OAuth client not set up automatically`** in step 08: create the client in Database Actions instead.
+- **No client id/secret printed**, or you lost the secret: run `09_oauth_client.sql` alone, as PERICOPE_ERM. It deletes and re-creates
+  the client `pericope-api` and prints the new id and secret (then update `api/.env`). If it prints
+  `Could not create the OAuth client` with two errors, create the client in Database Actions instead:
   1. Go to **REST** → **Security** → **OAuth Clients** → **Create**.
   2. Grant type **client credentials**.
   3. Roles: `oracle.dbtools.role.autorest.PERICOPE_ERM`.

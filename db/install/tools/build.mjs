@@ -251,7 +251,7 @@ END;
       `2. REST-enables, with authentication required, the ${restList.length} tables/views the API uses`,
       '   (names that do not exist in this schema are skipped).',
       '3. Creates the OAuth client "pericope-api" (client credentials) and lets it read and write',
-      '   those endpoints. The last statement shows its client id and secret for api/.env.',
+      '   those endpoints. Its client id and secret are printed in the DBMS Output / Script Output pane.',
     ]) +
       `
 SET SERVEROUTPUT ON
@@ -275,29 +275,109 @@ BEGIN
 END;
 /
 
-DECLARE
+${oauthBlock(restIn, false)}`,
+  )
+
+  writeFileSync(
+    join(root, '09_oauth_client.sql'),
+    banner('09  (Re)create the OAuth client the API signs in with', [
+      'Run this alone, as PERICOPE_ERM, when step 08 did not show a client id and secret, or to',
+      'replace a lost secret. It DELETES the client "pericope-api" if it exists and creates it again,',
+      'so the old secret stops working: update api/.env and restart the API afterwards.',
+      'The new client id and secret appear in the DBMS Output / Script Output pane.',
+    ]) + `\nSET SERVEROUTPUT ON\n${oauthBlock(restIn, true)}`,
+  )
+
+  console.log(`tables: ${tables.length} (left out ${all.length - tables.length}), foreign keys: ${fkLines.length}, skipped: ${skipped.length}, REST objects: ${restList.length}`)
+  if (process.argv.includes('--report')) {
+    const out = Object.fromEntries(tables.map(t => [t.name, t.columns.map(c => `${c.name} ${c.spec}`)]))
+    writeFileSync(process.argv[process.argv.indexOf('--report') + 1] ?? '/dev/stdout', JSON.stringify(out, null, 1))
+  }
+}
+
+/**
+ * PL/SQL that creates the OAuth client "pericope-api" and grants it the AutoREST roles.
+ * Newer ORDS (24+, as on Autonomous Database 26ai) uses ORDS_SECURITY and shows the secret only
+ * once, when the client is created; older ORDS uses the OAUTH package. Both are tried, through
+ * dynamic SQL so the block compiles whichever exists. The id and secret are printed.
+ */
+function oauthBlock(restIn, recreate) {
+  return `DECLARE
+  c_name   CONSTANT VARCHAR2(30) := 'pericope-api';
   v_schema VARCHAR2(128) := SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA');
-  n        NUMBER;
+  v_id     VARCHAR2(4000);
+  v_secret VARCHAR2(4000);
+  v_err    VARCHAR2(4000);
+  n        NUMBER := 0;
   PROCEDURE grant_role(p_role VARCHAR2) IS
   BEGIN
-    EXECUTE IMMEDIATE q'[BEGIN OAUTH.GRANT_CLIENT_ROLE(p_client_name => 'pericope-api', p_role_name => :r); END;]' USING p_role;
-  EXCEPTION
-    WHEN OTHERS THEN NULL; -- already granted, or the role does not exist for this object
+    BEGIN
+      EXECUTE IMMEDIATE q'[BEGIN ORDS_SECURITY.GRANT_CLIENT_ROLE(p_client_name => :c, p_role_name => :r); END;]' USING c_name, p_role;
+    EXCEPTION WHEN OTHERS THEN
+      BEGIN
+        EXECUTE IMMEDIATE q'[BEGIN OAUTH.GRANT_CLIENT_ROLE(p_client_name => :c, p_role_name => :r); END;]' USING c_name, p_role;
+      EXCEPTION WHEN OTHERS THEN NULL; -- already granted, or no such role for this object
+      END;
+    END;
   END;
 BEGIN
-  EXECUTE IMMEDIATE q'[SELECT COUNT(*) FROM user_ords_clients WHERE name = 'pericope-api']' INTO n;
-  IF n = 0 THEN
-    EXECUTE IMMEDIATE q'[BEGIN
-      OAUTH.CREATE_CLIENT(
-        p_name            => 'pericope-api',
-        p_grant_type      => 'client_credentials',
-        p_owner           => 'Pericope',
-        p_description     => 'Pericope API (server to server)',
-        p_support_email   => 'admin@example.com',
-        p_privilege_names => NULL);
-    END;]';
-    DBMS_OUTPUT.PUT_LINE('Created OAuth client pericope-api');
+  BEGIN
+    EXECUTE IMMEDIATE 'SELECT COUNT(*) FROM user_ords_clients WHERE name = :1' INTO n USING c_name;
+  EXCEPTION WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE('ORDS is not available in this schema: ' || SQLERRM);
+    DBMS_OUTPUT.PUT_LINE('Run 00_create_schema.sql as ADMIN first (it REST-enables PERICOPE_ERM), then sign in as PERICOPE_ERM.');
+    RETURN;
+  END;
+${recreate ? `  IF n > 0 THEN
+    BEGIN
+      EXECUTE IMMEDIATE q'[BEGIN ORDS_SECURITY.DELETE_CLIENT(p_name => :c); END;]' USING c_name;
+    EXCEPTION WHEN OTHERS THEN
+      EXECUTE IMMEDIATE q'[BEGIN OAUTH.DELETE_CLIENT(p_name => :c); END;]' USING c_name;
+    END;
+    DBMS_OUTPUT.PUT_LINE('Deleted the old OAuth client ' || c_name);
+    n := 0;
   END IF;
+` : ''}  IF n = 0 THEN
+    BEGIN
+      -- ORDS 23.3 and later
+      EXECUTE IMMEDIATE q'[
+        DECLARE
+          c ords_types.t_client_credentials;
+        BEGIN
+          c := ORDS_SECURITY.REGISTER_CLIENT(
+                 p_name          => :c,
+                 p_grant_type    => 'client_credentials',
+                 p_description   => 'Pericope API (server to server)',
+                 p_client_secret => ords_types.oauth_client_secret(p_secret => NULL),
+                 p_support_email => 'admin@example.com');
+          :id     := c.client_key.client_id;
+          :secret := c.client_secret.secret;
+        END;]' USING IN c_name, OUT v_id, OUT v_secret;
+    EXCEPTION WHEN OTHERS THEN
+      v_err := SQLERRM;
+      BEGIN
+        -- Older ORDS
+        EXECUTE IMMEDIATE q'[BEGIN
+          OAUTH.CREATE_CLIENT(p_name => :c, p_grant_type => 'client_credentials', p_owner => 'Pericope',
+                              p_description => 'Pericope API (server to server)',
+                              p_support_email => 'admin@example.com', p_privilege_names => NULL);
+        END;]' USING c_name;
+        EXECUTE IMMEDIATE 'SELECT client_id, client_secret FROM user_ords_clients WHERE name = :1'
+          INTO v_id, v_secret USING c_name;
+      EXCEPTION WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Could not create the OAuth client.');
+        DBMS_OUTPUT.PUT_LINE('  ORDS_SECURITY: ' || v_err);
+        DBMS_OUTPUT.PUT_LINE('  OAUTH:         ' || SQLERRM);
+        DBMS_OUTPUT.PUT_LINE('Create it in Database Actions > REST > Security > OAuth Clients instead (see db/install/README.md).');
+        ROLLBACK;
+        RETURN;
+      END;
+    END;
+  ELSE
+    DBMS_OUTPUT.PUT_LINE('OAuth client ' || c_name || ' already exists (its secret is shown only when it is created;'
+      || ' run 09_oauth_client.sql to create a new one).');
+  END IF;
+
   -- The schema-wide AutoREST role, and each object's own role (ORDS creates both).
   grant_role('oracle.dbtools.role.autorest.' || v_schema);
   FOR o IN (SELECT object_name FROM user_objects
@@ -307,24 +387,18 @@ BEGIN
     grant_role('oracle.dbtools.role.autorest.' || v_schema || '.' || o.object_name);
   END LOOP;
   COMMIT;
-  DBMS_OUTPUT.PUT_LINE('OAuth client pericope-api can use the REST endpoints of ' || v_schema);
-EXCEPTION
-  WHEN OTHERS THEN
-    DBMS_OUTPUT.PUT_LINE('OAuth client not set up automatically (' || SQLERRM || ').');
-    DBMS_OUTPUT.PUT_LINE('Create it in Database Actions > REST > Security > OAuth Clients instead (see db/install/README.md).');
+
+  IF v_id IS NOT NULL THEN
+    DBMS_OUTPUT.PUT_LINE('==================================================================');
+    DBMS_OUTPUT.PUT_LINE('OAuth client created. Put these in api/.env (nowhere else):');
+    DBMS_OUTPUT.PUT_LINE('ORDS_CLIENT_ID=' || v_id);
+    DBMS_OUTPUT.PUT_LINE('ORDS_CLIENT_SECRET=' || NVL(v_secret, '(not returned: run 09_oauth_client.sql)'));
+    DBMS_OUTPUT.PUT_LINE('The secret is shown only now. If you lose it, run 09_oauth_client.sql.');
+    DBMS_OUTPUT.PUT_LINE('==================================================================');
+  END IF;
 END;
 /
-
--- Copy these into api/.env as ORDS_CLIENT_ID and ORDS_CLIENT_SECRET. Do not paste them anywhere else.
-SELECT client_id, client_secret FROM user_ords_clients WHERE name = 'pericope-api';
-`,
-  )
-
-  console.log(`tables: ${tables.length} (left out ${all.length - tables.length}), foreign keys: ${fkLines.length}, skipped: ${skipped.length}, REST objects: ${restList.length}`)
-  if (process.argv.includes('--report')) {
-    const out = Object.fromEntries(tables.map(t => [t.name, t.columns.map(c => `${c.name} ${c.spec}`)]))
-    writeFileSync(process.argv[process.argv.indexOf('--report') + 1] ?? '/dev/stdout', JSON.stringify(out, null, 1))
-  }
+`
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) buildSchema()

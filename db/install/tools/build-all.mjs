@@ -12,6 +12,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildSchema } from './build.mjs'
 import { buildMock } from './mock.mjs'
+import './more.mjs'
 
 const install = join(dirname(fileURLToPath(import.meta.url)), '..')
 const db = join(install, '..')

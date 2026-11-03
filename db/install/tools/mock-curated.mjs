@@ -435,3 +435,6 @@ export function curatedRows() {
 
   return out
 }
+
+// Shared with more.mjs (the add-on demo data), so both use the same lookup ids.
+export { ORG, CYCLES, IMPACT, DATA_SOURCES, email, personId, processId, subProcessId, subId, addDays }

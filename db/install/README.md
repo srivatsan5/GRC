@@ -62,6 +62,10 @@ You can also run the files one by one, in this order, in the same way.
 
 `install_all.sql` is these files (01 → 08) joined together.
 
+**More demo data, quickly:** after the install, run [`10_more_demo_data.sql`](10_more_demo_data.sql) the same way. It adds 9 more
+risks (3 per cycle) with their assessments, controls, monitoring actions, plans and incident links, plus a planned
+Q1 2027 cycle. It is one block, so it finishes in seconds, erases nothing, and adds nothing if run twice.
+
 ### How the old DDL was changed
 
 The source is the export you pasted from the old database: [`source/pericope_erm_ddl.tsv`](source/pericope_erm_ddl.tsv). `tools/build.mjs` turns it into steps 02, 03 and 08:

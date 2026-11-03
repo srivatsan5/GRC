@@ -207,53 +207,26 @@ const CONTROL_REGISTER = [
 
 // ------------------------------------------------------------------ cycles and the risk register
 const CYCLES = [
-  ['RCSA-2026-1', 'Q1 2026 RCSA', 'Q1', '2026-01-01', '2026-03-31', '2026-03-15', 'Completed', 'Closed and signed off by the risk committee on 2 April.'],
-  ['RCSA-2026-2', 'Q2 2026 RCSA', 'Q2', '2026-04-01', '2026-06-30', '2026-06-15', 'Completed', 'Closed and signed off by the risk committee on 3 July.'],
-  ['RCSA-2026-3', 'Q3 2026 RCSA', 'Q3', '2026-07-01', '2026-09-30', '2026-09-15', 'Under Review', 'Assessments submitted; risk managers are reviewing.'],
-  ['RCSA-2026-4', 'Q4 2026 RCSA', 'Q4', '2026-10-01', '2026-12-31', '2026-12-10', 'In Progress', 'Current cycle: departments are identifying and rating risks.'],
-  ['RCSA-2027-1', 'Q1 2027 RCSA', 'Q1', '2027-01-01', '2027-03-31', '2027-03-15', 'Planned', 'Next cycle: scope agreed, starts in January.'],
+  ['RCSA-2026-1', 'Q2 2026 RCSA', 'Q2', '2026-04-01', '2026-06-30', '2026-06-15', 'Completed', 'Closed and signed off by the risk committee on 3 July.'],
+  ['RCSA-2026-2', 'Q3 2026 RCSA', 'Q3', '2026-07-01', '2026-09-30', '2026-09-15', 'Under Review', 'Assessments submitted; risk managers are reviewing.'],
+  ['RCSA-2026-3', 'Q4 2026 RCSA', 'Q4', '2026-10-01', '2026-12-31', '2026-12-10', 'In Progress', 'Current cycle: departments are identifying and rating risks.'],
 ]
 
 // statement, category, sub-category, process, sub-process, owner, champion, [L, I], [rL, rI] | null,
 // status, cycle, SLE ($), cause, controls (codes from the module seed)
 export const RISKS = [
-  ['ERP outage stops order processing and invoicing for more than a day', 'Technology', 'System availability', 'Order to Cash', 'Order management', 'Marcus Lee', 'Priya Raman', [4, 5], [3, 3], 'APPROVED', 3, 2000000, 3, ['CTL-OPS-INC-03', 'CTL-IT-BCK-05']],
-  ['Ransomware encrypts the ERP and file servers', 'Technology', 'Cyber security', 'IT Operations', 'ERP administration', 'Marcus Lee', 'Priya Raman', [3, 5], [2, 4], 'APPROVED', 3, 4500000, 4, ['CTL-IT-AUTH-01', 'CTL-IT-BCK-05']],
-  ['Failure of a single-source supplier halts a production line', 'Third Party', 'Supply chain', 'Plan to Produce', 'Production line', 'Kenji Watanabe', 'Grace Mensah', [4, 4], [3, 3], 'SUBMITTED', 4, 3000000, 5, ['CTL-VEN-DUE-06']],
-  ['Duplicate or fraudulent supplier payments', 'Operational', 'Fraud', 'Procure to Pay', 'Purchasing & payments', 'Elena Petrova', 'Daniel Okafor', [3, 4], [2, 3], 'APPROVED', 3, 800000, 4, ['CTL-FIN-SOD-07']],
-  ['Month-end close errors misstate the financial statements', 'Financial', 'Financial reporting', 'Record to Report', 'Reconciliation', 'Elena Petrova', 'Priya Raman', [4, 3], [2, 2], 'APPROVED', 2, 400000, 2, ['CTL-FIN-REC-02']],
-  ['Customer personal data exposed through a CRM misconfiguration', 'Compliance', 'Data privacy', 'Customer Service', 'Complaints handling', 'Fatima Al-Sayed', 'Daniel Okafor', [3, 5], [2, 4], 'SUBMITTED', 4, 2500000, 1, ['CTL-COMP-TRN-04', 'CTL-IT-AUTH-01']],
-  ['Key engineers leave for competitors', 'People', 'Talent', 'Hire to Retire', 'Recruitment & onboarding', 'Nadia Rahman', 'Grace Mensah', [3, 3], null, 'DRAFT', 4, 600000, 1, []],
-  ['Payroll errors pay staff incorrectly', 'Operational', 'Process execution', 'Hire to Retire', 'Payroll', 'Nadia Rahman', 'Priya Raman', [2, 3], [1, 2], 'APPROVED', 2, 150000, 2, []],
-  ['Serious workplace injury on the factory floor', 'Health & Safety', 'Workplace safety', 'Plan to Produce', 'Production line', 'Tom Becker', 'Grace Mensah', [3, 4], [2, 3], 'APPROVED', 3, 1000000, 2, []],
-  ['Product recall caused by a quality defect', 'Reputational', 'Product quality', 'Plan to Produce', 'Quality control', 'Tom Becker', 'Grace Mensah', [2, 5], [2, 4], 'SUBMITTED', 4, 5000000, 1, []],
-  ['Stock-outs caused by inaccurate inventory records', 'Operational', 'Process execution', 'Inventory & Logistics', 'Warehousing', 'Kenji Watanabe', 'Priya Raman', [4, 3], [3, 2], 'APPROVED', 3, 500000, 2, []],
-  ['New e-invoicing and data-protection rules not implemented on time', 'Compliance', 'Regulatory change', 'Record to Report', 'Statutory reporting', 'Fatima Al-Sayed', 'Daniel Okafor', [3, 3], [2, 3], 'REJECTED', 4, 300000, 6, ['CTL-COMP-MON-08']],
-  ['Three largest customers make up 45% of revenue', 'Strategic', 'Market', 'Order to Cash', 'Order management', 'Carlos Mendes', 'Daniel Okafor', [3, 4], [3, 3], 'DRAFT', 4, 6000000, 7, []],
-  ['Bad debts from late-paying customers', 'Financial', 'Credit', 'Order to Cash', 'Billing & collections', 'Elena Petrova', 'Priya Raman', [3, 3], null, 'DRAFT', 4, 700000, 7, []],
-  ['New product launch delayed by R&D overruns', 'Strategic', 'Project delivery', 'Product Development', 'Product launch', 'Lina Park', 'Grace Mensah', null, null, 'DRAFT', 4, null, 1, []],
-  ['Excessive ERP access rights allow unauthorised changes', 'Technology', 'Access management', 'IT Operations', 'Access management', 'Marcus Lee', 'Priya Raman', [3, 4], [2, 3], 'APPROVED', 3, 900000, 1, ['CTL-IT-AUTH-01', 'CTL-FIN-SOD-07']],
-  ['Logistics partner fails to deliver during peak season', 'Third Party', 'Outsourcing', 'Inventory & Logistics', 'Distribution', 'Kenji Watanabe', 'Daniel Okafor', [3, 3], [2, 3], 'SUBMITTED', 4, 400000, 5, ['CTL-VEN-DUE-06']],
-
-  // Q1 2026 (completed): approved, controlled, actions done
-  ['Sales tax miscalculated on cross-border invoices', 'Compliance', 'Regulatory change', 'Record to Report', 'Statutory reporting', 'Fatima Al-Sayed', 'Priya Raman', [3, 3], [1, 3], 'APPROVED', 1, 350000, 6, ['CTL-COMP-MON-08']],
-  ['Warehouse fire destroys finished-goods stock', 'Health & Safety', 'Workplace safety', 'Inventory & Logistics', 'Warehousing', 'Kenji Watanabe', 'Grace Mensah', [2, 5], [2, 3], 'APPROVED', 1, 3500000, 1, ['CTL-IT-BCK-05']],
-  ['Unauthorised discounts erode sales margins', 'Operational', 'Fraud', 'Order to Cash', 'Billing & collections', 'Carlos Mendes', 'Daniel Okafor', [3, 3], [2, 2], 'APPROVED', 1, 450000, 1, ['CTL-FIN-SOD-07']],
-  ['Stolen laptop exposes customer files', 'Compliance', 'Data privacy', 'IT Operations', 'Access management', 'Marcus Lee', 'Priya Raman', [3, 4], [1, 4], 'APPROVED', 1, 600000, 4, ['CTL-IT-AUTH-01', 'CTL-COMP-TRN-04']],
-  // Q2 2026 (completed)
-  ['Recruitment delays leave critical shifts unstaffed', 'People', 'Talent', 'Hire to Retire', 'Recruitment & onboarding', 'Nadia Rahman', 'Grace Mensah', [3, 3], [2, 3], 'APPROVED', 2, 250000, 1, []],
-  ['Customer complaints not resolved within contract deadlines', 'Reputational', 'Product quality', 'Customer Service', 'Complaints handling', 'Sofia Rossi', 'Daniel Okafor', [3, 3], [2, 2], 'APPROVED', 2, 200000, 2, ['CTL-OPS-INC-03']],
-  ['Field engineers work on customer sites without safety certification', 'Health & Safety', 'Workplace safety', 'Customer Service', 'Field service', 'Sofia Rossi', 'Grace Mensah', [2, 4], [1, 4], 'APPROVED', 2, 400000, 2, []],
-  // Q3 2026 (under review)
-  ['Production planning errors build up excess inventory', 'Operational', 'Process execution', 'Plan to Produce', 'Production line', 'Tom Becker', 'Grace Mensah', [3, 3], [2, 3], 'SUBMITTED', 3, 700000, 2, []],
-  ['Departing R&D staff take intellectual property', 'Compliance', 'Data privacy', 'Product Development', 'R&D projects', 'Lina Park', 'Daniel Okafor', [2, 5], [2, 3], 'SUBMITTED', 3, 2000000, 4, ['CTL-IT-AUTH-01']],
-  ['Currency swings raise the cost of imported components', 'Strategic', 'Market', 'Procure to Pay', 'Purchasing & payments', 'Elena Petrova', 'Priya Raman', [4, 3], [3, 3], 'APPROVED', 3, 1500000, 7, []],
-  // Q4 2026 (in progress): every stage of the workflow is represented
-  ['Cloud ERP vendor raises prices sharply at renewal', 'Third Party', 'Outsourcing', 'IT Operations', 'ERP administration', 'Marcus Lee', 'Priya Raman', [3, 3], null, 'DRAFT', 4, 500000, 5, []],
-  ['Night-shift fatigue increases errors on the production line', 'Health & Safety', 'Workplace safety', 'Plan to Produce', 'Production line', 'Tom Becker', 'Grace Mensah', [3, 3], [2, 3], 'SUBMITTED', 4, 300000, 2, []],
-  ['Marketing campaign breaches consent rules', 'Compliance', 'Data privacy', 'Order to Cash', 'Order management', 'Carlos Mendes', 'Daniel Okafor', [2, 4], null, 'SUBMITTED', 4, 800000, 6, ['CTL-COMP-TRN-04']],
-  ['Customers leave after repeated service outages', 'Strategic', 'Market', 'Customer Service', 'Complaints handling', 'Sofia Rossi', 'Daniel Okafor', null, null, 'DRAFT', 4, null, 7, []],
-  ['Inflated employee expense claims', 'Operational', 'Fraud', 'Record to Report', 'Reconciliation', 'Elena Petrova', 'Priya Raman', [2, 2], [1, 2], 'IN_REVIEW', 4, 50000, 4, ['CTL-FIN-SOD-07']],
+  // Q2 2026 (completed): approved, rated, controlled
+  ['ERP outage stops order processing and invoicing for more than a day', 'Technology', 'System availability', 'Order to Cash', 'Order management', 'Marcus Lee', 'Priya Raman', [4, 5], [3, 3], 'APPROVED', 1, 2000000, 3, ['CTL-OPS-INC-03', 'CTL-IT-BCK-05']],
+  ['Duplicate or fraudulent supplier payments', 'Operational', 'Fraud', 'Procure to Pay', 'Purchasing & payments', 'Elena Petrova', 'Daniel Okafor', [3, 4], [2, 3], 'APPROVED', 1, 800000, 4, ['CTL-FIN-SOD-07']],
+  ['Month-end close errors misstate the financial statements', 'Financial', 'Financial reporting', 'Record to Report', 'Reconciliation', 'Elena Petrova', 'Priya Raman', [4, 3], [2, 2], 'APPROVED', 1, 400000, 2, ['CTL-FIN-REC-02']],
+  // Q3 2026 (under review): approved and waiting for approval
+  ['Ransomware encrypts the ERP and file servers', 'Technology', 'Cyber security', 'IT Operations', 'ERP administration', 'Marcus Lee', 'Priya Raman', [3, 5], [2, 4], 'APPROVED', 2, 4500000, 4, ['CTL-IT-AUTH-01']],
+  ['Failure of a single-source supplier halts a production line', 'Third Party', 'Supply chain', 'Plan to Produce', 'Production line', 'Kenji Watanabe', 'Grace Mensah', [4, 4], [3, 3], 'SUBMITTED', 2, 3000000, 5, ['CTL-VEN-DUE-06']],
+  ['Serious workplace injury on the factory floor', 'Health & Safety', 'Workplace safety', 'Plan to Produce', 'Production line', 'Tom Becker', 'Grace Mensah', [3, 4], [2, 3], 'SUBMITTED', 2, 1000000, 2, []],
+  // Q4 2026 (in progress): rejected, draft, not yet rated
+  ['New e-invoicing and data-protection rules not implemented on time', 'Compliance', 'Regulatory change', 'Record to Report', 'Statutory reporting', 'Fatima Al-Sayed', 'Daniel Okafor', [3, 3], [2, 3], 'REJECTED', 3, 300000, 6, ['CTL-COMP-MON-08']],
+  ['Key engineers leave for competitors', 'People', 'Talent', 'Hire to Retire', 'Recruitment & onboarding', 'Nadia Rahman', 'Grace Mensah', [3, 3], null, 'DRAFT', 3, 600000, 1, []],
+  ['New product launch delayed by R&D overruns', 'Strategic', 'Project delivery', 'Product Development', 'Product launch', 'Lina Park', 'Grace Mensah', null, null, 'DRAFT', 3, null, 1, []],
 ]
 
 const cycleDates = c => CYCLES[c - 1]
@@ -372,11 +345,7 @@ export function curatedRows() {
   })
   // Earlier assessments of the same risks, so the history shows how ratings changed between cycles.
   const EARLIER = [
-    [1, 4, 4, 2, 'First rated in the Q2 workshop; impact raised to 5 after the month-end payment gateway incident.'],
-    [2, 3, 4, 2, 'Rated in Q2; impact raised after the industry ransomware alerts in July.'],
-    [3, 3, 4, 3, 'Rated in Q3 before the second supplier for component A-12 failed its audit.'],
-    [9, 3, 5, 2, 'Rated in Q2; lowered to 4 after the new forklift lanes and guarding.'],
-    [16, 4, 4, 2, 'Rated in Q2; lowered after MFA for administrators went live.'],
+    [1, 4, 4, 1, 'First rated 4 x 4; impact raised to 5 after the month-end payment gateway incident.'],
   ]
   EARLIER.forEach(([riskNo, l, imp, cycle, note], j) => {
     const [, cat, sub, , , owner, , , , , , , cause] = RISKS[riskNo - 1]
@@ -416,24 +385,8 @@ export function curatedRows() {
   // Monitoring / action items on risks.
   const MONITORING = [
     [1, 'Set up a standby ERP environment with automatic failover', 'Order processing resumes within 4 hours if the primary ERP fails.', 'The ERP runs in one data centre with no standby.', 'Marcus Lee', '2026-07-15', '2026-12-15', 60, 'CONTROL_ENHANCEMENT'],
-    [2, 'Quarterly restore test of ERP backups', 'Prove a full ERP restore inside the 8-hour RTO.', 'Restore never tested end to end.', 'Marcus Lee', '2026-07-01', '2026-09-30', 100, 'PERIODIC_REVIEW'],
-    [3, 'Qualify a second supplier for critical components', 'Two approved suppliers for every A-class component.', 'Three critical components rely on one supplier.', 'Kenji Watanabe', '2026-10-05', '2027-03-31', 20, 'NEW_CONTROL_PROPOSAL'],
-    [4, 'Enforce three-way match before any supplier payment', 'No invoice paid without a matching purchase order and goods receipt.', 'Invoices without a purchase order were paid manually.', 'Elena Petrova', '2026-07-01', '2026-09-30', 100, 'CONTROL_ENHANCEMENT'],
-    [5, 'Automate bank-to-ledger reconciliation in the ERP', 'Remove manual matching for 95% of entries.', 'Manual spreadsheet reconciliation.', 'Elena Petrova', '2026-04-15', '2026-06-30', 100, 'CONTROL_ENHANCEMENT'],
-    [9, 'Monthly safety walk-throughs on every production line', 'Lost-time injury rate below 0.5 per 200,000 hours worked.', 'Two near misses on line 3 in Q2.', 'Tom Becker', '2026-07-01', '2026-12-31', 50, 'PERIODIC_REVIEW'],
-    [16, 'Quarterly review of ERP user access', 'Access no longer needed is removed within 5 days of each review.', 'Leavers kept ERP access for weeks after leaving.', 'Marcus Lee', '2026-08-01', '2026-10-31', 80, 'PERIODIC_REVIEW'],
-    [17, 'Standby logistics partner for peak season', 'Signed standby contract in place before November.', 'One carrier handles 90% of deliveries.', 'Kenji Watanabe', '2026-10-05', '2026-11-30', 10, 'NEW_CONTROL_PROPOSAL'],
-    [6, 'Fix CRM sharing settings and review access', 'Only the account team can see each customer record.', 'CRM default sharing was set to everyone.', 'Fatima Al-Sayed', '2026-09-01', '2026-10-15', 45, 'CONTROL_ENHANCEMENT'],
-    [18, 'Switch to the ERP tax engine', 'Tax worked out by the ERP for every country we sell to.', 'Tax rates kept by hand in a spreadsheet.', 'Fatima Al-Sayed', '2026-01-15', '2026-03-20', 100, 'CONTROL_ENHANCEMENT'],
-    [19, 'Sprinklers and fire doors in warehouse B', 'Warehouse B meets the current fire-safety standard.', 'Warehouse B was built before sprinklers were required.', 'Kenji Watanabe', '2026-01-10', '2026-03-31', 100, 'NEW_CONTROL_PROPOSAL'],
-    [20, 'Discounts above 10% need a manager’s approval in the ERP', 'No discount above 10% without a recorded approval.', 'Sales staff could set any discount.', 'Carlos Mendes', '2026-02-01', '2026-03-15', 100, 'CONTROL_ENHANCEMENT'],
-    [21, 'Encrypt every company laptop', 'All laptops encrypted and remotely wipeable.', 'Older laptops had no disk encryption.', 'Marcus Lee', '2026-01-05', '2026-03-31', 100, 'CONTROL_ENHANCEMENT'],
-    [22, 'Agency staff pool for critical shifts', 'Every critical shift covered within 24 hours.', 'Hiring takes 60 days on average.', 'Nadia Rahman', '2026-04-15', '2026-06-30', 100, 'NEW_CONTROL_PROPOSAL'],
-    [23, 'Weekly review of ageing complaints', 'No complaint open past its contract deadline.', 'Nobody tracked how long complaints stayed open.', 'Sofia Rossi', '2026-04-01', '2026-06-30', 100, 'PERIODIC_REVIEW'],
-    [25, 'Weekly sales and operations planning meeting', 'Production plan matches confirmed demand each week.', 'Plans were set monthly from forecasts only.', 'Tom Becker', '2026-07-15', '2026-12-31', 40, 'PERIODIC_REVIEW'],
-    [26, 'Leaver checklist removes all access on the last day', 'No leaver keeps access to R&D systems.', 'Access was removed up to two weeks late.', 'Lina Park', '2026-08-01', '2026-11-30', 70, 'CONTROL_ENHANCEMENT'],
-    [27, 'Hedge half of next year’s dollar purchases', 'Component costs fixed for 50% of 2027 volume.', 'All dollar purchases bought at spot rates.', 'Elena Petrova', '2026-08-15', '2026-12-15', 60, 'NEW_CONTROL_PROPOSAL'],
-    [29, 'Limit consecutive night shifts to four', 'No operator works more than four nights in a row.', 'Rotas allowed up to seven nights in a row.', 'Tom Becker', '2026-10-10', '2027-01-31', 15, 'NEW_CONTROL_PROPOSAL'],
+    [3, 'Automate bank-to-ledger reconciliation in the ERP', 'Remove manual matching for 95% of entries.', 'Manual spreadsheet reconciliation.', 'Elena Petrova', '2026-04-15', '2026-06-30', 100, 'CONTROL_ENHANCEMENT'],
+    [5, 'Qualify a second supplier for critical components', 'Two approved suppliers for every A-class component.', 'Three critical components rely on one supplier.', 'Kenji Watanabe', '2026-08-01', '2026-10-15', 20, 'NEW_CONTROL_PROPOSAL'],
   ]
   out.PER_TRN_RISK_MONITORING = MONITORING.map(([risk, title, goal, cause, owner, start, end, pct, type], i) => {
     const impl = implFor(risk)
@@ -449,20 +402,9 @@ export function curatedRows() {
 
   // Mitigation plans, as a small hierarchy (programme → workstreams).
   const PLANS = [
-    [null, 'Programme', 'Cyber resilience programme 2026', 'Raise cyber maturity across the group and protect the ERP.', 'In Progress', 2, 'Marcus Lee', '2026-04-01', '2027-03-31'],
-    [1, 'Reduce', 'Phishing-resistant MFA for ERP administrators', 'Replace SMS codes with security keys for all administrators.', 'In Progress', 16, 'Marcus Lee', '2026-07-01', '2026-12-31'],
-    [1, 'Reduce', 'Immutable backups for the ERP', 'Write-once backups held in a separate cloud account.', 'Completed', 2, 'Marcus Lee', '2026-04-01', '2026-09-30'],
-    [null, 'Programme', 'Supply-chain resilience', 'Remove single points of failure across suppliers and logistics.', 'In Progress', 3, 'Kenji Watanabe', '2026-10-01', '2027-06-30'],
-    [4, 'Reduce', 'Dual-source critical components', 'Qualify alternative suppliers for 12 A-class components.', 'Not Started', 3, 'Kenji Watanabe', '2026-11-15', '2027-03-31'],
-    [null, 'Transfer', 'Product liability and recall insurance renewal', 'Renew the policy with a $10m limit.', 'Completed', 10, 'Elena Petrova', '2026-05-01', '2026-06-30'],
-    [null, 'Reduce', 'Retention plan for key engineers', 'Retention bonuses and career paths for 25 critical roles.', 'On Hold', 7, 'Nadia Rahman', '2026-10-15', '2027-01-31'],
-    [null, 'Reduce', 'ERP tax engine upgrade', 'Configure the ERP tax engine for all 14 sales countries.', 'Completed', 18, 'Fatima Al-Sayed', '2026-01-15', '2026-03-20'],
-    [null, 'Reduce', 'Warehouse fire-safety upgrade', 'Sprinklers, fire doors and quarterly drills in warehouse B.', 'Completed', 19, 'Kenji Watanabe', '2026-01-10', '2026-03-31'],
-    [4, 'Reduce', 'Currency hedging policy', 'Hedge half of forecast dollar purchases 12 months ahead.', 'In Progress', 27, 'Elena Petrova', '2026-08-15', '2026-12-15'],
-    [1, 'Reduce', 'Quarterly review of ERP administrator accounts', 'Review every administrator account each quarter and remove what is not needed.', 'In Progress', 16, 'Marcus Lee', '2026-07-01', '2026-10-31'],
-    [null, 'Reduce', 'Fatigue management programme', 'Shift limits, rest breaks and fatigue training for night crews.', 'In Progress', 29, 'Tom Becker', '2026-10-10', '2027-01-31'],
-    [null, 'Avoid', 'Outsource night-shift maintenance', 'Dropped in favour of the fatigue management programme.', 'Cancelled', 29, 'Tom Becker', '2026-09-01', '2026-09-30'],
-    [null, 'Accept', 'Accept the remaining expense-claim risk', 'Remaining risk is within appetite; review once a year.', 'Not Started', 32, 'Elena Petrova', '2026-11-15', '2026-12-15'],
+    [null, 'Programme', 'Cyber resilience programme 2026', 'Raise cyber maturity across the group and protect the ERP.', 'In Progress', 4, 'Marcus Lee', '2026-04-01', '2027-03-31'],
+    [1, 'Reduce', 'Immutable backups for the ERP', 'Write-once backups held in a separate cloud account.', 'Completed', 1, 'Marcus Lee', '2026-04-01', '2026-09-30'],
+    [null, 'Reduce', 'Retention plan for key engineers', 'Retention bonuses and career paths for 25 critical roles.', 'Not Started', 8, 'Nadia Rahman', '2026-11-15', '2027-01-31'],
   ]
   out.PER_TRN_MITIGATION_PLANS = PLANS.map(([parent, type, statement, activities, status, risk, owner, start, end], i) => ({
     UUID: i + 1, PARENT_PLAN_UUID: parent, PLAN_TYPE: type, PLAN_STATEMENT: statement, PLAN_ACTIVITIES: activities,
@@ -472,20 +414,18 @@ export function curatedRows() {
 
   // Incidents from the module seed, linked to the risks they relate to.
   out.ERM_LNK_INCIDENT_RISK = [
-    ['INC-001', 1], ['INC-002', 2], ['INC-003', 5], ['INC-004', 17], ['INC-005', 9], ['INC-006', 4], ['INC-007', 1], ['INC-008', 6],
+    ['INC-001', 1], ['INC-002', 4], ['INC-003', 3],
   ].map(([inc, risk]) => ({ INCIDENT_UUID: ref('ERM_TRN_INCIDENT', 'INCIDENT_REF', inc), RISK_UUID: risk, CREATED_BY: 'demo-seed' }))
 
   // KPIs with six months of actuals.
   const KPIS = [
-    ['KPI-RCSA-01', 'RCSA completion on time', 'Share of assessments submitted by the cycle deadline.', 'Governance', 95, 'HIGHER', [82, 86, 90, 88, 93, 96]],
-    ['KPI-ACT-02', 'Overdue risk actions', 'Number of mitigation actions past their due date.', 'Governance', 5, 'LOWER', [14, 12, 9, 10, 7, 6]],
-    ['KPI-CTL-03', 'Key controls tested this quarter', 'Share of key controls tested in the quarter.', 'Assurance', 100, 'HIGHER', [70, 78, 85, 90, 92, 97]],
-    ['KPI-INC-04', 'Mean time to close incidents (days)', 'Average days from report to closure.', 'Operations', 10, 'LOWER', [21, 18, 16, 15, 12, 11]],
+    ['KPI-RCSA-01', 'RCSA completion on time', 'Share of assessments submitted by the cycle deadline.', 'Governance', 95, 'HIGHER', [88, 93, 96]],
+    ['KPI-ACT-02', 'Overdue risk actions', 'Number of mitigation actions past their due date.', 'Governance', 5, 'LOWER', [10, 7, 6]],
   ]
   out.ERM_MST_KPI_DEFINITION = rows(KPIS, ([code, name, desc, cat, target, dir]) => ({
     KPI_CODE: code, KPI_NAME: name, KPI_DESCRIPTION: desc, KPI_CATEGORY: cat, TARGET_VALUE: target, TARGET_DIRECTION: dir, IS_ACTIVE: 'Y', CREATED_BY: 'demo-seed',
   }))
-  const MONTH_ENDS = ['2026-05-31', '2026-06-30', '2026-07-31', '2026-08-31', '2026-09-30', '2026-10-31']
+  const MONTH_ENDS = ['2026-08-31', '2026-09-30', '2026-10-31']
   out.ERM_TRN_KPI_ACTUALS = KPIS.flatMap(([, , , , target, , values], k) =>
     values.map((v, m) => ({
       KPI_UUID: k + 1, PERIOD_DATE: MONTH_ENDS[m], ACTUAL_VALUE: v, TARGET_VALUE: target, VARIANCE: v - target,

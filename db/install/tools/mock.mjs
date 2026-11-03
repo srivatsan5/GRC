@@ -19,7 +19,7 @@ import { demoRows } from '../../seed/demo-rows.mjs'
 import { createHash } from 'node:crypto'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-const ROWS_PER_TABLE = 5
+const ROWS_PER_TABLE = 2
 /** Never given made-up rows: audit history must be real, and logs are written by the system. */
 const NO_MOCK = new Set(['ERM_TRN_AUDIT_LOG', 'WF_DEBUG_LOG'])
 /** Tables created by the migrations (V3), seeded by db/seed/demo_data.sql, referenced here by natural key. */

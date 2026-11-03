@@ -28,6 +28,7 @@ SET SERVEROUTPUT ON
 DECLARE
   v_schema VARCHAR2(128) := SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA');
   n        PLS_INTEGER := 0;
+  v_ts     VARCHAR2(128);
   PROCEDURE run(p_sql VARCHAR2) IS
   BEGIN
     EXECUTE IMMEDIATE p_sql;
@@ -59,6 +60,19 @@ BEGIN
   END LOOP;
 
   DBMS_OUTPUT.PUT_LINE('Dropped ' || n || ' objects from ' || v_schema || '.');
+
+  -- The install needs room for ~220 tables and their demo rows. A user created with a small
+  -- storage quota fails later with ORA-01536, so warn now.
+  SELECT default_tablespace INTO v_ts FROM user_users;
+  SELECT (SELECT COUNT(*) FROM user_ts_quotas WHERE tablespace_name = v_ts AND max_bytes = -1)
+       + (SELECT COUNT(*) FROM session_privs WHERE privilege = 'UNLIMITED TABLESPACE')
+    INTO n FROM dual;
+  IF n = 0 THEN
+    DBMS_OUTPUT.PUT_LINE('WARNING: ' || v_schema || ' does not have unlimited space in tablespace ' || v_ts || '.');
+    DBMS_OUTPUT.PUT_LINE('         Inserts will fail with ORA-01536. Sign in as ADMIN and run:');
+    DBMS_OUTPUT.PUT_LINE('           ALTER USER ' || v_schema || ' QUOTA UNLIMITED ON ' || v_ts || ';');
+    DBMS_OUTPUT.PUT_LINE('         then run this install again.');
+  END IF;
 END;
 /
 

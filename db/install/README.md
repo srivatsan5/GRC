@@ -101,6 +101,9 @@ The source is the export you pasted from the old database: [`source/pericope_erm
 
 ## If something goes wrong
 
+- **`ORA-01536: space quota exceeded for tablespace 'DATA'`**: the schema was created with a storage limit.
+  Sign in as ADMIN and run `ALTER USER PERI_ERM QUOTA UNLIMITED ON DATA;` (use your schema's name; step 01 prints the exact command), then run
+  `install_all.sql` again. Step 01 warns about this before anything is created.
 - **No client id/secret printed**, or you lost the secret: run `09_oauth_client.sql` alone, as PERICOPE_ERM. It deletes and re-creates
   the client `pericope-api` and prints the new id and secret (then update `api/.env`). If it prints
   `Could not create the OAuth client` with two errors, create the client in Database Actions instead:

@@ -17,6 +17,7 @@
     "openapi": "tsx scripts/write-openapi.ts",
     "user:create": "tsx scripts/create-user.ts",
     "check:ords-anon": "node scripts/check-ords-anonymous.mjs",
+    "check:db": "node scripts/check-db.mjs",
     "dev:fake-db": "tsx scripts/fake-ords.ts"
   },
   "dependencies": {

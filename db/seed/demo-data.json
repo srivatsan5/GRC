@@ -175,7 +175,7 @@
       "greenThreshold": 4,
       "amberThreshold": 8,
       "redThreshold": 12,
-      "currentValue": 7.2,
+      "currentValue": 13.5,
       "direction": "higher-worse",
       "history": [
         {
@@ -201,6 +201,26 @@
         {
           "date": "2026-05-31",
           "value": 7.2
+        },
+        {
+          "date": "2026-06-30",
+          "value": 8.1
+        },
+        {
+          "date": "2026-07-31",
+          "value": 9.4
+        },
+        {
+          "date": "2026-08-31",
+          "value": 10.2
+        },
+        {
+          "date": "2026-09-30",
+          "value": 11.6
+        },
+        {
+          "date": "2026-10-31",
+          "value": 13.5
         }
       ],
       "active": true
@@ -215,7 +235,7 @@
       "greenThreshold": 10,
       "amberThreshold": 25,
       "redThreshold": 40,
-      "currentValue": 22,
+      "currentValue": 31,
       "direction": "higher-worse",
       "history": [
         {
@@ -241,6 +261,26 @@
         {
           "date": "2026-05-31",
           "value": 22
+        },
+        {
+          "date": "2026-06-30",
+          "value": 24
+        },
+        {
+          "date": "2026-07-31",
+          "value": 27
+        },
+        {
+          "date": "2026-08-31",
+          "value": 29
+        },
+        {
+          "date": "2026-09-30",
+          "value": 26
+        },
+        {
+          "date": "2026-10-31",
+          "value": 31
         }
       ],
       "active": true
@@ -255,7 +295,7 @@
       "greenThreshold": 45,
       "amberThreshold": 30,
       "redThreshold": 15,
-      "currentValue": 38,
+      "currentValue": 28,
       "direction": "lower-worse",
       "history": [
         {
@@ -281,6 +321,26 @@
         {
           "date": "2026-05-31",
           "value": 38
+        },
+        {
+          "date": "2026-06-30",
+          "value": 36
+        },
+        {
+          "date": "2026-07-31",
+          "value": 34
+        },
+        {
+          "date": "2026-08-31",
+          "value": 31
+        },
+        {
+          "date": "2026-09-30",
+          "value": 29
+        },
+        {
+          "date": "2026-10-31",
+          "value": 28
         }
       ],
       "active": true
@@ -295,7 +355,7 @@
       "greenThreshold": 3,
       "amberThreshold": 8,
       "redThreshold": 15,
-      "currentValue": 6,
+      "currentValue": 11,
       "direction": "higher-worse",
       "history": [
         {
@@ -321,6 +381,26 @@
         {
           "date": "2026-05-31",
           "value": 6
+        },
+        {
+          "date": "2026-06-30",
+          "value": 7
+        },
+        {
+          "date": "2026-07-31",
+          "value": 8
+        },
+        {
+          "date": "2026-08-31",
+          "value": 10
+        },
+        {
+          "date": "2026-09-30",
+          "value": 9
+        },
+        {
+          "date": "2026-10-31",
+          "value": 11
         }
       ],
       "active": true
@@ -652,6 +732,56 @@
       "linkedRisks": [
         "R-018"
       ]
+    },
+    {
+      "id": "INC-005",
+      "title": "Forklift collision in the main warehouse injures an operator",
+      "description": "A reversing forklift struck an operator in aisle 4; first aid on site, two days off work.",
+      "severity": "High",
+      "status": "Closed",
+      "category": "Health & Safety",
+      "reportedBy": "Tom Becker",
+      "assignedTo": "HSE team",
+      "reportedOn": "2026-08-14",
+      "closedOn": "2026-08-20",
+      "rootCause": "No marked pedestrian lane in aisle 4.",
+      "correctiveAction": "Pedestrian lanes painted, reversing alarms fitted on all forklifts."
+    },
+    {
+      "id": "INC-006",
+      "title": "Supplier invoice paid twice",
+      "description": "A $48,000 invoice was paid once by bank transfer and again by manual payment.",
+      "severity": "Medium",
+      "status": "Mitigated",
+      "category": "Financial",
+      "reportedBy": "Elena Petrova",
+      "assignedTo": "Accounts payable",
+      "reportedOn": "2026-09-03",
+      "closedOn": "2026-09-10",
+      "rootCause": "Manual payment raised without checking the payment run.",
+      "correctiveAction": "Manual payments now need a second approver; refund recovered."
+    },
+    {
+      "id": "INC-007",
+      "title": "ERP slowdown during quarter-end close",
+      "description": "Order entry and posting slowed to over 30 seconds per screen for four hours on 2 October.",
+      "severity": "High",
+      "status": "Investigating",
+      "category": "IT & Cyber",
+      "reportedBy": "Marcus Lee",
+      "assignedTo": "IT Operations",
+      "reportedOn": "2026-10-02"
+    },
+    {
+      "id": "INC-008",
+      "title": "Customer contract e-mailed to the wrong recipient",
+      "description": "A signed contract with pricing was sent to another customer with a similar name.",
+      "severity": "Medium",
+      "status": "Open",
+      "category": "Data Privacy",
+      "reportedBy": "Sofia Rossi",
+      "assignedTo": "Legal & Compliance",
+      "reportedOn": "2026-10-21"
     }
   ],
   "bcp": [

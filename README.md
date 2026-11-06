@@ -1,4 +1,4 @@
-# Pericope ERM
+# ERMA-GRC
 
 Enterprise risk management for the full **RCSA lifecycle**: assessment cycles → risk register →
 inherent assessment → controls and mitigation → monitoring. It also covers KRIs, risk appetite,
@@ -9,7 +9,7 @@ and a tamper-evident audit trail.
 Browser ── Next.js web app (app/, components/, lib/)
    │  httpOnly session cookie + CSRF header
    ▼
-Pericope API (api/) ── sign-in, roles, validation, approvals, audit log
+ERMA-GRC API (api/) ── sign-in, roles, validation, approvals, audit log
    │  OAuth2 client credentials
    ▼
 Oracle Autonomous Database via ORDS (schema changes in db/migrations)

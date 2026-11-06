@@ -1,0 +1,20 @@
+{
+  "baselineNoStatusSent": {
+    "status": 201,
+    "storedTrafficLight": null
+  },
+  "ermaNoStatusSent": {
+    "status": 201,
+    "storedTrafficLight": null
+  },
+  "ermaClientDeclaresGreen": {
+    "status": 201,
+    "storedTrafficLight": "GREEN",
+    "storedBreach": "N"
+  },
+  "baselineClientDeclaresGreen": {
+    "status": 201,
+    "storedTrafficLight": "GREEN",
+    "storedBreach": "N"
+  }
+}

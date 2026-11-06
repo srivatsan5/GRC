@@ -1,0 +1,247 @@
+{
+  "ranAt": "2026-11-06T18:20:10.305Z",
+  "setup": {
+    "per_trn_identify_risk": [
+      {
+        "UUID": 91001,
+        "RISK_STATEMENT": "Eval S1.1 unrated risk",
+        "PROCESS_NAME": "Finance",
+        "APPROVAL_STATUS": "SUBMITTED",
+        "STATUS": "Y",
+        "IS_STAGE_COMPLTED": "N"
+      },
+      {
+        "UUID": 91002,
+        "RISK_STATEMENT": "Test statement X",
+        "INHERENT_SLE": 123456,
+        "PROCESS_NAME": "Finance",
+        "APPROVAL_STATUS": "SUBMITTED",
+        "STATUS": "Y",
+        "IS_STAGE_COMPLTED": "N"
+      },
+      {
+        "UUID": 91003,
+        "RISK_STATEMENT": "Eval S1.3 no approval status",
+        "PROCESS_NAME": "Finance",
+        "STATUS": "Y",
+        "IS_STAGE_COMPLTED": "N"
+      }
+    ],
+    "erm_trn_assessment_cycle": [
+      {
+        "UUID": 92001,
+        "CYCLE_REFERENCE": "CYC-EVAL-S71",
+        "CYCLE_NAME": "Eval S7.1 empty cycle",
+        "CYCLE_TYPE": "Quarterly",
+        "CYCLE_YEAR": 2026,
+        "STATUS": "Planned"
+      }
+    ]
+  },
+  "B": {
+    "S1.1": {
+      "register": {
+        "revealedBy": "search by id",
+        "row": "REF-91001\t\nEval S1.1 unrated risk\nGeneral\n\tFinance\t\n$30,000\nModerate\n\tSUBMITTED\t",
+        "present": true
+      },
+      "detailPage": "Assessment Context:\n01 All Cycles\n→\n02 RCSA-91001 (Finance)\n→\n03 Controls Mapping\n→\n04 Monitoring\n← Back to all cycles\nRCSA-91001\nIn Progress\nFinance · RCSA Assessment\n\nRisk Champion: Assessor · Period: Active Quarter – Ongoing\n\nAdd Risk to Assessment\nConnected Risks\n1\nAssessment SLE\n$40k\nHigh/Critical Exposure\n0\nControl Coverage\n100%\nRISKS CONNECTED TO RCSA-91001\n\nClick \"Map Controls\" to configure mitigation and operating testing for any risk\n\nRisk Statement\tCategory\tLikelihood × Impact\tInherent SLE\tControls\tAction\n\nEval S1.1 unrated risk\nOwner: Assessor\tOperational\t1/5 × 4/5\n(Score: 4)\n\t\n$40,000\nMODERATE\t1 Mapped\t\nMap Controls →",
+      "heatmap": {
+        "mentioned": false,
+        "context": null
+      }
+    },
+    "S1.2": {
+      "register": {
+        "revealedBy": "search by id",
+        "row": "REF-91002\t\nTest statement X\nGeneral\n\tFinance\t\n$123,456\nHigh\n\tSUBMITTED\t",
+        "present": true
+      },
+      "detailPage": "Assessment Context:\n01 All Cycles\n→\n02 RCSA-91002 (Finance)\n→\n03 Controls Mapping\n→\n04 Monitoring\n← Back to all cycles\nRCSA-91002\nIn Progress\nFinance · RCSA Assessment\n\nRisk Champion: Assessor · Period: Active Quarter – Ongoing\n\nAdd Risk to Assessment\nConnected Risks\n1\nAssessment SLE\n$123k\nHigh/Critical Exposure\n1\nControl Coverage\n100%\nRISKS CONNECTED TO RCSA-91002\n\nClick \"Map Controls\" to configure mitigation and operating testing for any risk\n\nRisk Statement\tCategory\tLikelihood × Impact\tInherent SLE\tControls\tAction\n\nTest statement X\nOwner: Assessor\tOperational\t3/5 × 3/5\n(Score: 9)\n\t\n$123,456\nHIGH\t1 Mapped\t\nMap Controls →",
+      "heatmap": {
+        "mentioned": false,
+        "context": null
+      }
+    },
+    "S1.3": {
+      "register": {
+        "revealedBy": "search by id",
+        "row": "REF-91003\t\nEval S1.3 no approval status\nGeneral\n\tFinance\t\n$30,000\nModerate\n\tDraft\t",
+        "present": true
+      },
+      "detailPage": "Assessment Context:\n01 All Cycles\n→\n02 RCSA-91003 (Finance)\n→\n03 Controls Mapping\n→\n04 Monitoring\n← Back to all cycles\nRCSA-91003\nIn Progress\nFinance · RCSA Assessment\n\nRisk Champion: Assessor · Period: Active Quarter – Ongoing\n\nAdd Risk to Assessment\nConnected Risks\n1\nAssessment SLE\n$40k\nHigh/Critical Exposure\n0\nControl Coverage\n100%\nRISKS CONNECTED TO RCSA-91003\n\nClick \"Map Controls\" to configure mitigation and operating testing for any risk\n\nRisk Statement\tCategory\tLikelihood × Impact\tInherent SLE\tControls\tAction\n\nEval S1.3 no approval status\nOwner: Assessor\tOperational\t1/5 × 4/5\n(Score: 4)\n\t\n$40,000\nMODERATE\t1 Mapped\t\nMap Controls →",
+      "heatmap": {
+        "mentioned": false,
+        "context": null
+      }
+    },
+    "heatmapText": "5×5 Risk Heatmap\n\nLikelihood × Impact distribution\n\nInherent\nResidual\nTrend\nTotal risks\n43\nCritical (16–25)\n7\nHigh (12–15)\n11\nLow / Med (1–10)\n25\nIMPACT MAGNITUDE →\n← LIKELIHOOD\nAlmost Certain\nS=5\n—\nS=10\n—\nS=15\n10\nS=20\n—\nS=25\n—\nLikely\nS=4\n—\nS=8\n—\nS=12\n—\nS=16\n—\nS=20\n7\nPossible\nS=3\n—\nS=6\n11\nS=9\n—\nS=12\n1\nS=15\n—\nUnlikely\nS=2\n—\nS=4\n—\nS=6\n—\nS=8\n8\nS=10\n—\nRare\nS=1\n6\nS=2\n—\nS=3\n—\nS=4\n—\nS=5\n—\nInsignificant\nMinor\nModerate\nMajor\nSevere\nCritical (16–25)\nHigh (12–15)\nModerate (8–10)\nLow (1–6)",
+    "S7.1": {
+      "text": "Assessment Context:\n01 All Cycles\n→\n02 RCSA-92001 (Enterprise Scope)\n→\n03 Controls Mapping\n→\n04 Monitoring\n← Back to all cycles\nRCSA-92001\nIn Progress\nEnterprise Scope · RCSA Assessment\n\nRisk Champion: Assessor · Period: Active Quarter – Ongoing\n\nAdd Risk to Assessment\nConnected Risks\n2\nAssessment SLE\n$280k\nHigh/Critical Exposure\n2\nControl Coverage\n100%\nRISKS CONNECTED TO RCSA-92001\n\nClick \"Map Controls\" to configure mitigation and operating testing for any risk\n\nRisk Statement\tCategory\tLikelihood × Impact\tInherent SLE\tControls\tAction\n\nCritical operational process interruption and workflow blockage in Operations\nOwner: Assessor\tOperational\t4/5 × 4/5\n(Score: 16)\n\t\n$160,000\nHIGH\t2 Mapped\t\nMap Controls →\n\n\nVendor dependency and external service level agreement breach in Operations\nOwner: Assessor\tThird Party\t3/5 × 4/5\n(Score: 12)\n\t\n$120,000\nHIGH\t1 Mapped\t\nMap Controls →",
+      "deleteButtons": 0,
+      "deleteIconButtons": 2,
+      "tableRows": 2
+    },
+    "S6.1": {
+      "presentBeforeClear": {
+        "control": true,
+        "incident": true
+      },
+      "browserStorageKeysBeforeClear": [
+        "pericope_audit_log_v1",
+        "pericope_store_workflow_v1",
+        "pericope_store_incidents_v1",
+        "pericope_store_kri_v1",
+        "pericope_store_controls_v1",
+        "pericope_store_vendors_v1"
+      ],
+      "databaseRowsFound": 0,
+      "presentAfterClear": {
+        "control": false,
+        "incident": false
+      }
+    },
+    "G4": {
+      "indicator": "KRI-FIN-003 Operating Cash Buffer (green 45, amber 30, red 15, lower-worse; baseline seed)",
+      "before": "Operating Cash Buffer\n\nOwner: CFO\n\n38\ndays\nNormal (Green)\nDec\nJan\nFeb\nMar\nApr\nMay\n0\n30\n60\nGreen: ≤ 45\nAmber: ≤ 30\nRed: ≥ 15\nKRI-COMP-004\nCompliance\nOverdue Audit Remediation Items\n\nOwner: Compliance Officer\n\n6\ncount\nNormal (Green)\nDec\nJan\nFeb\nMar\nApr\nMay\n0\n4\n8\nGreen: ≤ 3\nAmber: ≤ 8\nRed: ≥ 15",
+      "after": "Operating Cash Buffer\n\nOwner: CFO\n\n14\ndays\nBreach (Red)\nDec\nJan\nFeb\nMar\nApr\nMay\nNow\n0\n30\n60\n\nFeb\n\nvalue : 44\nGreen: ≤ 45\nAmber: ≤ 30\nRed: ≥ 15\nKRI-COMP-004\nCompliance\nOverdue Audit Remediation Items\n\nOwner: Compliance Officer\n\n6\ncount\nNormal (Green)\nDec\nJan\nFeb\nMar\nApr\nMay\n0\n4\n8\nGreen: ≤ 3\nAmber: ≤ 8\nRed: ≥ 15",
+      "statusEnteredByUser": false,
+      "stored": {
+        "id": "KRI-003",
+        "code": "KRI-FIN-003",
+        "name": "Operating Cash Buffer",
+        "category": "Financial",
+        "owner": "CFO",
+        "unit": "days",
+        "greenThreshold": 45,
+        "amberThreshold": 30,
+        "redThreshold": 15,
+        "currentValue": 14,
+        "direction": "lower-worse",
+        "history": [
+          {
+            "date": "Dec",
+            "value": 50
+          },
+          {
+            "date": "Jan",
+            "value": 48
+          },
+          {
+            "date": "Feb",
+            "value": 44
+          },
+          {
+            "date": "Mar",
+            "value": 40
+          },
+          {
+            "date": "Apr",
+            "value": 39
+          },
+          {
+            "date": "May",
+            "value": 38
+          },
+          {
+            "date": "Now",
+            "value": 14
+          }
+        ],
+        "active": true
+      }
+    },
+    "S4.2": {
+      "tamper": {
+        "id": "AUD-1793989261373-5v7w3w",
+        "from": "User Srivatsan B signed in",
+        "to": "User Srivatsan B signed ix",
+        "entries": 2
+      },
+      "alteredShown": true,
+      "integrityWarning": false,
+      "verifyFunctionExists": false,
+      "text": "Audit Trail\n\nImmutable chronological record of all system events and data changes\n\nExport CSV\nTotal logged events\n2\nCreate operations\n0\nUpdate / Modifications\n1\nDelete operations\n0\nDate from:\nTo:\nTimestamp\tAction\tUser\tEntity / Target\tEvent summary\tResult\n\n11/6/2026 06:21:12 PM\n\tUPDATE\t\nSrivatsan B\nAdministrator\n\t\nKRI Reading#KRI-003\n\t\nLogged new reading for KRI-FIN-003: 14 days (Status: red)\n\tSUCCESS\n\n11/6/2026 06:21:01 PM\n\tLOGIN\t\nSrivatsan B\nAdministrator\n\t\nSession#U-001\n\t\nUser Srivatsan B signed ix\n\tSUCCESS\nPage 1 of 1 · 2 entries"
+    },
+    "pageErrors": []
+  },
+  "E": {
+    "S1.1": {
+      "register": {
+        "revealedBy": "search",
+        "row": "\t\nEval S1.1 unrated risk\n#91001 · Finance\n\tAssign owner\t—\t\nNot rated\n(Inherent)\nRate now\n(inherent rating)\n\t\nNot rated\n(Residual)\n\t—\t\nSubmitted\t\nAssess\n: Eval S1.1 unrated risk",
+        "present": true
+      },
+      "heatmap": {
+        "mentioned": false,
+        "context": null
+      }
+    },
+    "S1.2": {
+      "register": {
+        "revealedBy": "search",
+        "row": "\t\nTest statement X\n#91002 · Finance\n\tAssign owner\t—\t\nNot rated\n(Inherent)\nRate now\n(inherent rating)\n\t\nNot rated\n(Residual)\n\t$123,456\t\nSubmitted\t\nAssess\n: Test statement X",
+        "present": true
+      },
+      "heatmap": {
+        "mentioned": false,
+        "context": null
+      }
+    },
+    "S1.3": {
+      "register": {
+        "revealedBy": "search",
+        "row": "\t\nEval S1.3 no approval status\n#91003 · Finance\n\tAssign owner\t—\t\nNot rated\n(Inherent)\nRate now\n(inherent rating)\n\t\nNot rated\n(Residual)\n\t—\t\nDraft\t\nAssess\n: Eval S1.3 no approval status",
+        "present": true
+      },
+      "heatmap": {
+        "mentioned": false,
+        "context": null
+      }
+    },
+    "heatmapText": "ANALYTICS\n\nRisk heatmaps\n\nLikelihood × impact from the ratings recorded on each active risk. Select a cell to list its risks.\n\nACTIVE RISKS\n\n37\n\n0 on this map · 37 not rated\n\nRATED (INHERENT)\n\n0\n\nof 37 active risks\n\nHIGH & CRITICAL\n\n0\n\n0 critical · 0 high\n\nMODERATE & LOW\n\n0\n\n0 moderate · 0 low\n\n37 of 37 active risks have no inherent rating, so they are missing from this map.\nRate inherent risk\nInherent risk matrix\n0 of 37 risks placed\nInherent\nResidual\nMovement\n5\nAlmost certain\n4\nLikely\n3\nPossible\n2\nUnlikely\n1\nRare\n5\n10\n15\n20\n25\n4\n8\n12\n16\n20\n3\n6\n9\n12\n15\n2\n4\n6\n8\n10\n1\n2\n3\n4\n5\nLIKELIHOOD ↑\nIMPACT →\n1\nInsignificant\n2\nMinor\n3\nModerate\n4\nMajor\n5\nSevere\nLow 1–6\nModerate 7–11\nHigh 12–15\nCritical 16–25\n37 not rated\n·\nRate now\nSELECTED CELL\n\nSelect a cell to list its risks. Use the arrow keys to move between cells.",
+    "S7.1": {
+      "text": "1\nAssessment cycles\n0 in progress\n2\nRisk register\n37 active risks\n3\nInherent assessment\n0 of 37 rated\n4\nControls & mitigation\n0 of 37 with controls\n5\nMonitoring\n0 open · 0 overdue\n\nASSESSMENT CYCLES\n\nEval S7.1 empty cycle\n\nCYC-EVAL-S71\nPlanned\nQuarterly\n|\n— – —\nDeadline\nNot set\n\nEdit cycle\nAdd risk to this cycle\n\nRISKS\n\n0\n\nNo SLE recorded\n\nINHERENT RATED\n\n0 / 0\n\nNo risks yet\n\nRESIDUAL RATED\n\n0 / 0\n\nNo risks yet\n\nAPPROVED\n\n0 / 0\n\nNo risks yet\n\nHIGH & CRITICAL\n\n0\n\nNo risks yet\n\nSCHEDULE\n\n— – —\n\nStart or end date not set\n\nFinalize the cycle on Monitoring\n\nRisks in this cycle\n0 risks\n\nNo risks in this cycle yet\n\nAdd a risk here, or assign existing risks to this cycle from the risk register.\n\nAdd risk to this cycle",
+      "deleteButtons": 0,
+      "deleteIconButtons": 0,
+      "tableRows": 0
+    },
+    "S6.1": {
+      "presentBeforeClear": {
+        "control": true,
+        "incident": true
+      },
+      "browserStorageKeysBeforeClear": [
+        "pericope_last_activity"
+      ],
+      "databaseRowsFound": 2,
+      "presentAfterClear": {
+        "control": true,
+        "incident": true
+      }
+    },
+    "G4": {
+      "indicator": "KRI-EVAL-G4 (green 25, amber 20, red 15, LOWER_WORSE; seeded in the database)",
+      "before": "\n5 of 5 shown · breaches first\nBreach\nKRI-EVAL-G4\nEval G4 liquidity coverage\n\nNo owner\n·\nFrequency not set\n·\nLower is worse\n\n14%\n\nNo change vs Nov 6\nNov\nNov\nNov\n15\n20\nBreach ≤ 15\nWarning ≤ 20\nWithin appetite > 20\nRead Nov 6, 2026 · 3 readings\nHistory\nRecord reading\nBreach\nKRI-IT-001\n· IT & Cyber\nUnplanned IT Outage Hours\n\nCIO\n·\nMonthly\n·\nHigher is worse\n\n13.5hrs/month\n\n+1.9 vs Sep 30\n(worsening)\nDec\nJan\nFeb\nMar\nApr\nMay\nJun\nJul\nAug\nSep\nOct\n8\n12\nWi",
+      "formFields": [
+        "reading-value",
+        "reading-date",
+        "reading-notes"
+      ],
+      "statusEnteredByUser": false,
+      "stored": {
+        "KRI_UUID": 93001,
+        "READING_VALUE": 14,
+        "READING_DATE": "2026-11-06T00:00:00.000Z",
+        "TRAFFIC_LIGHT": "RED",
+        "IS_BREACH": "Y",
+        "BREACH_NOTES": null,
+        "CREATED_ON": "2026-11-06T18:22:07.012Z",
+        "RECORDED_BY": "admin@eval.local",
+        "UUID": 1153
+      },
+      "after": "\n5 of 5 shown · breaches first\nBreach\nKRI-EVAL-G4\nEval G4 liquidity coverage\n\nNo owner\n·\nFrequency not set\n·\nLower is worse\n\n14%\n\nNo change vs Nov 6\nNov\nNov\nNov\nNov\n15\n20\nBreach ≤ 15\nWarning ≤ 20\nWithin appetite > 20\nRead Nov 6, 2026 · 4 readings\nHistory\nRecord reading\nBreach\nKRI-IT-001\n· IT & Cyber\nUnplanned IT Outage Hours\n\nCIO\n·\nMonthly\n·\nHigher is worse\n\n13.5hrs/month\n\n+1.9 vs Sep 30\n(worsening)\nDec\nJan\nFeb\nMar\nApr\nMay\nJun\nJul\nAug\nSep\nOct\n8\n1"
+    },
+    "pageErrors": []
+  }
+}

@@ -1,0 +1,156 @@
+{
+  "ranAt": "2026-11-06T18:22:47.209Z",
+  "results": [
+    {
+      "id": "S5.1",
+      "system": "B",
+      "outcome": "OCCURRED",
+      "criterion": "client receives an error status; no success reported",
+      "evidence": {
+        "status": 201,
+        "body": {
+          "category_name": "Eval S5.1 during outage (B)",
+          "uuid": 10000,
+          "id": 10000,
+          "created_on": "2026-11-06T18:22:47.173Z",
+          "created_by": "Anthony Muller",
+          "source": "shadow",
+          "upstreamError": "ECONNREFUSED"
+        }
+      }
+    },
+    {
+      "id": "S5.1",
+      "system": "E",
+      "outcome": "PREVENTED",
+      "criterion": "client receives an error status; no success reported",
+      "evidence": {
+        "status": 503,
+        "body": {
+          "error": {
+            "code": "DB_AUTH_FAILED",
+            "message": "The API could not authenticate to the database."
+          }
+        }
+      }
+    }
+  ],
+  "requests": [
+    {
+      "at": "2026-11-06T18:22:47.102Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "email": "admin@eval.local",
+        "password": "[redacted]"
+      },
+      "status": 200,
+      "data": {
+        "user": {
+          "id": "U-42849FEC",
+          "email": "admin@eval.local",
+          "name": "Eval Admin",
+          "role": "Administrator",
+          "department": "Risk Office",
+          "active": true,
+          "createdAt": "2026-11-06T17:54:20.797Z",
+          "updatedAt": "2026-11-06T18:22:47.059Z",
+          "lastLoginAt": "2026-11-06T18:22:47.059Z"
+        },
+        "permissions": [
+          "read",
+          "create",
+          "update",
+          "delete",
+          "approve",
+          "audit:read",
+          "users:manage",
+          "reference:read-restricted"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-06T18:22:47.161Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "email": "assessor@eval.local",
+        "password": "[redacted]"
+      },
+      "status": 200,
+      "data": {
+        "user": {
+          "id": "U-5E7F1B0F",
+          "email": "assessor@eval.local",
+          "name": "Assessor assessor",
+          "role": "Assessor",
+          "department": "Evaluation",
+          "active": true,
+          "createdAt": "2026-11-06T18:01:47.203Z",
+          "updatedAt": "2026-11-06T18:22:47.155Z",
+          "lastLoginAt": "2026-11-06T18:22:47.154Z"
+        },
+        "permissions": [
+          "read",
+          "create",
+          "update"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-06T18:22:47.197Z",
+      "system": "B",
+      "method": "POST",
+      "path": "/api/per_mst_risk_category",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-User-Id": "U-003",
+        "X-User-Name": "Anthony Muller",
+        "X-User-Role": "Assessor"
+      },
+      "body": {
+        "category_name": "Eval S5.1 during outage (B)"
+      },
+      "status": 201,
+      "data": {
+        "category_name": "Eval S5.1 during outage (B)",
+        "uuid": 10000,
+        "id": 10000,
+        "created_on": "2026-11-06T18:22:47.173Z",
+        "created_by": "Anthony Muller",
+        "source": "shadow",
+        "upstreamError": "ECONNREFUSED"
+      }
+    },
+    {
+      "at": "2026-11-06T18:22:47.209Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/per_trn_identify_risk",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "RISK_STATEMENT": "Eval S5.1 during outage (E)"
+      },
+      "status": 503,
+      "data": {
+        "error": {
+          "code": "DB_AUTH_FAILED",
+          "message": "The API could not authenticate to the database."
+        }
+      }
+    }
+  ]
+}

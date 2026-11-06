@@ -1,0 +1,594 @@
+{
+  "ranAt": "2026-11-06T18:22:16.866Z",
+  "results": [
+    {
+      "id": "S5.3",
+      "system": "B",
+      "outcome": "OCCURRED",
+      "criterion": "not reported as a successful deletion",
+      "evidence": {
+        "status": 200,
+        "body": {
+          "deleted": "987654",
+          "source": "shadow",
+          "upstreamError": "ERR_BAD_REQUEST"
+        }
+      }
+    },
+    {
+      "id": "S5.3",
+      "system": "E",
+      "outcome": "PREVENTED",
+      "criterion": "not reported as a successful deletion",
+      "evidence": {
+        "status": 404,
+        "body": {
+          "error": {
+            "code": "NOT_FOUND",
+            "message": "Record not found"
+          }
+        }
+      }
+    }
+  ],
+  "requests": [
+    {
+      "at": "2026-11-06T18:22:16.833Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "email": "admin@eval.local",
+        "password": "[redacted]"
+      },
+      "status": 200,
+      "data": {
+        "user": {
+          "id": "U-42849FEC",
+          "email": "admin@eval.local",
+          "name": "Eval Admin",
+          "role": "Administrator",
+          "department": "Risk Office",
+          "active": true,
+          "createdAt": "2026-11-06T17:54:20.797Z",
+          "updatedAt": "2026-11-06T18:22:16.816Z",
+          "lastLoginAt": "2026-11-06T18:22:16.816Z"
+        },
+        "permissions": [
+          "read",
+          "create",
+          "update",
+          "delete",
+          "approve",
+          "audit:read",
+          "users:manage",
+          "reference:read-restricted"
+        ]
+      }
+    },
+    {
+      "at": "2026-11-06T18:22:16.845Z",
+      "system": "B",
+      "method": "POST",
+      "path": "/api/erm_trn_kri_readings",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-User-Id": "U-003",
+        "X-User-Name": "Anthony Muller",
+        "X-User-Role": "Assessor"
+      },
+      "body": {
+        "kri_uuid": 93001,
+        "reading_value": 14,
+        "reading_date": "2026-11-06",
+        "traffic_light": "GREEN",
+        "is_breach": "N"
+      },
+      "status": 201,
+      "data": {
+        "kri_uuid": 93001,
+        "reading_value": 14,
+        "reading_date": "2026-11-06",
+        "traffic_light": "GREEN",
+        "is_breach": "N",
+        "uuid": 1156,
+        "links": [
+          {
+            "rel": "self",
+            "href": "https://secret-host.example/ords"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-11-06T18:22:16.850Z",
+      "system": "DB",
+      "method": "GET",
+      "path": "/__control/rows/erm_trn_kri_readings",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "status": 200,
+      "data": [
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2025-12-31",
+          "READING_VALUE": 2.1,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1051
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-01-31",
+          "READING_VALUE": 3.4,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1052
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-02-28",
+          "READING_VALUE": 4.8,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1053
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-03-31",
+          "READING_VALUE": 5.2,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1054
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-04-30",
+          "READING_VALUE": 6.9,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1055
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-05-31",
+          "READING_VALUE": 7.2,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1056
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-06-30",
+          "READING_VALUE": 8.1,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1057
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-07-31",
+          "READING_VALUE": 9.4,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1058
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-08-31",
+          "READING_VALUE": 10.2,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1059
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-09-30",
+          "READING_VALUE": 11.6,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1060
+        },
+        {
+          "KRI_UUID": 1047,
+          "READING_DATE": "2026-10-31",
+          "READING_VALUE": 13.5,
+          "TRAFFIC_LIGHT": "RED",
+          "IS_BREACH": "Y",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1061
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2025-12-31",
+          "READING_VALUE": 8,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1062
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-01-31",
+          "READING_VALUE": 12,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1063
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-02-28",
+          "READING_VALUE": 15,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1064
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-03-31",
+          "READING_VALUE": 19,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1065
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-04-30",
+          "READING_VALUE": 24,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1066
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-05-31",
+          "READING_VALUE": 22,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1067
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-06-30",
+          "READING_VALUE": 24,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1068
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-07-31",
+          "READING_VALUE": 27,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1069
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-08-31",
+          "READING_VALUE": 29,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1070
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-09-30",
+          "READING_VALUE": 26,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1071
+        },
+        {
+          "KRI_UUID": 1048,
+          "READING_DATE": "2026-10-31",
+          "READING_VALUE": 31,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1072
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2025-12-31",
+          "READING_VALUE": 50,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1073
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-01-31",
+          "READING_VALUE": 48,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1074
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-02-28",
+          "READING_VALUE": 44,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1075
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-03-31",
+          "READING_VALUE": 40,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1076
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-04-30",
+          "READING_VALUE": 39,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1077
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-05-31",
+          "READING_VALUE": 38,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1078
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-06-30",
+          "READING_VALUE": 36,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1079
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-07-31",
+          "READING_VALUE": 34,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1080
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-08-31",
+          "READING_VALUE": 31,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1081
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-09-30",
+          "READING_VALUE": 29,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1082
+        },
+        {
+          "KRI_UUID": 1049,
+          "READING_DATE": "2026-10-31",
+          "READING_VALUE": 28,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1083
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2025-12-31",
+          "READING_VALUE": 2,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1084
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-01-31",
+          "READING_VALUE": 3,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1085
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-02-28",
+          "READING_VALUE": 4,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1086
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-03-31",
+          "READING_VALUE": 5,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1087
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-04-30",
+          "READING_VALUE": 5,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1088
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-05-31",
+          "READING_VALUE": 6,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1089
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-06-30",
+          "READING_VALUE": 7,
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1090
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-07-31",
+          "READING_VALUE": 8,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1091
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-08-31",
+          "READING_VALUE": 10,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1092
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-09-30",
+          "READING_VALUE": 9,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1093
+        },
+        {
+          "KRI_UUID": 1050,
+          "READING_DATE": "2026-10-31",
+          "READING_VALUE": 11,
+          "TRAFFIC_LIGHT": "AMBER",
+          "IS_BREACH": "N",
+          "RECORDED_BY": "demo-seed",
+          "UUID": 1094
+        },
+        {
+          "KRI_UUID": 93001,
+          "READING_VALUE": 14,
+          "READING_DATE": "2026-11-06",
+          "UUID": 1141
+        },
+        {
+          "KRI_UUID": 93001,
+          "READING_VALUE": 14,
+          "READING_DATE": "2026-11-06T00:00:00.000Z",
+          "CREATED_ON": "2026-11-06T18:01:47.793Z",
+          "RECORDED_BY": "assessor@eval.local",
+          "UUID": 1142
+        },
+        {
+          "KRI_UUID": 93001,
+          "READING_VALUE": 14,
+          "READING_DATE": "2026-11-06T00:00:00.000Z",
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "CREATED_ON": "2026-11-06T18:01:47.801Z",
+          "RECORDED_BY": "assessor@eval.local",
+          "UUID": 1144
+        },
+        {
+          "KRI_UUID": 93001,
+          "READING_VALUE": 14,
+          "READING_DATE": "2026-11-06T00:00:00.000Z",
+          "TRAFFIC_LIGHT": "RED",
+          "IS_BREACH": "Y",
+          "BREACH_NOTES": null,
+          "CREATED_ON": "2026-11-06T18:22:07.012Z",
+          "RECORDED_BY": "admin@eval.local",
+          "UUID": 1153
+        },
+        {
+          "KRI_UUID": 93001,
+          "READING_VALUE": 14,
+          "READING_DATE": "2026-11-06",
+          "TRAFFIC_LIGHT": "GREEN",
+          "IS_BREACH": "N",
+          "UUID": 1156
+        }
+      ]
+    },
+    {
+      "at": "2026-11-06T18:22:16.858Z",
+      "system": "B",
+      "method": "DELETE",
+      "path": "/api/per_trn_identify_risk/987654",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-User-Id": "U-001",
+        "X-User-Name": "Srivatsan B",
+        "X-User-Role": "Administrator"
+      },
+      "status": 200,
+      "data": {
+        "deleted": "987654",
+        "source": "shadow",
+        "upstreamError": "ERR_BAD_REQUEST"
+      }
+    },
+    {
+      "at": "2026-11-06T18:22:16.866Z",
+      "system": "E",
+      "method": "DELETE",
+      "path": "/api/per_trn_identify_risk/987654",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "status": 404,
+      "data": {
+        "error": {
+          "code": "NOT_FOUND",
+          "message": "Record not found"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "baseline": {
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 9,
+      "high": 8,
+      "critical": 2,
+      "total": 19
+    },
+    "packages": {
+      "archiver": "moderate",
+      "archiver-utils": "moderate",
+      "baseline-browser-mapping": "moderate",
+      "body-parser": "high",
+      "brace-expansion": "high",
+      "browserslist": "high",
+      "compression": "high",
+      "follow-redirects": "high",
+      "glob": "moderate",
+      "ip-address": "moderate",
+      "minimatch": "moderate",
+      "morgan": "moderate",
+      "next": "critical",
+      "proxy-addr": "critical",
+      "qs": "moderate",
+      "sharp": "high",
+      "source-map-js": "high",
+      "zip-stream": "moderate",
+      "zod": "high"
+    }
+  },
+  "erma_web": {
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "packages": {}
+  },
+  "erma_api": {
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 4,
+      "high": 0,
+      "critical": 0,
+      "total": 4
+    },
+    "packages": {
+      "@sentry/bundler-plugins": "moderate",
+      "@sentry/node": "moderate",
+      "glob": "moderate",
+      "minimatch": "moderate"
+    }
+  },
+  "command": "npm audit --omit=dev (run 2026-11-06 against the public npm advisory database)"
+}

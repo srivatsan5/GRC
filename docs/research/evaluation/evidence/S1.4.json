@@ -1,0 +1,80 @@
+{
+  "baseline": {
+    "url": "http://localhost:3001/audit-trail",
+    "text": "Pericope\nERM\nAudit trail\nSearch...\n⌘K\nS\nSrivatsan B\n(Administrator)\nAudit Trail\n\nImmutable chronological record of all system events and data changes\n\nExport CSV\nTotal logged events\n1\nCreate operations\n0\nUpdate / Modifications\n0\nDelete operations\n0\nDate from:\nTo:\nTimestamp\tAction\tUser\tEntity / Target\tEvent summary\tResult\n\n11/6/2026 05:57:44 PM\n\tLOGIN\t\nSrivatsan B\nAdministrator\n\t\nSession#U-001\n\t\nUser Srivatsan B signed in\n\tSUCCESS\nPage 1 of 1 · 1 entries\nPericope ERM · Enterprise Risk Management\nVersion 3.0",
+    "localStorageKeys": [
+      "pericope_audit_log_v1",
+      "pericope_store_workflow_v1",
+      "pericope_store_kri_v1",
+      "pericope_store_controls_v1",
+      "pericope_store_vendors_v1"
+    ],
+    "auditStore": [
+      {
+        "k": "pericope_audit_log_v1",
+        "v": [
+          {
+            "id": "AUD-1793987864275-5m9t8s",
+            "timestamp": "2026-11-06T17:57:44.275Z",
+            "actor_id": "U-001",
+            "actor_name": "Srivatsan B",
+            "actor_role": "Administrator",
+            "action": "LOGIN",
+            "entity": "Session",
+            "entity_id": "U-001",
+            "description": "User Srivatsan B signed in",
+            "result": "SUCCESS",
+            "source": "ui"
+          }
+        ]
+      }
+    ]
+  },
+  "erma": {
+    "url": "http://localhost:3000/audit-trail",
+    "text": "Skip to content\nP\nPericope\nDashboard\n\nRCSA LIFECYCLE\n\n1\nAssessment cycles\n2\nRisk register\n3\nInherent assessment\n4\nControls & mitigation\n5\nMonitoring\n\nANALYTICS\n\nHeatmaps\nResidual analysis\nKey risk indicators\nReports\n\nCONTROLS & POLICY\n\nControl library\nRisk appetite\nApprovals\n2\nPolicies\n\nENTERPRISE RISK\n\nVendors\nIncidents\nBusiness continuity\nScenarios\n\nADMINISTRATION\n\nAudit trail\nUsers\nSettings\nAdministration\nAudit trail\nSearch risks, controls and pages\n⌘K\nPericope ERM\n6\nEA\nEval Admin\nAdministrator\n\nADMINISTRATION\n\nAudit trail\n\nThe server-recorded, tamper-evident history of every sign-in and data change. Each entry is hash-chained to the one before it.\n\nExport CSV\nIntegrity verified · 2 entries · 05:57 PM\n\nENTRIES LOADED\n\n2\n\nSince Nov 6, 2026 · 2 actors\n\nDATA CHANGES\n\n1\n\n0 created · 0 updated · 0 deleted\n\nSIGN-INS\n\n1\n\nNo failed attempts\n\nFAILED ACTIONS\n\n0\n\nEvery recorded action succeeded\n\nSearch the audit trail\nAction\nany\nAction: any\nSign in\nUser created\nResult\nany\nResult: any\nSuccess\nFailed\nFrom\nto\nTIME\nNEWEST FIRST, CHANGE ORDER\n\tACTOR\tACTION\tENTITY\tDESCRIPTION\tRESULT\n\nNov 6, 2026\n05:57:50 PM\n\t\nEA\nEval Admin\nAdministrator\n\t\nSign in\t\nSession\n#U-42849FEC\n\t\nEval Admin signed in\n\t\nSuccess\n\nNov 6, 2026\n05:54:20 PM\n\t\nS\nSystem\nSystem\n\t\nUser created\t\nUser\n#U-42849FEC\n\t\nBootstrap administrator admin@eval.local created from environment\n\t\nSuccess\n1–2 of 2\nRows per page\n25\n50\n100\nPage 1 of 1\nPericope ERM\nv4.0.0",
+    "apiEntries": {
+      "items": [
+        {
+          "seq": 2,
+          "id": "AUD-cf3d9452-4d60-4236-9380-087535747215",
+          "timestamp": "2026-11-06T17:57:50.621Z",
+          "actor_id": "U-42849FEC",
+          "actor_name": "Eval Admin",
+          "actor_email": "admin@eval.local",
+          "actor_role": "Administrator",
+          "action": "LOGIN",
+          "entity": "Session",
+          "entity_id": "U-42849FEC",
+          "description": "Eval Admin signed in",
+          "result": "SUCCESS",
+          "source": "api",
+          "ip": "127.0.0.1",
+          "changes": null,
+          "prev_hash": "dc05e37640eee6896c42b73852b331c37f70538be8cdcf0ae8db89b3bfca6f50",
+          "hash": "3a86fa48bf8e38ef72395a4221d759d0202f87310b3c2531189dd8f218084c84"
+        },
+        {
+          "seq": 1,
+          "id": "AUD-ec1d45fc-8afe-47d4-b6b0-29208e7753a0",
+          "timestamp": "2026-11-06T17:54:20.800Z",
+          "actor_id": "SYSTEM",
+          "actor_name": "System",
+          "actor_email": "",
+          "actor_role": "System",
+          "action": "USER_CREATE",
+          "entity": "User",
+          "entity_id": "U-42849FEC",
+          "description": "Bootstrap administrator admin@eval.local created from environment",
+          "result": "SUCCESS",
+          "source": "api",
+          "ip": null,
+          "changes": null,
+          "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "hash": "dc05e37640eee6896c42b73852b331c37f70538be8cdcf0ae8db89b3bfca6f50"
+        }
+      ],
+      "total": 2
+    }
+  }
+}

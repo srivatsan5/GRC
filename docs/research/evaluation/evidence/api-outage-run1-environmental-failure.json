@@ -1,0 +1,91 @@
+{
+  "ranAt": "2026-11-06T18:22:19.012Z",
+  "results": [
+    {
+      "id": "S5.1",
+      "system": "B",
+      "outcome": "OCCURRED",
+      "criterion": "client receives an error status; no success reported",
+      "evidence": {
+        "status": "NETWORK_ERROR",
+        "body": "ECONNREFUSED"
+      }
+    },
+    {
+      "id": "S5.1",
+      "system": "E",
+      "outcome": "OCCURRED",
+      "criterion": "client receives an error status; no success reported",
+      "evidence": {
+        "status": "NETWORK_ERROR",
+        "body": "ECONNREFUSED"
+      }
+    }
+  ],
+  "requests": [
+    {
+      "at": "2026-11-06T18:22:19.006Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "email": "admin@eval.local",
+        "password": "[redacted]"
+      },
+      "status": "NETWORK_ERROR",
+      "data": "ECONNREFUSED"
+    },
+    {
+      "at": "2026-11-06T18:22:19.008Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/auth/login",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "email": "assessor@eval.local",
+        "password": "[redacted]"
+      },
+      "status": "NETWORK_ERROR",
+      "data": "ECONNREFUSED"
+    },
+    {
+      "at": "2026-11-06T18:22:19.010Z",
+      "system": "B",
+      "method": "POST",
+      "path": "/api/per_mst_risk_category",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-User-Id": "U-003",
+        "X-User-Name": "Anthony Muller",
+        "X-User-Role": "Assessor"
+      },
+      "body": {
+        "category_name": "Eval S5.1 during outage (B)"
+      },
+      "status": "NETWORK_ERROR",
+      "data": "ECONNREFUSED"
+    },
+    {
+      "at": "2026-11-06T18:22:19.012Z",
+      "system": "E",
+      "method": "POST",
+      "path": "/api/per_trn_identify_risk",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest"
+      },
+      "body": {
+        "RISK_STATEMENT": "Eval S5.1 during outage (E)"
+      },
+      "status": "NETWORK_ERROR",
+      "data": "ECONNREFUSED"
+    }
+  ]
+}

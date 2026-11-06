@@ -1,0 +1,33 @@
+{
+  "before": {
+    "valid": true,
+    "entries": 38
+  },
+  "rewrite": {
+    "seq": 11,
+    "from": {
+      "seq": 11,
+      "actor_email": "assessor@eval.local",
+      "actor_name": "Assessor assessor"
+    },
+    "to": {
+      "actor_email": "rm2@eval.local",
+      "actor_name": "Risk Manager rm2"
+    },
+    "entriesRechained": 38
+  },
+  "whileApiRunning": {
+    "valid": false,
+    "entries": 39,
+    "brokenAt": 39,
+    "reason": "entry missing or reordered"
+  },
+  "rechainedOffline": {
+    "entries": 39,
+    "editedEntryStillAltered": "rm2@eval.local"
+  },
+  "afterRestart": {
+    "valid": true,
+    "entries": 40
+  }
+}

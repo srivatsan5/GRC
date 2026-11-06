@@ -1,0 +1,388 @@
+{
+  "registered": "2026-11-06T17:48:40Z (commit fe021fe)",
+  "executed": "2026-11-06, 17:57–18:24 UTC",
+  "baseline": "52766fa",
+  "artifact": "fe021fe + evaluation harness (no application code changed)",
+  "scenarios": [
+    {
+      "id": "S1.1",
+      "failure_mode_or_principle": "F1",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Register shows \"$30,000 · Moderate\" for a risk with no SLE or rating; detail page shows \"1/5 × 4/5 (Score: 4)\" and \"$40,000\"; heatmap places all 43 risks in scored cells",
+      "erma_evidence": "Register shows \"Not rated (Inherent)\", \"Not rated (Residual)\", SLE \"—\"; heatmap \"0 of 37 risks placed · 37 not rated\"",
+      "evidence_files": "ui-scenarios.json; S1.1-*.png; S1-heatmap-*.png"
+    },
+    {
+      "id": "S1.2",
+      "failure_mode_or_principle": "F1",
+      "baseline": "PREVENTED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Register and detail show \"Test statement X\" and \"$123,456\"",
+      "erma_evidence": "Register shows \"Test statement X\" and \"$123,456\"",
+      "evidence_files": "ui-scenarios.json; S1.2-*.png"
+    },
+    {
+      "id": "S1.3",
+      "failure_mode_or_principle": "F1",
+      "baseline": "PREVENTED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Register shows status \"Draft\" for the empty status",
+      "erma_evidence": "Register shows status \"Draft\" for the empty status",
+      "evidence_files": "ui-scenarios.json; S1.3-*.png"
+    },
+    {
+      "id": "S1.4",
+      "failure_mode_or_principle": "F1",
+      "baseline": "PREVENTED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Audit trail after first sign-in holds only that sign-in (seeding code in lib/auditLog.ts never ran on this path)",
+      "erma_evidence": "Audit trail holds the bootstrap-admin creation (System, from configuration) and the sign-in",
+      "evidence_files": "S1.4.json; S1.4-*.png"
+    },
+    {
+      "id": "S2.1",
+      "failure_mode_or_principle": "F2",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Approver PUT returned 200 but the stored status is DRAFT (defaults overwrite the decision)",
+      "erma_evidence": "Stored status APPROVED",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S2.2",
+      "failure_mode_or_principle": "F2",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Owner edit by a Risk Manager returned 200; stored status DRAFT",
+      "erma_evidence": "Owner edit by a Risk Manager; stored status still APPROVED",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S3.1",
+      "failure_mode_or_principle": "F3",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "201; row created with no session",
+      "erma_evidence": "401; no row",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S3.2",
+      "failure_mode_or_principle": "F3",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "201; row created with \"X-User-Role: Administrator\" and no session",
+      "erma_evidence": "401; no row",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S3.3",
+      "failure_mode_or_principle": "F3",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Self-approval accepted (200); status ended DRAFT only because of the F2 defect",
+      "erma_evidence": "403 \"You cannot approve or reject a record you created\"; status unchanged",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S3.4",
+      "failure_mode_or_principle": "F3",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "User-table writes accepted as Assessor (201) and unauthenticated (201)",
+      "erma_evidence": "403 (Assessor), 401 (unauthenticated), 405 (user table is read-only)",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S4.1",
+      "failure_mode_or_principle": "F4",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Entry recorded as \"CEO / Administrator\", action APPROVE",
+      "erma_evidence": "401 unauthenticated; signed-in post recorded under the session user as \"Browser: Risk\"; forged APPROVE rejected (400)",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S4.2",
+      "failure_mode_or_principle": "F4",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "No verification function exists; the altered entry is displayed with no warning",
+      "erma_evidence": "Verify: valid=false, brokenAt=3, \"entry was modified\"; valid again after restoring",
+      "evidence_files": "api-main.json; ui-scenarios.json; S4.2-*.png"
+    },
+    {
+      "id": "S4.3",
+      "failure_mode_or_principle": "F4",
+      "baseline": "PREVENTED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Entry names \"Anthony Muller / Assessor\" (self-asserted header identity; held in server memory only)",
+      "erma_evidence": "Entry names assessor@eval.local (session identity), seq 17",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S5.1",
+      "failure_mode_or_principle": "F5",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Run 2: 201 with source \"shadow\" while the database was down",
+      "erma_evidence": "Run 2: 503 (message \"could not authenticate to the database\")",
+      "evidence_files": "api-outage.json; api-outage-run1-environmental-failure.json"
+    },
+    {
+      "id": "S5.2",
+      "failure_mode_or_principle": "F5",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "ORDS 400 (ORA-02291) turned into 201 with source \"shadow\"",
+      "erma_evidence": "422 DB_REJECTED",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "S5.3",
+      "failure_mode_or_principle": "F5",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "200 {\"deleted\":\"987654\",\"source\":\"shadow\"}",
+      "erma_evidence": "404 NOT_FOUND",
+      "evidence_files": "api-final.json"
+    },
+    {
+      "id": "S6.1",
+      "failure_mode_or_principle": "F6",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Control and incident lived only in browser storage; both gone after clearing it (0 database rows)",
+      "erma_evidence": "Both present after clearing storage and cookies (2 database rows)",
+      "evidence_files": "ui-scenarios.json; S6.1-*.png"
+    },
+    {
+      "id": "S7.1",
+      "failure_mode_or_principle": "F7",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Two invented risks (4×4 = 16, $160,000; 3×4 = 12, $120,000) with 2 delete buttons",
+      "erma_evidence": "Empty state \"No risks in this cycle yet\"; 0 rows, 0 delete buttons",
+      "evidence_files": "ui-scenarios.json; S7.1-*.png"
+    },
+    {
+      "id": "G1",
+      "failure_mode_or_principle": "DP3",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "Both concurrent decisions answered 200; stored status DRAFT (neither decision kept)",
+      "erma_evidence": "200 / 409; one decision stored and one APPROVE logged",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "G2",
+      "failure_mode_or_principle": "DP3",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "201 (deactivation exists only in the administrator's browser)",
+      "erma_evidence": "401 after deactivation; no row",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "G3",
+      "failure_mode_or_principle": "DP3/DP5",
+      "baseline": "OCCURRED",
+      "erma_grc": "PREVENTED",
+      "baseline_evidence": "404 from upstream; the request reached the database as GET /ords/per_mst_roles",
+      "erma_evidence": "400 VALIDATION_FAILED; no database request",
+      "evidence_files": "api-main.json"
+    },
+    {
+      "id": "G4",
+      "failure_mode_or_principle": "DP1/DP7",
+      "baseline": "OCCURRED",
+      "erma_grc": "OCCURRED",
+      "baseline_evidence": "UI: status computed as Red (browser-only indicator). API: a client-declared GREEN for value 14 was stored",
+      "erma_evidence": "UI: TRAFFIC_LIGHT RED and IS_BREACH Y computed and stored. API: a client-declared GREEN for value 14 was stored",
+      "evidence_files": "ui-scenarios.json; G4-api.json; G4-kri-*.png"
+    },
+    {
+      "id": "L1",
+      "failure_mode_or_principle": "DP4 boundary",
+      "baseline": "OCCURRED",
+      "erma_grc": "OCCURRED",
+      "baseline_evidence": "No hash chain or verification; any entry can be edited",
+      "erma_evidence": "Not detected after offline re-chaining and restart (valid=true); detected only while the same process kept the old chain tail in memory",
+      "evidence_files": "L1.json"
+    }
+  ],
+  "summary": {
+    "F1": {
+      "baseline": {
+        "prevented": 3,
+        "runnable": 4
+      },
+      "erma_grc": {
+        "prevented": 4,
+        "runnable": 4
+      }
+    },
+    "F2": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 2
+      },
+      "erma_grc": {
+        "prevented": 2,
+        "runnable": 2
+      }
+    },
+    "F3": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 4
+      },
+      "erma_grc": {
+        "prevented": 4,
+        "runnable": 4
+      }
+    },
+    "F4": {
+      "baseline": {
+        "prevented": 1,
+        "runnable": 3
+      },
+      "erma_grc": {
+        "prevented": 3,
+        "runnable": 3
+      }
+    },
+    "F5": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 3
+      },
+      "erma_grc": {
+        "prevented": 3,
+        "runnable": 3
+      }
+    },
+    "F6": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 1
+      },
+      "erma_grc": {
+        "prevented": 1,
+        "runnable": 1
+      }
+    },
+    "F7": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 1
+      },
+      "erma_grc": {
+        "prevented": 1,
+        "runnable": 1
+      }
+    },
+    "audit-derived (S)": {
+      "baseline": {
+        "prevented": 4,
+        "runnable": 18
+      },
+      "erma_grc": {
+        "prevented": 18,
+        "runnable": 18
+      }
+    },
+    "generalisation (G)": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 4
+      },
+      "erma_grc": {
+        "prevented": 3,
+        "runnable": 4
+      }
+    },
+    "boundary (L)": {
+      "baseline": {
+        "prevented": 0,
+        "runnable": 1
+      },
+      "erma_grc": {
+        "prevented": 0,
+        "runnable": 1
+      }
+    },
+    "all": {
+      "baseline": {
+        "prevented": 4,
+        "runnable": 23
+      },
+      "erma_grc": {
+        "prevented": 21,
+        "runnable": 23
+      }
+    }
+  },
+  "supplementary": [
+    {
+      "id": "S2.2v",
+      "system": "E",
+      "outcome": "OCCURRED",
+      "note": "Owner edit by an Assessor (no approval rights) sends an approved record back to SUBMITTED by design (re-review rule)"
+    },
+    {
+      "id": "G1v",
+      "system": "E",
+      "outcome": "PREVENTED",
+      "note": "Same race on a register record APPROVAL_STATUS: 200 / 409, one decision stored"
+    },
+    {
+      "id": "G4-UI",
+      "system": "B",
+      "outcome": "PREVENTED",
+      "note": "Status computed by rule in the browser (KRI-FIN-003, red 15, lower-worse)"
+    },
+    {
+      "id": "G4-UI",
+      "system": "E",
+      "outcome": "PREVENTED",
+      "note": "Status computed by rule and stored (RED, breach Y)"
+    },
+    {
+      "id": "G4-API",
+      "system": "B",
+      "outcome": "OCCURRED",
+      "note": "Client-declared GREEN stored for value 14"
+    },
+    {
+      "id": "G4-API",
+      "system": "E",
+      "outcome": "OCCURRED",
+      "note": "Client-declared GREEN stored for value 14"
+    },
+    {
+      "id": "L1a",
+      "system": "E",
+      "outcome": "PREVENTED",
+      "note": "Rewrite detected while the API process that wrote the log kept running (in-memory chain tail)"
+    },
+    {
+      "id": "S5.1-run1",
+      "system": "both",
+      "outcome": "ENVIRONMENTAL_FAILURE",
+      "note": "Harness stopped the stand-in by port, which also terminated both APIs (they held keep-alive connections to it); re-run once"
+    }
+  ],
+  "supporting": {
+    "api_tests": "94 passed (7 files)",
+    "web_unit_tests": "18 passed (3 files)",
+    "npm_audit_omit_dev": {
+      "baseline": "19 (2 critical, 8 high, 9 moderate)",
+      "erma_web": "0",
+      "erma_api": "4 moderate (@sentry/node, @sentry/bundler-plugins, glob, minimatch)"
+    },
+    "oracle_23ai_install": "216 tables, 1,379 rows, 247 enabled foreign keys, 0 invalid objects (docs/changes/CHANGES_NEW_DATABASE.md)",
+    "e2e": "3 suites, 49 checks passed (core-flow 14, real-data 17, security 18)"
+  }
+}

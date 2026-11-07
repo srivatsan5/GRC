@@ -17,13 +17,7 @@ We followed design science research (Hevner et al., 2004) and the six activities
 
 ### 3.2 Evaluation set-up
 
-The scenario protocol was pre-registered: a timestamped repository commit records it before any scenario was run. It contains 23 scenarios in three groups:
-
-| Group | Count | Purpose |
-|---|---|---|
-| Audit-derived | 18 | Each operationalises one failure mode |
-| Generalisation | 4 | Test the principles beyond the audited defects |
-| Boundary | 1 | Expected to fail; records a known limitation |
+The scenario protocol was pre-registered: a timestamped repository commit records it before any scenario was run. It contains 23 scenarios in three groups. Eighteen are audit-derived: each operationalises one failure mode. Four generalisation scenarios test the principles beyond the audited defects. One boundary scenario is expected to fail; it records a known limitation.
 
 **Systems compared:**
 - **Baseline:** the original system at its last commit before the redesign.

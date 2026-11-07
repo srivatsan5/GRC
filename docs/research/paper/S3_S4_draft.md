@@ -1,4 +1,4 @@
-# Draft for approval: §3 Methodology and §4 Results and Discussion
+# §3 Methodology and §4 Results and Discussion (approved; Figure 2 added after approval)
 
 *Gate 6, sections 1–2 of 7. Every number below comes from `docs/research/evaluation/RESULTS.md` (commit `afdfdd3`). Word counts exclude headings, tables and figure captions.*
 
@@ -45,7 +45,7 @@ Both ran against the same in-memory stand-in for the database interface, seeded 
 
 ### 3.4 Use of generative AI
 
-Claude ([model and version], Anthropic) was used under the authors' direction to:
+Claude (Claude Opus 5.5, Anthropic) was used under the authors' direction to:
 - (a) assist the code and runtime audit of the baseline;
 - (b) implement substantial parts of ERMA-GRC;
 - (c) script the evaluation scenarios;
@@ -96,6 +96,10 @@ In the generalisation scenarios, ERMA-GRC:
 
 The baseline reported both simultaneous decisions as successful, accepted the write, and forwarded the traversal to the database.
 
+Figure 2 shows two of the baseline's failures next to ERMA-GRC's handling of the same stored data.
+
+> **Figure 2.** The same stored data in both systems. (a) The baseline shows a risk with no stored rating or SLE with a score of 4 and an SLE of $40,000 (scenario S1.1). (b) ERMA-GRC shows the same risk as "Not rated". (c) For an assessment cycle that has no risks, the baseline shows two invented, scored risks, each with a delete button (S7.1). (d) ERMA-GRC shows the cycle as empty. Screens were re-captured after the product was renamed, from the same set-up as the recorded run. *(File: `figures/figure-2-baseline-vs-erma-grc.png`.)*
+
 **Table 3.** Scenario outcomes (PREVENTED / runnable)
 
 | Scenarios | Baseline | ERMA-GRC |
@@ -139,4 +143,4 @@ Assurance integrity remains necessary but not sufficient. Faithful records of a 
 | §3 | ≈ 390 | 300–400 |
 | §4 | ≈ 525 | 500–600 |
 
-**Before you approve, please check:** fill in "[model and version]" in §3.4.
+**Status:** approved by the authors on 7 November 2026.

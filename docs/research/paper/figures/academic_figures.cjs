@@ -26,7 +26,7 @@ const T = { head: 12, bold: 12, body: 11.5, small: 9.5 }
 // ---------------------------------------------------------------- Figure 1: process and set-up
 function figure1() {
   const W = WIDTH
-  const lh = 14.5
+  const lh = 16
   const box = (x, y, w, h, lines, fill = 'white') => {
     const top = y + h / 2 - ((lines.length - 1) * lh) / 2 + 4
     const t = lines
@@ -37,19 +37,19 @@ function figure1() {
   const arrow = (x1, y1, x2, y2) => `<line x1="${x1 + 3}" y1="${y1}" x2="${x2 - 3}" y2="${y2}" stroke="${INK}" stroke-width="${RULE}" marker-end="url(#ah)"/>`
   const SHADE = '#e6e6e6'
   // (a) design science process
-  const bw = 125, bh = 46, gx = (W - 4 * bw) / 3, ya = 24
+  const bw = 124, bh = 60, gx = (W - 4 * bw) / 3, ya = 30
   const xs = [0, 1, 2, 3].map(i => i * (bw + gx))
-  let s = `<text x="0" y="13" font-size="${T.head}" font-style="italic">(a) Design science process</text>`
+  let s = `<text x="0" y="14" font-size="${T.head}" font-style="italic">(a) Design science process</text>`
   s += box(xs[0], ya, bw, bh, ['Audit', 'existing GRC system'])
   s += box(xs[1], ya, bw, bh, ['Failure modes', 'F1–F7 (RQ1)'])
   s += box(xs[2], ya, bw, bh, ['Design principles', 'DP1–DP7 (RQ2)'])
   s += box(xs[3], ya, bw, bh, ['Instantiation', 'ERMA-GRC'], SHADE)
   for (let i = 0; i < 3; i++) s += arrow(xs[i] + bw, ya + bh / 2, xs[i + 1], ya + bh / 2)
   // (b) evaluation set-up
-  const yb = ya + bh + 40
-  s += `<text x="0" y="${yb - 11}" font-size="${T.head}" font-style="italic">(b) Evaluation set-up (RQ3)</text>`
-  const rowH = 34, gapR = 16, fullH = 2 * rowH + gapR
-  const c1 = 0, c1w = 120, c2 = 158, c2w = 108, c3 = 304, c3w = 126, c4 = 468, c4w = W - 468
+  const yb = ya + bh + 56
+  s += `<text x="0" y="${yb - 16}" font-size="${T.head}" font-style="italic">(b) Evaluation set-up (RQ3)</text>`
+  const rowH = 42, gapR = 24, fullH = 2 * rowH + gapR
+  const c1 = 0, c1w = 122, c2 = 162, c2w = 104, c3 = 306, c3w = 128, c4 = 474, c4w = W - 474
   const r1 = yb + rowH / 2, r2 = yb + rowH + gapR + rowH / 2, mid = yb + fullH / 2
   s += box(c1, yb, c1w, fullH, ['23 scenarios', '18 audit-derived', '4 generalisation', '1 boundary'])
   s += box(c2, yb, c2w, rowH, ['Baseline'])
@@ -75,7 +75,7 @@ function figure2() {
   const W = WIDTH
   const left = 76, right = 64, ggap = 9
   const pitch = (W - left - right - ggap * (groups.length - 1)) / 23
-  const yTop = 1, yGroup = 19, yIds = 39, yMid = 47, yR1 = 64, yR2 = 86, yBottom = 99
+  const yTop = 1, yGroup = 23, yIds = 48, yMid = 60, yR1 = 84, yR2 = 114, yBottom = 136
   let s = `<line x1="0" y1="${yTop}" x2="${W}" y2="${yTop}" stroke="${INK}" stroke-width="1"/>`
   s += `<text x="0" y="${yGroup}" font-size="${T.head}" font-style="italic">System</text>`
   s += `<text x="${W}" y="${yGroup}" font-size="${T.head}" font-style="italic" text-anchor="end">Prevented</text>`
@@ -85,7 +85,7 @@ function figure2() {
     const gx0 = x
     ids.forEach((id, k) => { centres.push([id, x + pitch / 2]); s += `<text x="${x + pitch / 2}" y="${yIds}" font-size="${T.small}" text-anchor="middle" fill="${GREY}">${k + 1}</text>`; x += pitch })
     s += `<text x="${(gx0 + x) / 2}" y="${yGroup}" font-size="${T.bold}" text-anchor="middle" font-weight="700">${g}</text>`
-    s += `<line x1="${gx0 + 2}" y1="${yGroup + 6}" x2="${x - 2}" y2="${yGroup + 6}" stroke="${INK}" stroke-width="${RULE}"/>`
+    s += `<line x1="${gx0 + 2}" y1="${yGroup + 8}" x2="${x - 2}" y2="${yGroup + 8}" stroke="${INK}" stroke-width="${RULE}"/>`
     x += ggap
   }
   s += `<line x1="0" y1="${yMid}" x2="${W}" y2="${yMid}" stroke="${INK}" stroke-width="${RULE}"/>`
@@ -93,17 +93,16 @@ function figure2() {
     s += `<text x="0" y="${y + 4}" font-size="${T.body + 0.5}">${label}</text>`
     for (const [id, cx] of centres) {
       s += out[id][k]
-        ? `<circle cx="${cx}" cy="${y}" r="5.4" fill="${INK}"/>`
-        : `<circle cx="${cx}" cy="${y}" r="4.9" fill="white" stroke="${INK}" stroke-width="1.05"/>`
+        ? `<circle cx="${cx}" cy="${y}" r="5" fill="${INK}"/>`
+        : `<circle cx="${cx}" cy="${y}" r="4.5" fill="white" stroke="${INK}" stroke-width="1.05"/>`
     }
     const total = Object.values(out).filter(v => v[k]).length
     s += `<text x="${W}" y="${y + 4}" font-size="${T.body + 0.5}" text-anchor="end">${total} / 23</text>`
   })
   s += `<line x1="0" y1="${yBottom}" x2="${W}" y2="${yBottom}" stroke="${INK}" stroke-width="1"/>`
-  const ky = yBottom + 18
+  const ky = yBottom + 24
   s += `<circle cx="${left + 5}" cy="${ky - 4}" r="5" fill="${INK}"/><text x="${left + 15}" y="${ky}" font-size="${T.body}">Prevented</text>`
   s += `<circle cx="${left + 105}" cy="${ky - 4}" r="4.5" fill="white" stroke="${INK}" stroke-width="1.05"/><text x="${left + 115}" y="${ky}" font-size="${T.body}">Occurred</text>`
-  s += `<text x="${left + 200}" y="${ky}" font-size="${T.body}" fill="${GREY}">Columns: scenarios within each group (e.g., F1 column 3 is S1.3)</text>`
   return { svg: s, W, H: ky + 4 }
 }
 
@@ -111,7 +110,7 @@ function figure2() {
   const browser = await chromium.launch()
   const page = await browser.newPage({ deviceScaleFactor: SCALE })
   for (const [name, fig] of [['figure-1-dsr-process', figure1()], ['figure-2-scenario-outcomes', figure2()]]) {
-    const M = 2 // margin so edge strokes are not clipped
+    const M = 10 // white margin around the drawing
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${fig.W + 2 * M}" height="${fig.H + 2 * M}" viewBox="${-M} ${-M} ${fig.W + 2 * M} ${fig.H + 2 * M}" font-family="${FONT}" fill="${INK}" text-rendering="geometricPrecision">
       <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto"><path d="M0,1 L10,5 L0,9 z" fill="${INK}"/></marker></defs>
       <rect width="100%" height="100%" fill="white"/>${fig.svg}</svg>`

@@ -197,7 +197,7 @@ def render(d, md):
                 i += 1
             widths = {5: [1.35, 1.0, 1.05, 1.5, 1.4], 4: [1.45, 1.5, 1.35, 1.95], 3: [2.1, 2.15, 2.0]}.get(len(rows[0]))
             if pending_caption and pending_caption.startswith('Table 3.'):
-                widths = [1.05, 1.5, 2.0, 1.7]
+                widths = [1.6, 2.5, 2.2]
             table(d, rows, pending_caption or 'Table ?. (caption missing)', widths)
             pending_caption = None
             continue

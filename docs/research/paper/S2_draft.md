@@ -18,7 +18,7 @@ GRC information systems research has defined the field (Racz et al., 2010), iden
 
 The artifact's mechanisms exist in generic form: well-formed transactions, integrity verification and separation of duty (Clark & Wilson, 1987); fail-safe defaults and complete mediation (Saltzer & Schroeder, 1975); separation of duties in workflows (Botha & Eloff, 2001); and tamper-evident logs, using hash chains with evolving keys (Schneier & Kelsey, 1999) or history trees kept honest by external auditors (Crosby & Wallach, 2009). Continuous assurance monitors business-process controls through analytics (Alles et al., 2006; Vasarhelyi et al., 2004), focusing on monitored processes rather than faults in the monitoring software. Table 1 summarises the seven closest studies; five were assessed from abstracts only.
 
-**Table 1.** Summary of selected literature
+**Table 1.** Summary of Selected Literature
 
 | Author(s) | Context | Methodology | Key Findings | Gap Identified |
 |---|---|---|---|---|

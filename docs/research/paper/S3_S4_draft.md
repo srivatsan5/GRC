@@ -34,7 +34,7 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **RQ1 and RQ2.** Table 2 maps each failure mode to its principle, kernel theory and mechanism in ERMA-GRC.
 
-**Table 2.** Failure modes, design principles, kernel theories and mechanisms
+**Table 2.** Failure Modes, Design Principles, Kernel Theories and Mechanisms
 
 | Failure mode (RQ1) | Design principle (RQ2) | Kernel theory | Mechanism in ERMA-GRC |
 |---|---|---|---|
@@ -49,7 +49,7 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **RQ3.** ERMA-GRC prevented all 18 audit-derived failures; the baseline prevented 4 (Table 3). The baseline stored DRAFT after an approver set APPROVED, accepted writes without a session or with a self-declared administrator header, recorded an audit entry under a claimed "CEO" identity, reported success while the database was unreachable, and invented two scored risks, each with a delete button, for a cycle that had none. ERMA-GRC prevented three of the four generalisation failures: it kept one of two simultaneous approval decisions, rejected a write from a deactivated user's still-valid session, and rejected a path-traversal identifier before any database request. The baseline's 0/4 there largely repeats its F2 and F3 defects and is not independent evidence. For balance, when an editor without approval rights changed an approved risk (S2.2 variant), ERMA-GRC returned it to review by design, which the literal criterion codes as OCCURRED; the simultaneous-decision race on a record's status (G1 variant) was prevented.
 
-**Table 3.** Scenario outcomes (PREVENTED / runnable)
+**Table 3.** Scenario Outcomes (PREVENTED / Runnable)
 
 | Scenarios | Baseline | ERMA-GRC |
 |---|---|---|

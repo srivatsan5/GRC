@@ -49,7 +49,7 @@ def fresh(template):
     return d
 
 
-def fmt(p, align=None, after=6, before=0):
+def fmt(p, align=None, after=8, before=0):
     pf = p.paragraph_format
     pf.line_spacing = 1.0
     pf.space_after = Pt(after)
@@ -85,7 +85,7 @@ def rich(p, text, size=12, bold=False):
             run(p, part, size=size, bold=bold)
 
 
-def para(d, text, align=WD_ALIGN_PARAGRAPH.JUSTIFY, after=6, size=12, bold=False):
+def para(d, text, align=WD_ALIGN_PARAGRAPH.LEFT, after=8, size=12, bold=False):
     p = d.add_paragraph()
     fmt(p, align, after)
     rich(p, text, size=size, bold=bold)
@@ -114,8 +114,9 @@ def table(d, rows, caption, widths=None, size=12):
     fmt(cap, WD_ALIGN_PARAGRAPH.LEFT, after=4, before=6)
     cap.paragraph_format.keep_with_next = True
     m = re.match(r'(Table \d+\.)\s*(.*)', caption)
+    # As in the template: the whole table caption is bold.
     run(cap, m.group(1) + ' ', bold=True)
-    run(cap, m.group(2), italic=True)
+    run(cap, m.group(2), bold=True)
     t = d.add_table(rows=len(rows), cols=len(rows[0]))
     t.style = 'Table Grid'
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -143,7 +144,7 @@ def figure(d, path, caption, width=6.2):
     p.paragraph_format.keep_with_next = True
     p.add_run().add_picture(str(path), width=Inches(width))
     cap = d.add_paragraph()
-    fmt(cap, WD_ALIGN_PARAGRAPH.JUSTIFY, after=10)
+    fmt(cap, WD_ALIGN_PARAGRAPH.LEFT, after=10)
     m = re.match(r'(Figure \d+\.)\s*(.*)', caption)
     run(cap, m.group(1) + ' ', bold=True, size=12)
     rich(cap, m.group(2), size=12)
@@ -184,7 +185,7 @@ def render(d, md):
             heading(d, ln[4:].strip(), before=6); i += 1; continue
         if ln.startswith('## '):
             m = re.match(r'## (\d+) (.*)', ln)
-            heading(d, f'{m.group(1)}. {m.group(2)}', before=12); i += 1; continue
+            heading(d, f'{m.group(1)}. {m.group(2)}', before=18 if m.group(1) == '1' else 12); i += 1; continue
         if re.match(r'\*\*Table \d+\.\*\*', ln.strip()):
             pending_caption = re.sub(r'\*\*(Table \d+\.)\*\*\s*', r'\1 ', ln.strip()); i += 1; continue
         if ln.startswith('|'):
@@ -245,19 +246,19 @@ def apa_key(r):
 REFS.sort(key=apa_key)
 
 
-def header_block(d, abstract_label):
+def header_block(d, abstract_label, before=12):
     t = d.add_paragraph(); fmt(t, WD_ALIGN_PARAGRAPH.CENTER, after=12)
     run(t, TITLE, bold=True, size=22)
     for label, value in (('Name of the Track: ', TRACK), ('Type of Submission: ', TYPE)):
         p = d.add_paragraph(); fmt(p, WD_ALIGN_PARAGRAPH.LEFT, after=4)
         run(p, label, bold=True); run(p, value)
-    heading(d, abstract_label, before=12, size=12)
+    heading(d, abstract_label, before=before, size=12)
 
 
 # ------------------------------------------------------------------ 1. full paper (anonymous review copy)
 FULL, ABSTRACT_T = sys.argv[1], sys.argv[2]
 d = fresh(FULL)
-header_block(d, 'Abstract')
+header_block(d, 'Abstract', before=18)
 for k, v in ABS.items():
     heading(d, k, before=4)
     para(d, v)

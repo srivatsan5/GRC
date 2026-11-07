@@ -2,13 +2,23 @@
 
 | File | What it is |
 |---|---|
-| `figure-1-dsr-process.png` | Figure 1 in §3: design science process and evaluation set-up (`figure1.py`) |
-| `figure-2-scenario-outcomes.png` | Figure 2 in §4: outcome of all 23 scenarios for both systems, from `results.json` (`results_figures.py`) |
-| `figure-3-same-data-two-systems.png` | Figure 3 in §4: what each system displayed for the same stored data (S1.1, S7.1), redrawn from the recorded evidence (`results_figures.py`) |
-| `figure-2-baseline-vs-erma-grc.png`, `panel-*.png` | Earlier screenshot comparison, replaced by Figure 3 because screenshots are illegible at print size; kept for slides |
+| `figure-1-dsr-process.png` / `.svg` | Figure 1 in §3: design science process and evaluation set-up |
+| `figure-2-scenario-outcomes.png` / `.svg` | Figure 2 in §4: outcome of all 23 scenarios for both systems, read from `docs/research/evaluation/results.json` |
+| `figure-2-baseline-vs-erma-grc.png`, `panel-*.png` | Earlier screenshot comparison. Replaced in the paper by Table 3 because screenshots are illegible at print size; kept for slides |
 | `screens/01–13-*.png` | ERMA-GRC on the full demo data: sign-in, dashboard, cycles, risk register, risk detail, heatmap, residual analysis, risk indicators, control library, risk appetite, approvals, audit trail, reports |
 
-## Figure 2
+## Figures 1 and 2
+- Drawn as SVG by `academic_figures.cjs` and rendered at 600 dpi for a 6.3-inch column:
+  ```bash
+  node docs/research/paper/figures/academic_figures.cjs
+  ```
+- Journal style: black and grey only, hairline rules, square corners, Liberation Serif (metric-compatible with Times New Roman). Text prints at about 7–9 pt.
+- Figure 2 shows outcome by fill (filled circle: prevented; open circle: occurred), so it reads the same in greyscale print.
+
+## Table 3 (formerly Figure 3)
+What each system displayed for the same stored data (S1.1, S7.1) is now a native Word table in §4 (`S3_S4_draft.md`), so it stays sharp and editable.
+
+## Earlier screenshot comparison (slides only)
 - Re-captured after the rename to ERMA-GRC, with the same stored set-up as the recorded evaluation run (`capture.cjs`, `compose.py`).
 - Panels (b) and (d) **deliberately** show "Not rated" and an empty cycle: that is the correct behaviour the figure demonstrates.
 - Baseline panels are cropped to the data tables, so its old product name does not appear.

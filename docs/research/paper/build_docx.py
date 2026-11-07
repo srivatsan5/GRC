@@ -170,7 +170,7 @@ def page_numbers(d):
 
 
 # ------------------------------------------------------------------ markdown body to Word
-FIGS = {'Figure 1.': (HERE / 'figures/figure-1-dsr-process.png', 6.2), 'Figure 2.': (HERE / 'figures/figure-2-scenario-outcomes.png', 6.3), 'Figure 3.': (HERE / 'figures/figure-3-same-data-two-systems.png', 6.3)}
+FIGS = {'Figure 1.': (HERE / 'figures/figure-1-dsr-process.png', 6.3), 'Figure 2.': (HERE / 'figures/figure-2-scenario-outcomes.png', 6.3)}
 
 
 def render(d, md):
@@ -196,6 +196,8 @@ def render(d, md):
                     rows.append(cells)
                 i += 1
             widths = {5: [1.35, 1.0, 1.05, 1.5, 1.4], 4: [1.45, 1.5, 1.35, 1.95], 3: [2.1, 2.15, 2.0]}.get(len(rows[0]))
+            if pending_caption and pending_caption.startswith('Table 3.'):
+                widths = [1.05, 1.5, 2.0, 1.7]
             table(d, rows, pending_caption or 'Table ?. (caption missing)', widths)
             pending_caption = None
             continue

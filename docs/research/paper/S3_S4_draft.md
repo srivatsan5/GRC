@@ -49,13 +49,18 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **RQ3.** ERMA-GRC prevented all 18 audit-derived failures; the baseline prevented 4 (Figure 2). The baseline stored DRAFT after an approver set APPROVED, accepted writes without a session or with a self-declared administrator header, recorded an audit entry under a claimed "CEO" identity, reported success while the database was unreachable, and invented two scored risks, each with a delete button, for a cycle that had none. ERMA-GRC prevented three of the four generalisation failures: it kept one of two simultaneous approval decisions, rejected a write from a deactivated user's still-valid session, and rejected a path-traversal identifier before any database request. The baseline's 0/4 there largely repeats its F2 and F3 defects and is not independent evidence. For balance, when an editor without approval rights changed an approved risk (S2.2 variant), ERMA-GRC returned it to review by design, which the literal criterion codes as OCCURRED; the simultaneous-decision race on a record's status (G1 variant) was prevented.
 
-> **Figure 2.** Outcome of every scenario for each system, grouped by failure mode (F1–F7; see Table 2), generalisation scenarios (G) and the boundary scenario (L). Filled tick: PREVENTED; hollow cross: OCCURRED. *(File: `figures/figure-2-scenario-outcomes.png`.)*
+> **Figure 2.** Outcome of every scenario for each system, grouped by failure mode (F1–F7; see Table 2), generalisation scenarios (G) and the boundary scenario (L). Filled circle: PREVENTED; open circle: OCCURRED. *(File: `figures/figure-2-scenario-outcomes.png`.)*
 
 **Where the baseline passed.** The baseline displayed a stored statement and single loss expectancy (SLE) faithfully (S1.2), showed a missing approval status as "Draft", as ERMA-GRC does, rather than Approved (S1.3), held no invented entries in a fresh audit trail (S1.4), and attributed an audit entry to the self-asserted acting persona (S4.3). S1.3 and S1.4 contradict the audit report; for S1.4, the seeding code exists but never runs on a fresh installation.
 
-**Where ERMA-GRC failed.** In G4, a key risk indicator (KRI) reading received its status by rule in the interface, but the API stored a status declared by the client, as the baseline's does. In L1, an insider holding the audit key re-chained an edited log offline, and verification passed after a restart. Figure 3 contrasts two baseline failures with ERMA-GRC on the same stored data.
+**Where ERMA-GRC failed.** In G4, a key risk indicator (KRI) reading received its status by rule in the interface, but the API stored a status declared by the client, as the baseline's does. In L1, an insider holding the audit key re-chained an edited log offline, and verification passed after a restart. Table 3 contrasts two baseline failures with ERMA-GRC on the same stored data.
 
-> **Figure 3.** What each system displayed for the same stored data in scenarios S1.1 and S7.1, redrawn from the recorded evidence. *(File: `figures/figure-3-same-data-two-systems.png`.)*
+**Table 3.** Displays of the Same Stored Data in Both Systems
+
+| Scenario | Stored in the database | Baseline displayed | ERMA-GRC displayed |
+|---|---|---|---|
+| S1.1 Unrated risk | No likelihood, impact or SLE | Rating 1/5 × 4/5 (score 4, Moderate); SLE $40,000 | Inherent and residual "Not rated"; SLE "—" |
+| S7.1 Cycle with no risks | Cycle with no risks recorded | Two invented risks (scores 16 and 12), each with a Delete button | "No risks in this cycle yet" |
 
 ### 4.2 Discussion
 

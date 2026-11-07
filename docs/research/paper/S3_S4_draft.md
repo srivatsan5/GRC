@@ -6,40 +6,36 @@
 
 ## 3 Methodology
 
-### 3.1 Research design
+### 3.1 Research Design
 
-We followed design science research (Hevner et al., 2004) and the six activities of the DSRM (Peffers et al., 2007). The steps were:
+We followed design science research (Hevner et al., 2004) and the six activities of the DSRM (Peffers et al., 2007):
 
 1. **Problem identification.** A forensic audit of a GRC/ERM system that was already deployed. The audit combined code review, runtime reproduction and data-path tracing, and produced seven failure modes (RQ1).
 2. **Design.** We expressed remedies as design principles in the aim–mechanism–rationale form of Gregor et al. (2020), each grounded in a kernel theory (RQ2).
-3. **Instantiation.** The principles were instantiated in ERMA-GRC: a server-side TypeScript API in front of an Oracle Autonomous Database, reached through Oracle REST Data Services, with a Next.js client.
-4. **Evaluation (RQ3).** We followed the *technical risk and efficacy* strategy of FEDS (Venable et al., 2016): artificial, summative and ex post. Technical efficacy is the main risk here; naturalistic evaluation with practitioners is future work.
+3. **Instantiation.** The principles were instantiated in ERMA-GRC, a web application whose server mediates every read and write to an Oracle database.
+4. **Evaluation (RQ3).** We followed the *technical risk and efficacy* strategy of FEDS (Venable et al., 2016): artificial, summative and ex post.
 
-### 3.2 Evaluation set-up
+### 3.2 Data Collection
 
-The scenario protocol was pre-registered: a timestamped repository commit records it before any scenario was run. It contains 23 scenarios in three groups. Eighteen are audit-derived: each operationalises one failure mode. Four generalisation scenarios test the principles beyond the audited defects. One boundary scenario is expected to fail; it records a known limitation.
+Data came from the audit of the original system (code, runtime behaviour and data paths) and from a scenario experiment whose protocol a timestamped repository commit recorded before any run.
 
 **Systems compared:**
 - **Baseline:** the original system at its last commit before the redesign.
 - **Artifact:** ERMA-GRC.
 
-Both ran against the same in-memory stand-in for the database interface, seeded with identical rows. Ground truth was read from the stand-in, never from the system under test (Figure 1).
+Both ran against the same in-memory stand-in for the database interface, seeded with identical rows. Ground truth was read from the stand-in, never from the system under test (Figure 1). Each scenario ran once per system. Evidence (HTTP status, stored row, screen text, screenshot) was kept for every run.
 
-**Running and coding:**
-- Each scenario ran once per system.
-- Its outcome was coded against a criterion fixed in advance: PREVENTED, OCCURRED, or not applicable.
-- Evidence was kept for every run: HTTP status, stored row, screen text and screenshot.
-- Clarifications where the protocol was silent, and one re-run after an environmental failure, are reported in the replication package.
+### 3.3 Measures and Instruments
 
-### 3.3 Analysis
+The unit of analysis is a scenario run. The experiment contains 23 scenarios in three groups. Eighteen are audit-derived: each operationalises one failure mode. Four generalisation scenarios test the principles beyond the audited defects. One boundary scenario, expected to fail, records a known limitation. Each outcome was coded against a criterion fixed in advance: PREVENTED, OCCURRED, or not applicable.
+
+### 3.4 Data Analysis
 
 - For each failure mode and system, we count PREVENTED scenarios out of the runnable ones.
 - We use no inferential statistics. The outcomes are deterministic, and the scenarios are a test suite, not a sample.
-- A failure → principle → mechanism → outcome chain links the three research questions.
+- Protocol clarifications and one environmental re-run are reported in the replication package.
 
-### 3.4 Use of generative AI
-
-Claude (Claude Opus 5.5, Anthropic) was used under the authors' direction to:
+**Use of generative AI.** Claude (Claude Opus 5.5, Anthropic) was used under the authors' direction to:
 - (a) assist the code and runtime audit of the baseline;
 - (b) implement substantial parts of ERMA-GRC;
 - (c) script the evaluation scenarios;
@@ -48,7 +44,7 @@ Claude (Claude Opus 5.5, Anthropic) was used under the authors' direction to:
 
 The authors designed the study, defined the principles and scenarios, verified all sources and results, and take full responsibility for the content. No AI tool is listed as an author.
 
-> **Figure 1.** DSR process and evaluation set-up. The audit of the baseline yields F1–F7, which inform DP1–DP7, which are instantiated in ERMA-GRC. The baseline and ERMA-GRC each run the 23 pre-registered scenarios against one shared database stand-in, and outcomes are coded against its stored state. *(The figure is drawn for the final document.)*
+> **Figure 1.** DSR process and evaluation set-up. The audit of the baseline yields F1–F7, which inform DP1–DP7, which are instantiated in ERMA-GRC. The baseline and ERMA-GRC each run the 23 pre-registered scenarios against one shared database stand-in, and outcomes are coded against its stored state. *(File: `figures/figure-1-dsr-process.png`.)*
 
 ---
 
@@ -90,9 +86,6 @@ In the generalisation scenarios, ERMA-GRC:
 
 The baseline reported both simultaneous decisions as successful, accepted the write, and forwarded the traversal to the database.
 
-Figure 2 shows two of the baseline's failures next to ERMA-GRC's handling of the same stored data.
-
-> **Figure 2.** The same stored data in both systems. (a) The baseline shows a risk with no stored rating or SLE with a score of 4 and an SLE of $40,000 (scenario S1.1). (b) ERMA-GRC shows the same risk as "Not rated". (c) For an assessment cycle that has no risks, the baseline shows two invented, scored risks, each with a delete button (S7.1). (d) ERMA-GRC shows the cycle as empty. Screens were re-captured after the product was renamed, from the same set-up as the recorded run. *(File: `figures/figure-2-baseline-vs-erma-grc.png`.)*
 
 **Table 3.** Scenario outcomes (PREVENTED / runnable)
 
@@ -118,6 +111,10 @@ Figure 2 shows two of the baseline's failures next to ERMA-GRC's handling of the
 - **G4.** KRI status was computed correctly through the interface, but the API stored a status declared by the client. DP7 was therefore enforced only in the browser. The baseline behaved the same way.
 - **L1.** An insider holding the audit key re-chained an edited log offline. After a restart, verification passed.
 
+Figure 2 shows two of the baseline's failures next to ERMA-GRC's handling of the same stored data.
+
+> **Figure 2.** The same stored data in both systems. (a) The baseline shows a risk with no stored rating or SLE with a score of 4 and an SLE of $40,000 (scenario S1.1). (b) ERMA-GRC shows the same risk as "Not rated". (c) For an assessment cycle that has no risks, the baseline shows two invented, scored risks, each with a delete button (S7.1). (d) ERMA-GRC shows the cycle as empty. Screens were re-captured after the product was renamed, from the same set-up as the recorded run; table columns unrelated to the comparison are hidden. *(File: `figures/figure-2-baseline-vs-erma-grc.png`.)*
+
 ### 4.2 Discussion
 
 **The failures are assurance failures.** The baseline produced scores, approvals and audit entries that were disconnected from its stored state: a "risk management of nothing" (Power, 2009) produced by software rather than by organisational ritual. Several mechanisms are generic: fail-safe defaults and complete mediation (Saltzer & Schroeder, 1975), separation of duties (Botha & Eloff, 2001) and hash-chained logs (Schneier & Kelsey, 1999). What is specific to GRC is the object they protect. DP1, DP2 and DP7 have no direct counterpart in generic security guidance, because they concern whether a displayed rating or decision is evidence at all.
@@ -134,7 +131,7 @@ Assurance integrity remains necessary but not sufficient. Faithful records of a 
 
 | Section | Words | Budget |
 |---|---|---|
-| §3 | ≈ 390 | 300–400 |
-| §4 | ≈ 525 | 500–600 |
+| §3 | ≈ 399 | 300–400 |
+| §4 | ≈ 551 | 500–600 |
 
 **Status:** approved by the authors on 7 November 2026.

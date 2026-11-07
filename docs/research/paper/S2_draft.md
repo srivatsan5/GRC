@@ -6,11 +6,11 @@
 
 ## 2 Literature Review
 
-### 2.1 Key concepts
+### 2.1 Conceptual Background
 
 *Enterprise risk management* (ERM) is the organisation-wide identification, assessment, treatment and monitoring of risk. *Governance, risk and compliance (GRC) information systems* integrate these activities and keep their records (Racz et al., 2010). *Assurance* is the confidence those records give boards, auditors and regulators that risks are known and controlled. We define *assurance integrity* as the property that every assurance artefact a GRC system presents is either a recorded, attributable action or an explicit statement that no such record exists. Such artefacts include a rating, an approval, an exposure figure and an audit entry. Assurance integrity is therefore a property of the system's design, not of the risks it manages.
 
-### 2.2 Previous studies
+### 2.2 Review of Previous Studies
 
 **ERM as practice.**
 - Organisational research shows that ERM is enacted, not simply adopted. Arena et al. (2010) trace how risk rationalities, experts and technologies combine differently across firms.
@@ -39,7 +39,7 @@ Table 1 summarises the seven studies closest to this work.
 
 **Table 1.** Summary of selected literature
 
-| Study | Context | Method | Main finding | What it does not address |
+| Author(s) | Context | Methodology | Key Findings | Gap Identified |
 |---|---|---|---|---|
 | Racz et al. (2010) | Integrated GRC | Literature analysis, definition | A frame of reference for GRC research | Artifact design and evaluation |
 | Papazafeiropoulou & Spanaki (2016) | GRC IS implementation | Literature review and expert interviews | Implementation characteristics and success factors | Integrity of the evidence the systems produce |
@@ -49,9 +49,9 @@ Table 1 summarises the seven studies closest to this work.
 | Botha & Eloff (2001) | Workflow access control | Conceptual model | Static and dynamic separation-of-duties enforcement | Approval semantics of risk assessments |
 | Crosby & Wallach (2009) | Secure logging | Data structure and analysis | Efficient tamper-evident logs, provided auditors hold commitments | Business workflows and other failure types |
 
-### 2.3 Research gap
+### 2.3 Research Gap
 
-Within the literature reached by our documented search (Section 3), no study examines how the design of a GRC application can itself corrupt the assurance evidence it presents:
+Within the literature reached by our documented search, no study examines how the design of a GRC application can itself corrupt the assurance evidence it presents:
 - by fabricating values;
 - by overwriting decisions;
 - by accepting unauthenticated authority;
@@ -61,7 +61,7 @@ The two relevant streams do not meet. GRC information systems research stops at 
 
 The gap is therefore not a missing mechanism, which we do not claim. It is missing **design knowledge** that maps application failures to corrupted evidence, and that tests principles against a real system.
 
-### 2.4 Conceptual framework
+### 2.4 Research Framework
 
 The study links four elements in a chain:
 1. **Failure modes** observed in a deployed system (RQ1).

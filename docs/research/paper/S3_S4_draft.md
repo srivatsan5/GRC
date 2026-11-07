@@ -24,7 +24,7 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **Use of generative AI.** Claude (Claude Opus 5.5, Anthropic) was used under the authors' direction to assist the audit, implement much of ERMA-GRC, draft the protocol, write and run the test scripts, propose outcome codings, produce the figures, support the literature search, and draft text. The authors set the questions, approved each stage including the protocol before execution, verified sources and results, revised the text and take full responsibility. No AI tool is an author.
 
-> **Figure 1.** DSR process and evaluation set-up. The audit of the baseline yields failure modes F1–F7, which inform principles DP1–DP7, which are instantiated in ERMA-GRC. Both systems run the 23 scenarios against one shared database stand-in. *(File: `figures/figure-1-dsr-process.png`.)*
+> **Figure 1.** DSR process and evaluation set-up: the audit yields F1–F7, which inform DP1–DP7, instantiated in ERMA-GRC; both systems run the 23 scenarios against one database stand-in. *(File: `figures/figure-1-dsr-process.png`.)*
 
 ---
 
@@ -38,14 +38,14 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 | Failure mode (RQ1) | Design principle (RQ2) | Kernel theory | Mechanism in ERMA-GRC |
 |---|---|---|---|
-| F1 Fabricated assurance values | DP1 Evidence provenance | Clark & Wilson (1987); Power (1997) | No derived ratings; unrated risks shown as "Not rated" and kept off the heatmap |
-| F2 Decisions overwritten by defaults | DP2 Decision preservation | Clark & Wilson (1987); Saltzer & Schroeder (1975) | Defaults fill only missing fields at creation; approvals change only through authorised transitions |
-| F3 Client-side or absent enforcement | DP3 Server-enforced, identity-bound separation of duties | Saltzer & Schroeder (1975); Botha & Eloff (2001) | Signed server session; deny-by-default permissions; maker ≠ checker; a conflicting decision is refused; deactivation revokes sessions |
-| F4 Mutable, forgeable evidence trail | DP4 Tamper-evident, actor-bound trail | Schneier & Kelsey (1999); Crosby & Wallach (2009) | Keyed hash chain with a static key; actor taken from the session; verification shown to users |
-| F5 Silent failure reported as success | DP5 Fail-visible operation | Saltzer & Schroeder (1975) | Database failures returned as error statuses; no fallback store |
-| F6 Fragmented system of record | DP6 Single system of record | Clark & Wilson (1987) | Risk and module records in the database; accounts and audit chain on the API server, the chain copied to the database |
-| F7 Destructive actions on fabricated records | DP1 Evidence provenance | as for F1 | Empty states instead of placeholder rows |
-| F1 (metrics) | DP7 Computed, not declared, metrics | Vasarhelyi et al. (2004); Cox (2008) | Indicator status derived from thresholds and direction, in the client |
+| F1 Fabricated assurance values | DP1 Evidence provenance | Clark & Wilson (1987); Power (1997) | No derived ratings; "Not rated" shown |
+| F2 Decisions overwritten by defaults | DP2 Decision preservation | Clark & Wilson (1987); Saltzer & Schroeder (1975) | Defaults only at creation; approvals only via authorised transitions |
+| F3 Client-side or absent enforcement | DP3 Server-enforced, identity-bound separation of duties | Saltzer & Schroeder (1975); Botha & Eloff (2001) | Server session; deny by default; maker ≠ checker; conflicts refused; revocation |
+| F4 Mutable, forgeable evidence trail | DP4 Tamper-evident, actor-bound trail | Schneier & Kelsey (1999); Crosby & Wallach (2009) | Keyed hash chain (static key); session-bound actor; visible verification |
+| F5 Silent failure reported as success | DP5 Fail-visible operation | Saltzer & Schroeder (1975) | Errors returned; no fallback store |
+| F6 Fragmented system of record | DP6 Single system of record | Clark & Wilson (1987) | Records in database; accounts and audit chain on server |
+| F7 Destructive actions on fabricated records | DP1 Evidence provenance | as for F1 | Empty states, no placeholder rows |
+| F1 (metrics) | DP7 Computed, not declared, metrics | Vasarhelyi et al. (2004); Cox (2008) | Status computed from thresholds, in the client |
 
 **RQ3.** ERMA-GRC prevented all 18 audit-derived failures; the baseline prevented 4 (Table 3). The baseline stored DRAFT after an approver set APPROVED, accepted writes without a session or with a self-declared administrator header, recorded an audit entry under a claimed "CEO" identity, reported success while the database was unreachable, and invented two scored risks, each with a delete button, for a cycle that had none. ERMA-GRC prevented three of the four generalisation failures: it kept one of two simultaneous approval decisions, rejected a write from a deactivated user's still-valid session, and rejected a path-traversal identifier before any database request. The baseline's 0/4 there largely repeats its F2 and F3 defects and is not independent evidence. For balance, when an editor without approval rights changed an approved risk (S2.2 variant), ERMA-GRC returned it to review by design, which the literal criterion codes as OCCURRED; the simultaneous-decision race on a record's status (G1 variant) was prevented.
 
@@ -68,7 +68,7 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **Where ERMA-GRC failed.** In G4, a key risk indicator (KRI) reading received its status by rule in the interface, but the API stored a status declared by the client, as the baseline's does. In L1, an insider holding the audit key re-chained an edited log offline, and verification passed after a restart. Figure 2 contrasts two baseline failures with ERMA-GRC on the same stored data.
 
-> **Figure 2.** The same stored data in both systems. (a) The baseline shows a risk with no stored rating or SLE with a score of 4 and an SLE of $40,000 (scenario S1.1). (b) ERMA-GRC shows the same risk as "Not rated". (c) For an assessment cycle that has no risks, the baseline shows two invented, scored risks, each with a delete button (S7.1). (d) ERMA-GRC shows the cycle as empty. These are illustrative re-captures, taken after the evaluation from the renamed build with the same set-up; unrelated columns are hidden. *(File: `figures/figure-2-baseline-vs-erma-grc.png`.)*
+> **Figure 2.** The same stored data in both systems: (a) the baseline shows an unrated risk with score 4 and SLE $40,000 (S1.1); (b) ERMA-GRC shows it as "Not rated"; (c) the baseline invents two scored, deletable risks for an empty cycle (S7.1); (d) ERMA-GRC shows the cycle as empty. Illustrative post-evaluation re-captures; unrelated columns hidden. *(File: `figures/figure-2-baseline-vs-erma-grc.png`.)*
 
 ### 4.2 Discussion
 

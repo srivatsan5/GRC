@@ -8,7 +8,7 @@
 
 ### 2.1 Conceptual Background
 
-*Enterprise risk management* (ERM) is how an organisation as a whole identifies, assesses, treats and monitors its risks. *Governance, risk and compliance (GRC) information systems* bring this work together and hold its records (Racz et al., 2010). From those records, boards, auditors and regulators draw *assurance*, meaning confidence that risks are known and handled. By *assurance integrity* we mean that each assurance item a GRC system shows, whether a rating, an approval, an exposure figure or an audit entry, is either a recorded action that someone can be held to or a plain statement that no record exists. It belongs to the system's design, not to the risks it manages.
+ERM refers to the systematic process by which an organisation manages the process of identifying, measuring, controlling and monitoring its risks, entity-wide. Information systems for governance, risk and compliance (GRC) consolidate this work and control for its artifacts. (Racz et al. 2010) Those records provide boards, auditors and regulators with comfort; peace of mind that risks are understood and managed. By assurance integrity we mean that whatever assurance item a GRC system presents – a rating, an approval, an exposure figure, or an audit record, it represents some action that can be held someone accountable for, or, on the other hand, it represents something that we simply have no record of. It is an intrinsic part of the design of the system and not the risks it constrains.
 
 ### 2.2 Review of Previous Studies
 
@@ -41,7 +41,7 @@ The study links observed failure modes (RQ1), theory-grounded principles (RQ2), 
 
 ---
 
-**Word count:** ≈ 513 (budget 500–600).
+**Word count:** ≈ 531 (budget 500–600).
 
 ## References cited in this section (APA 7, checked against Crossref)
 

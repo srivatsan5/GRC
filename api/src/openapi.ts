@@ -335,9 +335,9 @@ export function buildOpenApi(): Record<string, unknown> {
   return {
     openapi: '3.1.0',
     info: {
-      title: 'Pericope ERM API',
+      title: 'ERMA-GRC API',
       version: '4.0.0',
-      description: 'Authenticated API over the Pericope Oracle schema. Sign in with POST /api/auth/login; the session is an httpOnly cookie. State-changing requests must send `X-Requested-With: XMLHttpRequest`.',
+      description: 'Authenticated API over the ERMA-GRC Oracle schema. Sign in with POST /api/auth/login; the session is an httpOnly cookie. State-changing requests must send `X-Requested-With: XMLHttpRequest`.',
     },
     components: {
       schemas,

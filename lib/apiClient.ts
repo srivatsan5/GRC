@@ -1,5 +1,5 @@
 /**
- * Typed client for the Pericope API. Types are generated from api/openapi.json
+ * Typed client for the ERMA-GRC API. Types are generated from api/openapi.json
  * (`npm run api:types`), so a change in the API shows up here as a type error.
  */
 import axios, { AxiosError } from 'axios'
@@ -64,7 +64,7 @@ export function apiErrorMessage(error: unknown, fallback = 'Something went wrong
   }
   if (body?.message) return body.message
   if (err?.code === 'ECONNABORTED') return 'The server took too long to respond'
-  if (err?.code === 'ERR_NETWORK') return 'Cannot reach the Pericope API'
+  if (err?.code === 'ERR_NETWORK') return 'Cannot reach the ERMA-GRC API'
   return fallback
 }
 

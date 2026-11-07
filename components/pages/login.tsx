@@ -34,11 +34,11 @@ export function LoginPage({ notice }: { notice?: string | null }) {
   return (
     <main className="flex min-h-dvh flex-col bg-background px-5 py-10 text-foreground">
       <div className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center">
-        <div className="mb-8 flex items-center justify-center gap-3" aria-label="Pericope">
+        <div className="mb-8 flex items-center justify-center gap-3" aria-label="ERMA-GRC">
           <span aria-hidden="true" className="inline-flex size-10 items-center justify-center rounded-md bg-primary font-display text-[26px] leading-none text-primary-foreground italic shadow-button">
-            P
+            E
           </span>
-          <span className="font-display text-[30px] leading-none tracking-[-0.015em] text-foreground">Pericope</span>
+          <span className="font-display text-[30px] leading-none tracking-[-0.015em] text-foreground">ERMA-GRC</span>
         </div>
 
         <section aria-labelledby="signin-title" className="surface-raised px-6 py-8 sm:px-9 sm:py-10">
@@ -109,7 +109,7 @@ export function LoginPage({ notice }: { notice?: string | null }) {
             </Button>
           </form>
 
-          <p className="mt-6 border-t pt-5 text-body-sm text-muted-foreground">Forgotten your password? Ask a Pericope administrator to reset it.</p>
+          <p className="mt-6 border-t pt-5 text-body-sm text-muted-foreground">Forgotten your password? Ask an ERMA-GRC administrator to reset it.</p>
         </section>
 
         <p className="mt-6 flex items-center justify-center gap-1.5 text-caption text-muted-foreground">

@@ -39,7 +39,7 @@ export const SettingsSchema = z
 export type OrgSettings = z.infer<typeof SettingsSchema>
 
 export const DEFAULT_SETTINGS: OrgSettings = {
-  orgName: 'Pericope ERM',
+  orgName: 'ERMA-GRC',
   industry: 'Financial Services',
   currency: 'USD',
   idleTimeoutMinutes: 30,

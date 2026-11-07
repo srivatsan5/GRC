@@ -12,7 +12,7 @@ import { formatMoney } from './format'
 import { useAuth } from '@/components/providers/auth-provider'
 
 export const DEFAULT_SETTINGS: ApiOrgSettings = {
-  orgName: 'Pericope ERM',
+  orgName: 'ERMA-GRC',
   industry: 'Financial Services',
   currency: 'USD',
   idleTimeoutMinutes: 30,

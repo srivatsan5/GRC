@@ -16,11 +16,11 @@ function useVisibleNav() {
 
 export function Brand({ collapsed }: { collapsed?: boolean }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-md focus-ring" aria-label="Pericope, go to dashboard">
+    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-md focus-ring" aria-label="ERMA-GRC, go to dashboard">
       <span aria-hidden="true" className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary font-display text-[20px] italic leading-none text-primary-foreground shadow-button">
-        P
+        E
       </span>
-      {!collapsed && <span className="font-display text-[22px] leading-none tracking-[-0.01em] text-foreground">Pericope</span>}
+      {!collapsed && <span className="font-display text-[22px] leading-none tracking-[-0.01em] text-foreground">ERMA-GRC</span>}
     </Link>
   )
 }

@@ -94,7 +94,7 @@ export function AppShell({ children, className }: { children: React.ReactNode; c
             <Suspense fallback={<LoadingState />}>{children}</Suspense>
           </main>
           <footer className="flex items-center justify-between px-4 pb-5 text-caption text-muted-foreground sm:px-6 lg:px-(--layout-page-gutter) print:hidden">
-            <span>Pericope ERM</span>
+            <span>ERMA-GRC</span>
             <span>v{process.env.NEXT_PUBLIC_APP_VERSION}</span>
           </footer>
         </div>
@@ -103,7 +103,7 @@ export function AppShell({ children, className }: { children: React.ReactNode; c
       <Sheet open={drawer} onOpenChange={setDrawer}>
         <SheetContent side="left" className="overflow-y-auto bg-sidebar p-4">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <SheetDescription className="sr-only">Pages of Pericope ERM</SheetDescription>
+          <SheetDescription className="sr-only">Pages of ERMA-GRC</SheetDescription>
           <div className="mb-5 px-1">
             <Brand />
           </div>

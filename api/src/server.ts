@@ -20,7 +20,7 @@ async function main() {
   }
 
   const server = app.listen(config.PORT, () => {
-    log.info('Pericope API listening', { port: config.PORT, env: config.NODE_ENV, databaseAuth: ctx.ords.authMode })
+    log.info('ERMA-GRC API listening', { port: config.PORT, env: config.NODE_ENV, databaseAuth: ctx.ords.authMode })
   })
   const shutdown = (signal: string) => {
     log.info('shutting down', { signal })

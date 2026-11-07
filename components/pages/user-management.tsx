@@ -183,7 +183,7 @@ export function UserManagementPage() {
             <LoadingState label="Loading users…" />
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState title={users.length ? 'No users match these filters' : 'No users yet'} description={users.length ? 'Try a different search, role or status.' : 'Add the people who will use Pericope.'} />
+          <EmptyState title={users.length ? 'No users match these filters' : 'No users yet'} description={users.length ? 'Try a different search, role or status.' : 'Add the people who will use ERMA-GRC.'} />
         ) : (
           <div className="overflow-x-auto">
             <table className="enterprise-table min-w-[900px]">

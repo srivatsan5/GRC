@@ -18,7 +18,7 @@ const newsreader = Newsreader({ subsets: ['latin'], axes: ['opsz'], style: ['nor
 const mono = JetBrains_Mono({ subsets: ['latin'], variable: '--font-jetbrains-mono', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: { default: 'Pericope ERM', template: '%s · Pericope ERM' },
+  title: { default: 'ERMA-GRC', template: '%s · ERMA-GRC' },
   description: 'Enterprise risk management: risk register, controls, KRIs, approvals and audit trail.',
   icons: { icon: '/icon.svg', apple: '/apple-icon.png' },
 }

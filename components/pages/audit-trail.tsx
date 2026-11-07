@@ -140,7 +140,7 @@ export function AuditTrailPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `pericope_audit_log_${new Date().toISOString().slice(0, 10)}.csv`
+    a.download = `erma-grc_audit_log_${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
     toast.success(`Exported ${rows.length} audit entries to CSV`)

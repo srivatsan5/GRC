@@ -52,7 +52,7 @@ def section(y, text):
 section(40, 'DESIGN SCIENCE PROCESS')
 bw, bh, gap, y0 = 560, 230, 80, 120
 xs = [60 + i * (bw + gap) for i in range(4)]
-box(xs[0], y0, bw, bh, 'Forensic audit', ['of a deployed GRC system:', 'code review, runtime', 'reproduction, data paths'])
+box(xs[0], y0, bw, bh, 'Code and runtime audit', ['of an existing GRC system:', 'code review, runtime', 'reproduction, data paths'])
 box(xs[1], y0, bw, bh, 'Failure taxonomy', ['seven failure modes', 'F1–F7', '(RQ1)'])
 box(xs[2], y0, bw, bh, 'Design principles', ['DP1–DP7, each grounded', 'in a kernel theory', '(RQ2)'])
 box(xs[3], y0, bw, bh, 'Instantiation', ['ERMA-GRC: every read and', 'write mediated by the server'], fill=ACCENT_FILL, outline=ACCENT, title_color=ACCENT)
@@ -62,7 +62,7 @@ for i in range(3):
 # ---------------------------------------------------------------- evaluation set-up
 section(420, 'EVALUATION SET-UP (RQ3)')
 sy = 510
-sc = box(60, sy, 700, 330, 'Pre-registered scenarios', ['23 in total, run once each:', '18 audit-derived', '4 generalisation', '1 boundary (expected to fail)'])
+sc = box(60, sy, 700, 330, 'Pre-registered scenarios', ['23, one recorded run each:', '18 audit-derived', '4 generalisation', '1 boundary (expected to fail)'])
 bx, bwid, bht = 900, 600, 150
 box(bx, sy, bwid, bht, 'Baseline', ['the original system'])
 box(bx, sy + 180, bwid, bht, 'ERMA-GRC', ['the artifact'], fill=ACCENT_FILL, outline=ACCENT, title_color=ACCENT)
@@ -76,8 +76,8 @@ arrow(2080 + 8, sy + 165, 2200 - 8, sy + 165)
 
 # ---------------------------------------------------------------- evidence line
 ey = 900
-d.text((60, ey), 'Evidence kept for every run: HTTP status, stored row, screen text, screenshot.  '
-       'Ground truth is read from the stand-in, never from the system under test.', font=small, fill=MUTED)
+d.text((60, ey), 'Protocol time-stamped in the project repository before execution. Stored-state outcomes read from the stand-in;'
+       ' display outcomes from screen text.', font=small, fill=MUTED)
 
 img = img.crop((0, 0, W, 960))
 img.save(os.path.join(HERE, 'figure-1-dsr-process.png'), dpi=(300, 300))

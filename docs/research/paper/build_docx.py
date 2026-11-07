@@ -109,7 +109,7 @@ def bullet(d, text, numbered=None):
     return p
 
 
-def table(d, rows, caption, widths=None, size=10):
+def table(d, rows, caption, widths=None, size=12):
     cap = d.add_paragraph()
     fmt(cap, WD_ALIGN_PARAGRAPH.LEFT, after=4, before=6)
     cap.paragraph_format.keep_with_next = True
@@ -145,8 +145,8 @@ def figure(d, path, caption, width=6.2):
     cap = d.add_paragraph()
     fmt(cap, WD_ALIGN_PARAGRAPH.JUSTIFY, after=10)
     m = re.match(r'(Figure \d+\.)\s*(.*)', caption)
-    run(cap, m.group(1) + ' ', bold=True, size=11)
-    rich(cap, m.group(2), size=11)
+    run(cap, m.group(1) + ' ', bold=True, size=12)
+    rich(cap, m.group(2), size=12)
 
 
 def page_numbers(d):
@@ -194,7 +194,7 @@ def render(d, md):
                 if not re.match(r'^[\s:\-|]+$', lines[i]):
                     rows.append(cells)
                 i += 1
-            widths = {5: [1.35, 1.0, 1.05, 1.5, 1.4], 3: [2.1, 2.15, 2.0]}.get(len(rows[0]))
+            widths = {5: [1.35, 1.0, 1.05, 1.5, 1.4], 4: [1.45, 1.5, 1.35, 1.95], 3: [2.1, 2.15, 2.0]}.get(len(rows[0]))
             table(d, rows, pending_caption or 'Table ?. (caption missing)', widths)
             pending_caption = None
             continue
@@ -234,7 +234,15 @@ REFS += [
     'Peffers, K., Tuunanen, T., Rothenberger, M. A., & Chatterjee, S. (2007). A design science research methodology for information systems research. *Journal of Management Information Systems, 24*(3), 45–77. https://doi.org/10.2753/MIS0742-1222240302',
     'Venable, J., Pries-Heje, J., & Baskerville, R. (2016). FEDS: A framework for evaluation in design science research. *European Journal of Information Systems, 25*(1), 77–89. https://doi.org/10.1057/ejis.2014.36',
 ]
-REFS.sort(key=lambda r: re.sub(r'[^a-z]', '', r.lower()))
+def apa_key(r):
+    # APA 7: first author's surname, then single-author works before multi-author ones, then year.
+    surname = r.split(',')[0].lower()
+    authors = r.split('(')[0]
+    year = re.search(r'\((\d{4})\)', r).group(1)
+    return (surname, '&' in authors, re.sub(r'[^a-z]', '', authors.lower()), year)
+
+
+REFS.sort(key=apa_key)
 
 
 def header_block(d, abstract_label):

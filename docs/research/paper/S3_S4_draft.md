@@ -8,7 +8,7 @@
 
 ### 3.1 Research Design
 
-We followed DSR (Hevner et al., 2004), entering DSRM (Peffers et al., 2007) at problem identification. Its six activities were (1) problem identification, the audit (RQ1); (2) objectives; (3) design of seven principles, instantiated in ERMA-GRC (RQ2); (4) demonstration on Oracle Autonomous Database; (5) evaluation (RQ3); and (6) communication. The evaluation is one artificial, summative episode of the Technical Risk and Efficacy strategy of the Framework for Evaluation in Design Science (FEDS; Venable et al., 2016).
+Our approach is design science (Hevner et al., 2004), following the six steps of Peffers et al. (2007): (1) problem identification, the audit (RQ1); (2) objectives; (3) design of seven principles, instantiated in ERMA-GRC (RQ2); (4) demonstration on Oracle Autonomous Database; (5) evaluation (RQ3); and (6) communication. The evaluation is one artificial, summative episode of the Technical Risk and Efficacy strategy of the Framework for Evaluation in Design Science (FEDS; Venable et al., 2016).
 
 ### 3.2 Data Collection
 
@@ -24,7 +24,7 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **Use of generative AI.** Claude (Claude Opus 5.5, Anthropic) was used under the authors' direction to assist the audit, implement much of ERMA-GRC, draft the protocol, write and run the test scripts, propose outcome codings, produce the figures, support the literature search, and draft text. The authors set the questions, approved each stage including the protocol before execution, verified sources and results, revised the text and take full responsibility. No AI tool is an author.
 
-> **Figure 1.** DSR process and evaluation set-up: the audit yields F1–F7, which inform DP1–DP7, instantiated in ERMA-GRC; both systems run the 23 scenarios against one database stand-in. *(File: `figures/figure-1-dsr-process.png`.)*
+> **Figure 1.** Design science process and evaluation set-up: the audit yields F1–F7, which inform DP1–DP7, instantiated in ERMA-GRC; both systems run the 23 scenarios against one database stand-in. *(File: `figures/figure-1-dsr-process.png`.)*
 
 ---
 
@@ -55,12 +55,12 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 **Where ERMA-GRC failed.** In G4, a key risk indicator (KRI) reading received its status by rule in the interface, but the API stored a status declared by the client, as the baseline's does. In L1, an insider holding the audit key re-chained an edited log offline, and verification passed after a restart. Table 3 contrasts two baseline failures with ERMA-GRC on the same stored data.
 
-**Table 3.** Displays in Both Systems
+**Table 3.** What Each System Showed for Identical Records
 
-| Scenario | Baseline displayed | ERMA-GRC displayed |
-|---|---|---|
-| S1.1 Unrated risk | Rating 1/5 × 4/5 (score 4, Moderate); SLE $40,000 | Inherent and residual "Not rated"; SLE "—" |
-| S7.1 Cycle with no risks | Two invented risks (scores 16 and 12), each with a Delete button | "No risks in this cycle yet" |
+| Scenario | Database content | Baseline displayed | ERMA-GRC displayed |
+|---|---|---|---|
+| S1.1 Unrated risk | No likelihood, impact or SLE | Rating 1/5 × 4/5 (score 4, Moderate); SLE $40,000 | Inherent and residual "Not rated"; SLE "—" |
+| S7.1 Cycle with no risks | A cycle holding no risks | Two invented risks (scores 16 and 12), each with a Delete button | "No risks in this cycle yet" |
 
 ### 4.2 Discussion
 
@@ -76,5 +76,5 @@ We count PREVENTED scenarios per failure mode; deterministic outcomes need no in
 
 | Section | Words | Budget |
 |---|---|---|
-| §3 | ≈ 325 | 300–400 |
-| §4 | ≈ 501 | 500–600 |
+| §3 | ≈ 305 | 300–400 |
+| §4 | ≈ 505 | 500–600 |

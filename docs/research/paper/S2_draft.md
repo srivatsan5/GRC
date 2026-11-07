@@ -6,7 +6,11 @@
 
 ## 2 Literature Review
 
-### 2.1 Review of Previous Studies
+### 2.1 Conceptual Background
+
+*Enterprise risk management* (ERM) is how an organisation as a whole identifies, assesses, treats and monitors its risks. *Governance, risk and compliance (GRC) information systems* bring this work together and hold its records (Racz et al., 2010). From those records, boards, auditors and regulators draw *assurance*, meaning confidence that risks are known and handled. By *assurance integrity* we mean that each assurance item a GRC system shows, whether a rating, an approval, an exposure figure or an audit entry, is either a recorded action that someone can be held to or a plain statement that no record exists. It belongs to the system's design, not to the risks it manages.
+
+### 2.2 Review of Previous Studies
 
 Organisational research shows that ERM is enacted rather than adopted. Arena et al. (2010) trace how risk rationalities, experts and technologies combine differently across firms; Mikes (2009) identifies distinct "calculative cultures"; Mikes and Kaplan (2015) argue that a single ERM template is itself a risk; and Meidell and Kaarbøe (2017) show that a risk function's tools shape its influence. Power (1997) warns that verification rituals can yield auditability rather than assurance, and Power (2009) calls ERM at its weakest a "risk management of nothing". Technology therefore helps produce risk, so its design merits study.
 
@@ -26,18 +30,18 @@ The artifact's mechanisms exist in generic form: well-formed transactions, integ
 | Botha & Eloff (2001) | Workflow access control | Conceptual model | Static and dynamic separation-of-duties enforcement | Not its focus: approval semantics of risk assessments |
 | Crosby & Wallach (2009) | Secure logging | Data structure and analysis | Efficient tamper-evident logs, provided auditors hold commitments | Business workflows and other failure types |
 
-### 2.2 Research Gap
+### 2.3 Research Gap
 
 Within the web-indexed literature our search reached, with every DOI verified, no study examines how a GRC application's design can itself corrupt the assurance evidence it presents: by fabricating values, overwriting decisions, accepting unauthenticated authority or reporting failures as success. GRC research stops at adoption and value, while mechanism research does not address the evidence that risk and control self-assessment produces: ratings, approvals, appetite exposure and indicator status. The gap is therefore not a missing mechanism but missing design knowledge that maps application failures to corrupted evidence and tests principles against a real system.
 
-### 2.3 Research Framework
+### 2.4 Research Framework
 
 The study links observed failure modes (RQ1), theory-grounded principles (RQ2), their mechanisms, and scenario outcomes testing whether the failures are prevented (RQ3). These contribute components of a design theory (Gregor & Jones, 2007): purpose and scope, constructs, principles of form and function, and testable propositions (Section 5). Each principle pairs an aim with a mechanism and a kernel-theory rationale (Gregor et al., 2020).
 
 
 ---
 
-**Word count:** ≈ 508 (budget 500–600).
+**Word count:** ≈ 513 (budget 500–600).
 
 ## References cited in this section (APA 7, checked against Crossref)
 

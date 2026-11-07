@@ -18,23 +18,29 @@ Boards, auditors and regulators rely on governance, risk and compliance (GRC) in
 
 **Design/Methodology/Approach**
 
-The study follows design science research.
+This is a design science study. We read the code of an existing risk management application, ran it, and recorded seven distinct ways in which it failed. Each failure was traced to theory that already explains it, from integrity models, fail-safe defaults and complete mediation to separation of duties, tamper-evident logging and the critique of audit as ritual, and a design principle was drawn from that theory. We built a new system, ERMA-GRC, on these principles. The old and new systems then faced 23 scenarios over the same stored data, under a protocol time-stamped in the project repository beforehand. Eighteen scenarios come from the audit, four go beyond it, and one was meant to fail. All deviations are reported.
 
 **Findings**
 
-The original system prevented the failure in 4 of the 18 audit-derived scenarios; ERMA-GRC prevented it in all 18.
+Of the 18 scenarios taken from the audit, the original system stopped the failure in 4. ERMA-GRC stopped it in all 18. It refused writes without a session, would not let anyone approve their own work, stamped each audit entry with the signed-in user instead of a claimed name, caught an edited entry, and showed a database outage as an error. Beyond the audit, it stopped 3 of 4 failures, including two approvers deciding on one record at the same moment. Stored outcomes were read from the database stand-in, not from what a system claimed. The new design failed twice, and we report both in full. A key risk indicator showed the right status on screen, yet a client calling the server directly could store any status it chose. And anyone holding the audit key could rewrite the trail offline, unnoticed after a restart. The principles also lean on each other: separation of duties is only as sound as the audit trail it reads, and a rule checked only in the browser assures nothing.
 
 **Originality/Value**
 
-The study treats assurance integrity as a design property of GRC information systems rather than an organisational outcome.
+We treat the integrity of assurance evidence as something a GRC system's design can protect or destroy, rather than as an organisational outcome. The paper offers a taxonomy of failures seen in a working system, seven principles with two testable propositions towards a design theory, and a scenario protocol that others can rerun. Auditors and buyers can use the principles as a checklist. The two failures set the next tasks: anchoring audit trails outside the system, computing every metric on the server, and testing the principles with practitioners.
 
-**Keywords:** assurance integrity; governance, risk and compliance; design science research; enterprise risk management; audit trail; separation of duties
+**Keywords:** assurance integrity; GRC information systems; design science; enterprise risk management; tamper-evident audit trail; separation of duties
 
 ---
 
 ## 1 Introduction
 
-We therefore ask which design failures in a GRC information system compromise the integrity of its assurance evidence (RQ1); which theory-grounded design principles address them (RQ2); and to what extent an instantiation of these principles prevents the failures compared with the original system (RQ3).
+Risk registers, heatmaps, signed-off assessments and audit trails are now kept mostly in governance, risk and compliance (GRC) information systems. Boards, auditors and regulators read these records as proof that risks are under control (Power, 1997). The proof is worth something only if the screen matches the record underneath.
+
+Our study started with an audit, of code and runtime behaviour, of a GRC application whose documentation called it production-ready. It displayed assurance with nothing behind it. Unrated risks were given ratings worked out from record identifiers or default loss values. Any later save quietly turned an approved assessment back into a draft. The so-called immutable audit trail was stored in the browser, where any user could change it. When the database refused a write, the user was told it had worked. Ordinary design choices had made the system a source of risk instead of a check on it.
+
+We did not find this problem treated in the literature our search reached. Studies of GRC information systems ask why firms adopt them and what value they bring (Papazafeiropoulou & Spanaki, 2016; Racz et al., 2010). Writers on enterprise risk management warn that assurance can slide into ritual (Power, 2009). Security research offers the relevant mechanisms, though in generic form (Clark & Wilson, 1987; Saltzer & Schroeder, 1975). None of the work we found links an application's design failures to corrupted assurance evidence, or tests design principles on a real system.
+
+We therefore ask which design failures in a GRC information system compromise the integrity of its assurance evidence (RQ1); which theory-grounded design principles address them (RQ2); and to what extent an instantiation of these principles prevents the failures compared with the original system (RQ3). Our design science answer is a failure taxonomy, seven principles and a new artifact, ERMA-GRC, tested in time-stamped scenarios. The rest of the paper moves from prior work to method, results, implications and limitations.
 
 
 ---
@@ -66,10 +72,10 @@ This study asked how a GRC system's design can corrupt its assurance evidence, a
 | Section | Words | Budget |
 |---|---|---|
 | Abstract: Purpose | 110 | 100–125 |
-| Abstract: Design | 100 | 100–125 |
-| Abstract: Findings | 163 | 150–175 |
-| Abstract: Originality | 79 | 75–100 |
-| Abstract total | 452 | ≤ 500 |
-| §1 Introduction | 301 | 300–400 |
-| §5 Implications | 152 | 150–200 |
+| Abstract: Design | 119 | 100–125 |
+| Abstract: Findings | 174 | 150–175 |
+| Abstract: Originality | 88 | 75–100 |
+| Abstract total | 491 | ≤ 500 |
+| §1 Introduction | 317 | 300–400 |
+| §5 Implications | 153 | 150–200 |
 | §6 Conclusion | 200 | 200–250 |

@@ -2,8 +2,10 @@
 
 | File | What it is |
 |---|---|
-| `figure-2-baseline-vs-erma-grc.png` | Figure 2 in §4: the same stored data in the baseline and in ERMA-GRC (scenarios S1.1 and S7.1) |
-| `panel-*.png` | The four panels of Figure 2, before composition |
+| `figure-1-dsr-process.png` | Figure 1 in §3: design science process and evaluation set-up (`figure1.py`) |
+| `figure-2-scenario-outcomes.png` | Figure 2 in §4: outcome of all 23 scenarios for both systems, from `results.json` (`results_figures.py`) |
+| `figure-3-same-data-two-systems.png` | Figure 3 in §4: what each system displayed for the same stored data (S1.1, S7.1), redrawn from the recorded evidence (`results_figures.py`) |
+| `figure-2-baseline-vs-erma-grc.png`, `panel-*.png` | Earlier screenshot comparison, replaced by Figure 3 because screenshots are illegible at print size; kept for slides |
 | `screens/01–13-*.png` | ERMA-GRC on the full demo data: sign-in, dashboard, cycles, risk register, risk detail, heatmap, residual analysis, risk indicators, control library, risk appetite, approvals, audit trail, reports |
 
 ## Figure 2

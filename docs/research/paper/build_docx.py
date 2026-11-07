@@ -170,7 +170,7 @@ def page_numbers(d):
 
 
 # ------------------------------------------------------------------ markdown body to Word
-FIGS = {'Figure 1.': (HERE / 'figures/figure-1-dsr-process.png', 6.2), 'Figure 2.': (HERE / 'figures/figure-2-baseline-vs-erma-grc.png', 5.4)}
+FIGS = {'Figure 1.': (HERE / 'figures/figure-1-dsr-process.png', 6.2), 'Figure 2.': (HERE / 'figures/figure-2-scenario-outcomes.png', 6.3), 'Figure 3.': (HERE / 'figures/figure-3-same-data-two-systems.png', 6.3)}
 
 
 def render(d, md):

@@ -457,7 +457,7 @@
     },
     {
       "id": "APP-IT",
-      "category": "IT & Cyber",
+      "category": "Technology",
       "description": "Accept residual risk only up to amber band for non-customer-facing systems.",
       "posture": "Cautious",
       "tolerance": 12,
@@ -481,7 +481,7 @@
     },
     {
       "id": "APP-VEN",
-      "category": "Vendor",
+      "category": "Third Party",
       "description": "No critical-tier vendor without an active risk assessment within 12 months.",
       "posture": "Averse",
       "tolerance": 6,
@@ -493,7 +493,7 @@
     },
     {
       "id": "APP-REP",
-      "category": "Reputation",
+      "category": "Reputational",
       "description": "No more than 2 negative media events causing > 5% share-price impact per year.",
       "posture": "Averse",
       "tolerance": 8,
@@ -502,6 +502,18 @@
       "approvedBy": "CEO",
       "approvedOn": "2026-01-15",
       "review": "Annual"
+    },
+    {
+      "id": "APP-HS",
+      "category": "Health & Safety",
+      "description": "Zero tolerance for incidents that cause serious injury; every high-severity hazard is treated within 30 days.",
+      "posture": "Averse",
+      "tolerance": 6,
+      "currentExposure": 4,
+      "unit": "Score (1-25)",
+      "approvedBy": "COO",
+      "approvedOn": "2026-02-01",
+      "review": "Quarterly"
     }
   ],
   "workflow": [

@@ -5,7 +5,8 @@
  * (per_trn_control_implementation). control_id stores the library control's uuid, and an
  * erm_lnk_control_risk row is kept in step so the control library shows the link.
  */
-import React, { useEffect, useMemo, useState } from 'react'
+import { lookupName, useControlLookups, type ControlLookups } from '@/lib/controlLookups'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { Check, CircleCheck, Loader2, OctagonAlert, Search } from 'lucide-react'
 import { Chip } from '@/components/charter/primitives'
@@ -222,13 +223,15 @@ interface FormState {
   complete: boolean
 }
 
-function initialState(row: Row | null | undefined, riskId: number | null | undefined): FormState {
+function initialState(row: Row | null | undefined, riskId: number | null | undefined, lk?: ControlLookups): FormState {
+  // Rows loaded by the database install hold lookup ids; show (and save back) their names.
+  const name = (v: unknown, m: Map<string, string> | undefined) => (m ? lookupName(v, m) : text(v)) ?? ''
   return {
     riskId: numOrNull(row?.identify_risk_uuid) ?? riskId ?? null,
     controlId: numOrNull(row?.control_id),
-    controlType: text(row?.control_type) ?? '',
-    frequency: text(row?.control_frequency) ?? '',
-    design: text(row?.control_design_effectiveness) ?? '',
+    controlType: name(row?.control_type, lk?.type),
+    frequency: name(row?.control_frequency, lk?.freq),
+    design: name(row?.control_design_effectiveness, lk?.design),
     operating: text(row?.control_effectiveness_rating) ?? '',
     evidence: text(row?.evidence_notes) ?? '',
     complete: row?.is_stage_complted === 'Y',
@@ -260,13 +263,19 @@ export function ControlImplementationDialog({
   defaultRiskId?: number | null
 }) {
   const editing = !!row
-  const [form, setForm] = useState<FormState>(() => initialState(row, riskId ?? defaultRiskId))
+  const lk = useControlLookups()
+  // Read the lookups when the dialog opens; a later refetch must not reset what the user is typing.
+  const lkRef = useRef(lk)
+  useEffect(() => {
+    lkRef.current = lk
+  }, [lk])
+  const [form, setForm] = useState<FormState>(() => initialState(row, riskId ?? defaultRiskId, lk))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (open) {
-      setForm(initialState(row, riskId ?? defaultRiskId))
+      setForm(initialState(row, riskId ?? defaultRiskId, lkRef.current))
       setErrors({})
     }
   }, [open, row, riskId, defaultRiskId])

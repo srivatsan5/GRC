@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowRight, ArrowUp, Check, CircleCheck, Clock, OctagonAlert, Send, TriangleAlert, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useRows, type Row } from '@/lib/data'
+import { lookupName, useControlLookups } from '@/lib/controlLookups'
 import { IMPACT_LABELS, LIKELIHOOD_LABELS, type Risk } from '@/lib/risk'
 import { DASH, formatDate, formatDateTime } from '@/lib/format'
 import { auditApi, type ApiAuditEntry } from '@/lib/apiClient'
@@ -192,11 +193,13 @@ function EffectivenessChip({ kind, value }: { kind: 'Design' | 'Operating'; valu
 
 /** One applied control (per_trn_control_implementation joined to the library control). */
 export function ControlCard({ impl, lib, actions, className }: { impl: Row; lib?: Row; actions?: React.ReactNode; className?: string }) {
+  const lookups = useControlLookups()
   const controlId = impl.control_id != null ? Number(impl.control_id) : null
   const name = text(lib?.control_name) ?? (controlId != null ? `Library control #${controlId} (not found)` : 'No library control linked')
   const code = text(lib?.control_code)
-  const type = text(impl.control_type) ?? text(lib?.control_type)
-  const freq = text(impl.control_frequency) ?? text(lib?.frequency)
+  const type = lookupName(impl.control_type, lookups.type) ?? text(lib?.control_type)
+  const freq = lookupName(impl.control_frequency, lookups.freq) ?? text(lib?.frequency)
+  const design = lookupName(impl.control_design_effectiveness, lookups.design)
   const tested = text(lib?.last_tested_on)
   const evidence = text(impl.evidence_notes)
   return (
@@ -211,7 +214,7 @@ export function ControlCard({ impl, lib, actions, className }: { impl: Row; lib?
         <span className="shrink-0 text-caption text-muted-foreground">{tested ? `Last tested ${formatDate(tested)}` : 'Never tested'}</span>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2">
-        <EffectivenessChip kind="Design" value={impl.control_design_effectiveness} />
+        <EffectivenessChip kind="Design" value={design} />
         <EffectivenessChip kind="Operating" value={impl.control_effectiveness_rating} />
         <span className="min-w-0 text-caption text-muted-foreground sm:ml-auto">{evidence ? `Evidence: ${evidence}` : 'No evidence recorded'}</span>
       </div>

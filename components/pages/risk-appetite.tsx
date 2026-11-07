@@ -162,7 +162,7 @@ export function RiskAppetitePage() {
               iconTone: 'text-status-danger-fg',
               tone: stats.breached ? 'text-risk-critical-text' : undefined,
             },
-            { label: 'Unmeasured', value: stats.noData, context: 'No rated risk of this type yet' },
+            { label: 'Unmeasured', value: stats.noData, context: stats.noData ? 'No rated risk of this type yet' : 'Every category has a rated risk' },
           ].map(c => (
             <div key={c.label} className="flex min-w-0 flex-col gap-2 border-border px-6 py-5 [&:nth-child(n+3)]:border-t lg:[&:nth-child(n+3)]:border-t-0 [&:nth-child(even)]:border-l lg:[&:not(:first-child)]:border-l">
               <p className="label-caps flex items-center gap-1.5">

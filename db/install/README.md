@@ -66,6 +66,10 @@ You can also run the files one by one, in this order, in the same way.
 risks (3 per cycle) with their assessments, controls, monitoring actions, plans and incident links, plus a planned
 Q1 2027 cycle. It is one block, so it finishes in seconds, erases nothing, and adds nothing if run twice.
 
+**Fix for installs made before 7 November 2026:** run [`11_align_appetite_categories.sql`](11_align_appetite_categories.sql) once. It renames three
+risk-appetite categories to match the risk types (IT & Cyber → Technology, Vendor → Third Party, Reputation → Reputational)
+and adds a Health & Safety appetite, so the appetite page can compare every rated risk with its tolerance. Safe to run twice.
+
 ### How the old DDL was changed
 
 The source is the export you pasted from the old database: [`source/pericope_erm_ddl.tsv`](source/pericope_erm_ddl.tsv). `tools/build.mjs` turns it into steps 02, 03 and 08:

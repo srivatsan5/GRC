@@ -4,6 +4,7 @@
  * RCSA step 4 for one risk: controls applied to it and its residual rating.
  * Hero = inherent → residual (movement matrix, badges, reduction). Below, the applied controls as Charter cards.
  */
+import { lookupName, useControlLookups } from '@/lib/controlLookups'
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -33,6 +34,7 @@ const IMPL = 'per_trn_control_implementation'
 const CYCLE = 'erm_trn_assessment_cycle'
 
 export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props) {
+  const lk = useControlLookups()
   const { hasPermission } = useAuth()
   const { money } = useOrgSettings()
   const confirm = useConfirm()
@@ -216,7 +218,7 @@ export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props)
                     <div className="min-w-0 flex-1">
                       <p className="text-body font-medium text-foreground">{name}</p>
                       <p className="mt-0.5 font-mono text-caption text-muted-foreground">
-                        {[code ?? 'No code', text(c.control_type) ?? 'Type not set', text(c.control_frequency) ?? 'Frequency not set'].join(' · ')}
+                        {[code ?? 'No code', lookupName(c.control_type, lk.type) ?? 'Type not set', lookupName(c.control_frequency, lk.freq) ?? 'Frequency not set'].join(' · ')}
                       </p>
                     </div>
                     <div className="-mr-2 flex items-center gap-1 max-sm:-ml-0.5">
@@ -244,7 +246,7 @@ export function ProvisioningAppliedControlsPage({ assessmentId, riskId }: Props)
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <EffectivenessChip kind="Design" value={c.control_design_effectiveness} />
+                    <EffectivenessChip kind="Design" value={lookupName(c.control_design_effectiveness, lk.design)} />
                     <EffectivenessChip kind="Operating" value={c.control_effectiveness_rating} />
                     <span className="inline-flex min-w-0 max-w-full items-center gap-1.5 text-caption sm:ml-auto text-foreground-secondary">
                       <FileText className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />

@@ -1,5 +1,6 @@
 'use client'
 
+import { lookupName, useControlLookups } from '@/lib/controlLookups'
 import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -36,6 +37,7 @@ const PAGE_SIZE = 25
 const NOT_ASSESSED = '__none__'
 
 export function AssessmentscontrolsPage() {
+  const lk = useControlLookups()
   const { hasPermission } = useAuth()
   const confirm = useConfirm()
   const params = useSearchParams()
@@ -85,10 +87,10 @@ export function AssessmentscontrolsPage() {
       if (!term) return true
       const { code, name } = controlName(c.control_id, library)
       const risk = riskId != null ? risks.get(riskId) : undefined
-      return [code, name, risk?.statement, text(c.evidence_notes), text(c.control_frequency), text(c.control_type), eff]
+      return [code, name, risk?.statement, text(c.evidence_notes), lookupName(c.control_frequency, lk.freq), lookupName(c.control_type, lk.type), eff]
         .some(v => v && v.toLowerCase().includes(term))
     })
-  }, [implQ.data, search, effFilter, statusFilter, riskFilter, library, risks])
+  }, [implQ.data, search, effFilter, statusFilter, riskFilter, library, risks, lk])
 
   const counts = useMemo(() => {
     const all = implQ.data ?? []
@@ -137,9 +139,9 @@ export function AssessmentscontrolsPage() {
           name,
           riskId,
           riskId != null ? risks.get(riskId)?.statement : null,
-          text(c.control_type),
-          text(c.control_frequency),
-          text(c.control_design_effectiveness),
+          lookupName(c.control_type, lk.type),
+          lookupName(c.control_frequency, lk.freq),
+          lookupName(c.control_design_effectiveness, lk.design),
           text(c.control_effectiveness_rating),
           text(c.evidence_notes),
           c.is_stage_complted === 'Y' ? 'Yes' : 'No',
@@ -288,7 +290,7 @@ export function AssessmentscontrolsPage() {
                           {name}
                         </span>
                         <span className="block truncate font-mono text-caption text-muted-foreground">
-                          {[code ?? 'No code', text(c.control_type), text(c.control_frequency)].filter(Boolean).join(' · ')}
+                          {[code ?? 'No code', lookupName(c.control_type, lk.type), lookupName(c.control_frequency, lk.freq)].filter(Boolean).join(' · ')}
                         </span>
                       </td>
                       <td className="max-w-[280px] py-2">
@@ -307,7 +309,7 @@ export function AssessmentscontrolsPage() {
                         )}
                       </td>
                       <td>
-                        <EffectivenessChip value={c.control_design_effectiveness} />
+                        <EffectivenessChip value={lookupName(c.control_design_effectiveness, lk.design)} />
                       </td>
                       <td>
                         <EffectivenessChip value={c.control_effectiveness_rating} />

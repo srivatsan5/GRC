@@ -22,13 +22,13 @@ This is a design science study. We read the code of an existing risk management 
 
 **Findings**
 
-There are 18 cases altogether that may have been created as a result of an audit test but, through the old system, the prevention of the security issue took place in 4 of these. On the contrary, ERMA-GRC managed to prevent the security breach in all 18 cases. ERMA-GRC prevents the write actions in the sessions, where the user does not have the ability to approve his record, stamps the audit trails lines in the logged-in user, but does not put down his name while detecting edit on the entry and indicating unavailability of the database as a failure. In addition to the above criteria in audit test, ERMA-GRC managed to prevent all failures except 3 out of the 4 cases, where it managed to prevent two simultaneous approvals for one record in 2 times. Storage results come from the simulation of the database and not from the actual system. The two cases where the new design was not able to block the security breach have been listed below. Although the risk indicator shows the correct state of the client on the screen, it can still connect to the server and change the state of the screen to anything it likes. Also, the person that has access to the audit key has the opportunity to manipulate the audit trails when offline and without being caught once the server restarts. Principles depend on each other because the reliability of the audit depends on the separation of duties.
+There are 18 cases created from the audit; the old system prevented the failure in 4 of these. ERMA-GRC prevented all 18. ERMA-GRC prevents write actions outside sessions, stops users approving their own records, stamps audit trail lines with the logged-in user rather than a claimed name, detects edits to an entry and indicates unavailability of the database as a failure. Beyond the audit cases, ERMA-GRC prevented 3 out of 4 failures, including two simultaneous approvals for one record. Results come from the database stand-in, not from what either system reported. The new design failed in two cases. Although a key risk indicator shows the correct state on the screen, a client can still connect to the server and store any state it likes. Also, a person with the audit key can manipulate the audit trail offline without being caught once the server restarts. Principles depend on each other because separation of duties depends on the reliability of the audit trail.
 
 **Originality/Value**
 
 We treat the integrity of assurance evidence as something a GRC system's design can protect or destroy, rather than as an organisational outcome. This paper provides a taxonomy of failures observed in a working system, seven principles together with two testable propositions towards a design theory, and a scenario protocol that others can rerun. They may utilize these principles in the form of actions. These two problems identified in the design lead to the three exercises as follows: external anchoring of the audit trail from the system; calculation of the entire metrics from the server, and the test of the principles with the practitioners.
 
-**Keywords:** assurance integrity; GRC information systems; design science research; enterprise risk management; tamper-proof audit trail; separation of duties
+**Keywords:** assurance integrity; GRC information systems; design science research; enterprise risk management; tamper-evident audit trail; separation of duties
 
 ---
 
@@ -73,9 +73,9 @@ This study asked how a GRC system's design can corrupt its assurance evidence, a
 |---|---|---|
 | Abstract: Purpose | 110 | 100–125 |
 | Abstract: Design | 119 | 100–125 |
-| Abstract: Findings | 246 | 150–175 |
+| Abstract: Findings | 161 | 150–175 |
 | Abstract: Originality | 104 | 75–100 |
-| Abstract total | 579 | ≤ 500 |
+| Abstract total | 494 | ≤ 500 |
 | §1 Introduction | 326 | 300–400 |
 | §5 Implications | 153 | 150–200 |
 | §6 Conclusion | 200 | 200–250 |

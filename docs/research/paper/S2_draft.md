@@ -8,7 +8,7 @@
 
 ### 2.1 Conceptual Background
 
-*Enterprise risk management* (ERM) is a structured approach an organisation uses to identify, measure, control and monitor its risks holistically. *Information systems for governance, risk and compliance* (GRC) bring together the efforts of ERM and maintain its documentation (Racz et al., 2010). Such documentation gives boards, auditors and regulators *assurance*: confidence that risks are being managed. *Assurance integrity* is the property of a GRC information system whereby every assurance item it provides (such as ratings, approvals, exposure amounts or audit trail entries) is either a recorded action for which a responsible person can be held accountable, or an explicit statement that no such record exists. It is a property of the system's design, not of the risks it manages.
+ERM is the systematic framework used by the enterprise to identify, assess, manage and monitor the risks. GRC information system integrates all the activities of ERM and documents it (Racz et al., 2010). Documentation of this risk management process is crucial because it assures the board, auditor and regulator that the risks are being properly managed. Assurance integrity is an attribute of the GRC information system that makes every assurance provided by the GRC information system either recorded as an action for which someone is answerable or recorded as the lack of a record of such action. It is an attribute of the system, not of the risks.
 
 ### 2.2 Review of Previous Studies
 
@@ -41,7 +41,7 @@ The study links observed failure modes (RQ1), theory-grounded principles (RQ2), 
 
 ---
 
-**Word count:** ≈ 522 (budget 500–600).
+**Word count:** ≈ 511 (budget 500–600).
 
 ## References cited in this section (APA 7, checked against Crossref)
 

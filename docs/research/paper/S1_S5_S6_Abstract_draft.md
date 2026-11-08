@@ -26,7 +26,7 @@ There are 18 cases created from the audit; the old system prevented the failure 
 
 **Originality/Value**
 
-We treat the integrity of assurance evidence as something a GRC system's design can protect or destroy, rather than as an organisational outcome. This paper provides a taxonomy of failures observed in a working system, seven principles together with two testable propositions towards a design theory, and a scenario protocol that others can rerun. They may utilize these principles in the form of actions. These two problems identified in the design lead to the three exercises as follows: external anchoring of the audit trail from the system; calculation of the entire metrics from the server, and the test of the principles with the practitioners.
+We treat the integrity of assurance evidence as something a GRC system's design can protect or destroy, rather than as an organisational outcome. This paper provides a taxonomy of failures observed in a working system, seven principles together with two testable propositions towards a design theory, and a scenario protocol that others can rerun. Buyers and auditors may utilize these principles in the form of a checklist. These two design problems lead to three further tasks: external anchoring of the audit trail outside the system; calculation of all metrics on the server; and the test of the principles with practitioners.
 
 **Keywords:** assurance integrity; GRC information systems; design science research; enterprise risk management; tamper-evident audit trail; separation of duties
 
@@ -34,13 +34,13 @@ We treat the integrity of assurance evidence as something a GRC system's design 
 
 ## 1 Introduction
 
-The risks, the risk registers, the risk map and the assessments are normally in governance, risk and compliance (GRC) information systems. This is enough evidence for risk management for the boards, auditors and the regulators. (Power, 1997). The evidence is based on its documentation.
+The risk registers, the risk map, the assessments and the audit trails are normally kept in governance, risk and compliance (GRC) information systems. Boards, auditors and regulators treat this as evidence of risk management (Power, 1997). The evidence is only as good as the record behind it.
 
-We started the research with an audit of the code and run-time behaviour of a GRC application documented as ready for deployment. The application displayed assurance with nothing behind it. Unrated risks received scores computed from the related record's identifier or a default loss value. Any further save reverted a signed-off assessment to draft status. The claimed immutable audit trail was stored in the browser, where any user could tamper with it. In case of failing to write data, the user was guaranteed that everything was all right. Design choices led to the transformation of the system into an agent of the dangers rather than the instrument of mitigating them.
+We started the research with an audit of the code and run-time behaviour of a GRC application documented as ready for deployment. The application displayed assurance with nothing behind it. Unrated risks received scores computed from the related record's identifier or a default loss value. Any further save reverted a signed-off assessment to draft status. The claimed immutable audit trail was stored in the browser, where any user could tamper with it. When a write failed, the user was told that everything was all right. Design choices turned the system into a source of risk rather than an instrument for mitigating it.
 
-Regarding literature covering the issue, there is none in our review. GRC IS literature studies reasons for introducing the systems and the advantages they provide to the organizations (Papazafeiropoulou & Spanaki, 2016; Racz et al., 2010). ERM literature states that assurance can become a ritual activity (Power, 2009). Proper security literature suggests solutions but just for the general case (Clark & Wilson, 1987; Saltzer & Schroeder, 1975). There is no research related to mistakes in the design of application software and corruption of assurance information and verification of design ideas in practice.
+In the literature our review reached, we found none covering the issue. GRC information systems literature studies reasons for introducing the systems and the advantages they provide to organisations (Papazafeiropoulou & Spanaki, 2016; Racz et al., 2010). Enterprise risk management (ERM) literature states that assurance can become a ritual activity (Power, 2009). Security literature suggests suitable solutions, but only for the general case (Clark & Wilson, 1987; Saltzer & Schroeder, 1975). We found no research relating design mistakes in application software to corrupted assurance information, or verifying design ideas in practice.
 
-We therefore ask which design failures in a GRC information system compromise the integrity of its assurance evidence (RQ1); which theory-grounded design principles address them (RQ2); and to what extent an instantiation of these principles prevents the failures compared with the original system (RQ3). Our design science research approach yields a failure taxonomy, seven principles and a new artifact, ERMA-GRC, tested through time-stamped scenarios. The next section covers the move from literature review through to method, results, implications and limitations.
+We therefore ask which design failures in a GRC information system compromise the integrity of its assurance evidence (RQ1); which theory-grounded design principles address them (RQ2); and to what extent an instantiation of these principles prevents the failures compared with the original system (RQ3). Our design science research approach yields a failure taxonomy, seven principles and a new artifact, ERMA-GRC, tested through time-stamped scenarios. The remaining sections cover literature, method, results, implications and limitations.
 
 
 ---
@@ -74,8 +74,8 @@ This study asked how a GRC system's design can corrupt its assurance evidence, a
 | Abstract: Purpose | 110 | 100–125 |
 | Abstract: Design | 119 | 100–125 |
 | Abstract: Findings | 161 | 150–175 |
-| Abstract: Originality | 104 | 75–100 |
-| Abstract total | 494 | ≤ 500 |
-| §1 Introduction | 326 | 300–400 |
+| Abstract: Originality | 100 | 75–100 |
+| Abstract total | 490 | ≤ 500 |
+| §1 Introduction | 314 | 300–400 |
 | §5 Implications | 153 | 150–200 |
 | §6 Conclusion | 200 | 200–250 |

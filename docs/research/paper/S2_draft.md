@@ -8,7 +8,7 @@
 
 ### 2.1 Conceptual Background
 
-ERM is the systematic framework used by the enterprise to identify, assess, manage and monitor the risks. GRC information system integrates all the activities of ERM and documents it (Racz et al., 2010). Documentation of this risk management process is crucial because it assures the board, auditor and regulator that the risks are being properly managed. Assurance integrity is an attribute of the GRC information system that makes every assurance provided by the GRC information system either recorded as an action for which someone is answerable or recorded as the lack of a record of such action. It is an attribute of the system, not of the risks.
+*Enterprise risk management* (ERM) is the systematic framework an enterprise uses to identify, assess, manage and monitor its risks. A GRC information system integrates all the activities of ERM and documents them (Racz et al., 2010). Documentation of this risk management process is crucial because it assures boards, auditors and regulators that the risks are being properly managed. *Assurance integrity* is an attribute of the GRC information system that makes every assurance item provided by the GRC information system either recorded as an action for which someone is answerable or recorded as the lack of a record of such action. It is an attribute of the system's design, not of the risks.
 
 ### 2.2 Review of Previous Studies
 
@@ -41,7 +41,7 @@ The study links observed failure modes (RQ1), theory-grounded principles (RQ2), 
 
 ---
 
-**Word count:** ≈ 511 (budget 500–600).
+**Word count:** ≈ 515 (budget 500–600).
 
 ## References cited in this section (APA 7, checked against Crossref)
 

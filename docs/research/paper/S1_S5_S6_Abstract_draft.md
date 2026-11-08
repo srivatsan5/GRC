@@ -36,9 +36,9 @@ We treat the integrity of assurance evidence as something a GRC system's design 
 
 The risk registers, the risk map, the assessments and the audit trails are normally kept in governance, risk and compliance (GRC) information systems. Boards, auditors and regulators treat this as evidence of risk management (Power, 1997). The evidence is only as good as the record behind it.
 
-We started the research with an audit of the code and run-time behaviour of a GRC application documented as ready for deployment. The application displayed assurance with nothing behind it. Unrated risks received scores computed from the related record's identifier or a default loss value. Any further save reverted a signed-off assessment to draft status. The claimed immutable audit trail was stored in the browser, where any user could tamper with it. When a write failed, the user was told that everything was all right. Design choices turned the system into a source of risk rather than an instrument for mitigating it.
+We started the research with an audit of the code and run-time behaviour of a GRC application documented as ready for deployment. The application displayed assurance with nothing behind it. Unrated risks received scores computed from the related record's identifier or a default loss value. Any further save reverted a signed-off assessment to draft status. The claimed immutable audit trail was stored in the browser, where any user could tamper with it. When a write attempt failed, the user was informed that everything was fine. The decisions of design converted the system from a tool that would help to reduce the risk into a source of such risk itself.
 
-In the literature our review reached, we found none covering the issue. GRC information systems literature studies reasons for introducing the systems and the advantages they provide to organisations (Papazafeiropoulou & Spanaki, 2016; Racz et al., 2010). Enterprise risk management (ERM) literature states that assurance can become a ritual activity (Power, 2009). Security literature suggests suitable solutions, but only for the general case (Clark & Wilson, 1987; Saltzer & Schroeder, 1975). We found no research relating design mistakes in application software to corrupted assurance information, or verifying design ideas in practice.
+There were no studies on this topic in the literature we have reviewed. The literature on GRC information systems examines the reasons for implementing the systems and benefits from using them (Papazafeiropoulou & Spanaki, 2016; Racz et al., 2010). The literature on ERM says that assurance could be a ritual process (Power, 2009). The literature on security provides appropriate solutions but just for the general case (Clark & Wilson, 1987; Saltzer & Schroeder, 1975). We could not find any research on the relation between the design errors in application software and the compromised assurance information.
 
 We therefore ask which design failures in a GRC information system compromise the integrity of its assurance evidence (RQ1); which theory-grounded design principles address them (RQ2); and to what extent an instantiation of these principles prevents the failures compared with the original system (RQ3). Our design science research approach yields a failure taxonomy, seven principles and a new artifact, ERMA-GRC, tested through time-stamped scenarios. The remaining sections cover literature, method, results, implications and limitations.
 
@@ -76,6 +76,6 @@ This study asked how a GRC system's design can corrupt its assurance evidence, a
 | Abstract: Findings | 161 | 150–175 |
 | Abstract: Originality | 100 | 75–100 |
 | Abstract total | 490 | ≤ 500 |
-| §1 Introduction | 314 | 300–400 |
+| §1 Introduction | 325 | 300–400 |
 | §5 Implications | 153 | 150–200 |
 | §6 Conclusion | 200 | 200–250 |

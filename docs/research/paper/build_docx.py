@@ -46,6 +46,23 @@ def fresh(template):
     for el in list(body):
         if el.tag != qn('w:sectPr'):
             body.remove(el)
+    # Make Times New Roman the document default, so text without explicit formatting
+    # (page-number fields, empty spacer lines) does not fall back to the theme font.
+    rpr = d.styles.element.find(qn('w:docDefaults')).find(qn('w:rPrDefault')).find(qn('w:rPr'))
+    rf = rpr.find(qn('w:rFonts'))
+    if rf is None:
+        rf = OxmlElement('w:rFonts'); rpr.insert(0, rf)
+    for a in list(rf.attrib):
+        del rf.attrib[a]
+    for a in ('w:ascii', 'w:hAnsi', 'w:eastAsia', 'w:cs'):
+        rf.set(qn(a), FONT)
+    for name in ('Normal', 'Footer', 'Header'):
+        try:
+            st = d.styles[name]
+            st.font.name = FONT
+            st.element.get_or_add_rPr().get_or_add_rFonts().set(qn('w:eastAsia'), FONT)
+        except KeyError:
+            pass
     return d
 
 
@@ -157,8 +174,9 @@ def page_numbers(d):
         p = f.paragraphs[0] if f.paragraphs else f.add_paragraph()
         p.text = ''
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = p.add_run(); r.font.name = FONT; r.font.size = Pt(11)
+        # One run per field part, each formatted, so every renderer shows the number in Times New Roman.
         for tag, attr in (('w:fldChar', 'begin'), ('w:instrText', None), ('w:fldChar', 'separate'), ('w:t', None), ('w:fldChar', 'end')):
+            r = p.add_run(); r.font.name = FONT; r.font.size = Pt(11)
             el = OxmlElement(tag)
             if tag == 'w:fldChar':
                 el.set(qn('w:fldCharType'), attr)

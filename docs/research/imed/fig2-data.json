@@ -1,0 +1,13 @@
+{
+  "_source": "Incident catalogue coded from the session log (/tmp scratchpad imed_evidence_transcript.md, items 1-45; items 9, 38, 40, 43, 44, 45 and 12a excluded as not AI-originated errors). Numbers are incident ids in that catalogue.",
+  "types": ["Code or data defect", "Stale environment", "Factual error or overclaim in text", "Unsafe action", "Output not as requested"],
+  "type_short": ["Code/data", "Stale env.", "Text claim", "Unsafe", "Not as asked"],
+  "detectors": ["Automated tests and build", "Assistant's own checks", "Evaluation runs and pilots", "Separate AI reviewers (build)", "Separate AI reviewer (Gate 7)", "Environment controls", "Authors", "Not caught before submission"],
+  "incidents": {
+    "Code or data defect": {"Automated tests and build": [1, 4, 8], "Separate AI reviewers (build)": [2, 5, 6, 7], "Assistant's own checks": [10, 11, 18], "Authors": [14], "Evaluation runs and pilots": [17]},
+    "Stale environment": {"Assistant's own checks": [3]},
+    "Factual error or overclaim in text": {"Assistant's own checks": [16, 41], "Evaluation runs and pilots": [19], "Separate AI reviewer (Gate 7)": [20, 21, 22, 23, 24, 25, 26, 27, 28], "Not caught before submission": [39]},
+    "Unsafe action": {"Environment controls": [15, 29, 30], "Not caught before submission": [13]},
+    "Output not as requested": {"Authors": [12, 31, 32, 33, 34, 35, 36, 42]}
+  }
+}

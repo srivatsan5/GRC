@@ -1,6 +1,6 @@
 # IMED-2027 paper: evidence summary and outline (Gate 1)
 
-*Status: for author approval. Counts marked ⟨log⟩ are filled from the session-log analysis.*
+*Status: for author approval. Session-log counts come from a scan of the full working log (1–24 November 2026, 8,896 records). No secrets or personal details are reproduced.*
 
 **Conference:** IMED-2027 (Kuala Lumpur, 25–26 January 2027), **Track 1: Artificial Intelligence, Machine Learning & Intelligent Systems** (topic: *Human-AI Collaboration and Responsible AI*).
 **Deadline:** 30 November 2026 (CMT). **Format:** IEEE conference, two columns, Times New Roman 10 pt, at most 8 pages, IEEE reference style. Double-blind review: an anonymous copy for CMT and a named copy for the final version.
@@ -33,7 +33,7 @@ The LEAD paper is cited in anonymised form ("under review"). No text or tables a
 
 ### 4.1 Project record (git)
 - 85 commits in total. **14** by the student team (19–20 March and 31 October 2026), the pre-study system. **71** made with the assistant between 1 and 16 November 2026, each carrying a co-author trailer.
-- Active days with the assistant: 1, 2, 3, 6, 7, 8, 9 and 16 November (8 days).
+- Active days with the assistant: 1, 2, 3, 6, 7, 8, 9 and 16 November (8 days with commits; the log shows 10 days of activity up to 24 November). Models: Claude Opus 5.5 throughout, plus Claude Sonnet 5.5 for 12 turns on 2 November.
 - Stages, in order:
   - audit report (1 Nov);
   - Phases 0–4 rebuild: secrets locked down, authenticated API, real data, new design, production engineering (1 Nov);
@@ -53,7 +53,7 @@ The LEAD paper is cited in anonymised form ("under review"). No text or tables a
 
 ### 4.3 Where it went wrong, and what caught it (RQ2)
 - **Evaluation contradicted the audit.** Three audit claims did not reproduce when tested (S1.2, S1.3, S1.4). Example: fake audit entries existed in the code but never appeared on a fresh installation. *Detector:* the time-stamped evaluation.
-- **Independent reviews of AI-written code.** These ran three times, after Phases 0/1, 2 and 3, with **35 findings fixed** in total. Who performed the reviews is ⟨log⟩.
+- **Independent reviews of AI-written code.** These ran three times, after Phases 0/1, 2 and 3, with **35 findings fixed** in total. All three were separate AI reviewer agents with no part in the drafting, not people.
   - **Phase 0/1 (15 fixes):** approval state kept after a non-approver edit; a lockout race under parallel wrong passwords; an unkeyed, recomputable audit hash chain; columns blanked on update; and others.
   - **Phase 2 (11 findings):** a Risk Manager could approve a risk they created; dates shown a day early west of UTC; a seed row broke a CHECK constraint; and others.
   - **Phase 3 (9 behaviour bugs).**
@@ -71,7 +71,33 @@ The LEAD paper is cited in anonymised form ("under review"). No text or tables a
 - **Environment guardrails.** A destructive `rm` was blocked by a safety check. A font install that would have accepted a licence on the user's behalf was refused. *Detector:* the environment.
 - **Human review by the authors.** The authors asked for a better title, clearer figures, figures that did not look machine-made, word counts within limits and closer template compliance. *Detector:* the user.
 - **Pre-delivery self-audits.** These caught an ambiguous pronoun in §6, the wrong font on page numbers in the PDF, and word counts over the limit. *Detector:* the assistant's own verification step.
-- ⟨log⟩ Full catalogue with counts by detector.
+- **Full catalogue.** The log contains **38 AI-originated incidents** (Fig. 2). By error type:
+  - 12 code or data defects;
+  - 1 stale environment;
+  - 13 factual errors or overclaims in text;
+  - 4 unsafe actions;
+  - 8 outputs that were not what had been asked for.
+
+  By what caught them:
+  - automated tests and build: 3;
+  - the assistant's own checks: 6;
+  - evaluation runs and pilots: 2;
+  - separate AI reviewers during the build: 4;
+  - the separate AI reviewer at Gate 7: 9;
+  - environment controls: 3;
+  - the authors: 9;
+  - **not caught before submission: 2.**
+- **The two not caught before submission:**
+  - a signing key and an admin password were written into the chat;
+  - the assistant's own rewrite of the LEAD abstract reintroduced an overstatement that the Gate 7 review had removed. A later evidence review found it, and it is now corrected in the source.
+- **Unsafe attempts stopped by the environment:**
+  - a retry that disguised the client as a browser to fetch a site that blocks automated access ("bot-check circumvention");
+  - a font install that would have accepted a licence on the user's behalf;
+  - a cleanup command with an unset variable.
+- **Human oversight in numbers:**
+  - 122 messages from the authors and 11 explicit approvals;
+  - Gates 4 and 5 (method, structure and protocol) were approved **53 seconds** after delivery;
+  - the protocol was committed about a minute before that approval, although still before any scenario ran.
 
 ### 4.4 Before and after: claims versus evidence
 The team's August 2026 design paper (rejected, unpublished) presented features as strengths that the audit and evaluation later showed to be failures:
@@ -93,7 +119,7 @@ This is used as evidence that confident claims, from people or from AI, need exe
   - the independent review reports;
   - the session log.
 - **Coding scheme:** each incident is coded by task stage, error type (fabrication or overclaim, incorrect behaviour, unsafe action, scope or format) and detector (tests or evaluation, independent review, environment, human, self-check).
-- **Validity:** the authors study their own project, and the assistant helped code the incidents. All codes were checked by the authors against the cited record. This is disclosed.
+- **Validity:** the authors study their own project, and the assistant (a separate instance) extracted and coded the incidents. Each incident cites a log line or commit, and the authors check every code. This is disclosed.
 
 ## 6. Structure (target 6–7 pages)
 
@@ -127,6 +153,10 @@ This is used as evidence that confident claims, from people or from AI, need exe
 ## 8. References verified with Crossref (17 so far)
 Runeson & Höst 2009; Ziegler et al. 2024; Pearce et al. 2022; Perry et al. 2023; Vaithilingam et al. 2022; Barke et al. 2023; Ji et al. 2023; Parasuraman & Riley 1997; Lee & See 2004; Amershi et al. 2019; Shneiderman 2020; Fan et al. 2023; Hou et al. 2024; Liang et al. 2024; Nosek et al. 2018; Moradi Dakhel et al. 2023; Goddard et al. 2012.
 
-## 9. Left out by default (author decision)
+## 9. Author decisions needed
+- **Quick gate approvals.** Report that Gates 4 and 5 were approved in 53 seconds? It is a genuine finding: human gates can become rubber stamps. *Recommended: include.*
+- **Secrets in chat.** Report that a key and a password were written into the chat? *Recommended: include, without the values, and rotate both.*
+
+## 10. Left out by default (author decision)
 - The external paraphrasing tool used against the AI detector, and the errors it introduced. Including it is possible but would describe the authors' own submission process.
 - Any secret, credential or personal detail from the session log.

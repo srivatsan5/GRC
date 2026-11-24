@@ -22,7 +22,7 @@ const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
 // ------------------------------------------------------------ Fig. 1: commits per active day, with stages
 function figure1() {
   // Commits made with the assistant, read from git (author "Claude", 1–16 Nov 2026)
-  const raw = execSync(`git -C "${ROOT}" log --author=Claude --format=%ad --date=short`).toString().trim().split('\n')
+  const raw = execSync(`git -C "${ROOT}" log --author=Claude --until=2026-11-17 --format=%ad --date=short`).toString().trim().split('\n')
   const perDay = {}
   raw.forEach(d => { perDay[d] = (perDay[d] || 0) + 1 })
   const days = Object.keys(perDay).sort()
